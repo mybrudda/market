@@ -1,146 +1,16 @@
-import React, { useEffect, useState, useCallback } from "react";
-import {
-  FlatList,
-  StyleSheet,
-  View,
-  Platform,
-  UIManager,
-  TouchableOpacity,
-} from "react-native";
-import {
-  ActivityIndicator,
-  useTheme,
-  Text,
-  IconButton,
-  Button,
-  Divider,
-} from "react-native-paper";
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { useTheme, Text, IconButton, Button, Divider } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import LoadingScreen from "../../../components/LoadingScreen";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { useThemeStore } from "../../../store/useThemeStore";
-import { supabase } from "../../../supabaseClient";
-import PostCard from "../../../components/PostCard";
-import { Post } from "../../../types/post";
-
-// Constants
-const POSTS_PER_PAGE = 10;
-
-// Enable Layout Animation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import LoadingScreen from "../../../components/LoadingScreen";
 
 export default function ProfileScreen() {
-  const [userPosts, setUserPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
   const theme = useTheme();
   const { user, signOut } = useAuthStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
-
-  const fetchUserPosts = useCallback(async (start = 0, isRefresh = false) => {
-    if (!user) return;
-
-    try {
-      // First check if we're trying to fetch beyond available posts
-      if (start >= totalCount && totalCount > 0) {
-        setHasMore(false);
-        return;
-      }
-
-      const { data, error, count } = await supabase
-        .from("posts")
-        .select(`
-          *,
-          user:user_id (
-            id,
-            username,
-            full_name,
-            avatar_url,
-            email,
-            user_type,
-            is_verified
-          )
-        `, { count: 'exact' })
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .range(start, start + POSTS_PER_PAGE - 1);
-
-      if (error) throw error;
-
-      const total = count || 0;
-      setTotalCount(total);
-
-      // Debug logging in development
-      if (__DEV__) {
-        console.log({
-          totalPosts: total,
-          currentPage: page + 1,
-          fetchedPosts: data?.length,
-          totalLoaded: isRefresh ? data?.length : userPosts.length + (data?.length || 0),
-          start,
-        });
-      }
-
-      // Check if there are more posts to load
-      const hasMorePosts = start + POSTS_PER_PAGE < total;
-      setHasMore(hasMorePosts);
-      
-      // Update posts state
-      setUserPosts(prevPosts => isRefresh ? (data || []) : [...prevPosts, ...(data || [])]);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      setHasMore(false);
-    }
-  }, [user, page, userPosts.length, totalCount]);
-
-  // Initial data fetch
-  useEffect(() => {
-    if (user) {
-      setLoading(true);
-      fetchUserPosts(0, true).finally(() => setLoading(false));
-    }
-  }, [user, fetchUserPosts]);
-
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    setPage(0);
-    await fetchUserPosts(0, true);
-    setRefreshing(false);
-  }, [fetchUserPosts, refreshing]);
-
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-    
-    const nextStart = page * POSTS_PER_PAGE + POSTS_PER_PAGE;
-    
-    // Check if we've reached the end
-    if (nextStart >= totalCount) {
-      setHasMore(false);
-      return;
-    }
-    
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    setPage(nextPage);
-    await fetchUserPosts(nextStart);
-    setLoadingMore(false);
-  }, [loadingMore, hasMore, page, totalCount, fetchUserPosts]);
-
-  const toggleSettingsPanel = () => {
-    setShowSettings(!showSettings);
-  };
 
   const handleSignOut = async () => {
     try {
@@ -151,34 +21,42 @@ export default function ProfileScreen() {
     }
   };
 
-  const Header = useCallback(() => (
-    <View style={[styles.fixedHeader, { backgroundColor: theme.colors.surface }]}>
-      <View style={styles.headerTop}>
-        <View style={styles.logoContainer}>
-          <MaterialCommunityIcons
-            name="account"
-            size={28}
-            color={theme.colors.primary}
-          />
-          <Text variant="titleLarge" style={{ marginLeft: 8 }}>
-            Profile
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <IconButton
-            icon={isDarkMode ? "weather-sunny" : "weather-night"}
-            onPress={toggleTheme}
-            accessibilityLabel="Toggle Theme"
-          />
-          <IconButton
-            icon="logout"
-            onPress={handleSignOut}
-            accessibilityLabel="Logout"
-          />
+  if (!user) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.headerTop}>
+          <View style={styles.logoContainer}>
+            <MaterialCommunityIcons
+              name="account"
+              size={28}
+              color={theme.colors.primary}
+            />
+            <Text variant="titleLarge" style={{ marginLeft: 8 }}>
+              Profile
+            </Text>
+          </View>
+          <View style={styles.headerActions}>
+            <IconButton
+              icon={isDarkMode ? "weather-sunny" : "weather-night"}
+              onPress={toggleTheme}
+              accessibilityLabel="Toggle Theme"
+            />
+            <IconButton
+              icon="logout"
+              onPress={handleSignOut}
+              accessibilityLabel="Logout"
+            />
+          </View>
         </View>
       </View>
-      <Divider />
-      <View style={styles.profileInfo}>
+
+      {/* Profile Info */}
+      <View style={[styles.profileInfo, { backgroundColor: theme.colors.surface }]}>
         <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
           {user?.email}
         </Text>
@@ -186,57 +64,58 @@ export default function ProfileScreen() {
           variant="bodyMedium"
           style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
         >
-          Posts: {userPosts.length}
+          {user?.user_metadata?.full_name || 'User'}
         </Text>
       </View>
-    </View>
-  ), [theme.colors, user?.email, userPosts.length, isDarkMode, toggleTheme]);
 
-  const ListEmptyComponent = useCallback(
-    () => (
-      <View style={styles.emptyContainer}>
-        <MaterialCommunityIcons
-          name="post-outline"
-          size={48}
-          color={theme.colors.onSurfaceVariant}
-        />
-        <Text
-          variant="bodyLarge"
-          style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}
+      {/* Navigation Options */}
+      <View style={[styles.navigationContainer, { backgroundColor: theme.colors.surface }]}>
+        <Button
+          mode="text"
+          onPress={() => router.push("/(tabs)/profile/my-posts" as any)}
+          contentStyle={styles.buttonContent}
+          style={styles.navigationButton}
+          labelStyle={styles.buttonLabel}
         >
-          {loading ? "Loading posts..." : "No posts yet"}
-        </Text>
-      </View>
-    ),
-    [theme.colors.onSurfaceVariant, loading]
-  );
-
-  if (!user) {
-    return <LoadingScreen />;
-  }
-
-  return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Header />
-      <FlatList
-        data={userPosts}
-        renderItem={({ item }) => <PostCard post={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={ListEmptyComponent}
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" />
-              <Text style={styles.loadingMoreText}>Loading more posts...</Text>
+          <View style={styles.buttonInner}>
+            <View style={styles.buttonLeftContent}>
+              <MaterialCommunityIcons name="post" size={28} color={theme.colors.primary} />
+              <Text variant="bodyLarge" style={styles.buttonText}>My Posts</Text>
             </View>
-          ) : null
-        }
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-      />
+            <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+          </View>
+        </Button>
+        <Divider />
+        <Button
+          mode="text"
+          onPress={() => router.push("/(tabs)/profile/saved-posts" as any)}
+          contentStyle={styles.buttonContent}
+          style={styles.navigationButton}
+        >
+          <View style={styles.buttonInner}>
+            <View style={styles.buttonLeftContent}>
+              <MaterialCommunityIcons name="bookmark" size={28} color={theme.colors.primary} />
+              <Text variant="bodyLarge" style={styles.buttonText}>Saved Posts</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+          </View>
+        </Button>
+        <Divider />
+        <Button
+          mode="text"
+          onPress={() => router.push("/(tabs)/profile/contact-support" as any)}
+          contentStyle={styles.buttonContent}
+          style={styles.navigationButton}
+        >
+          <View style={styles.buttonInner}>
+            <View style={styles.buttonLeftContent}>
+              <MaterialCommunityIcons name="headset" size={28} color={theme.colors.primary} />
+              <Text variant="bodyLarge" style={styles.buttonText}>Contact Support</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+          </View>
+        </Button>
+      </View>
     </View>
   );
 }
@@ -245,73 +124,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  centerContent: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fixedHeader: {
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 1,
+  header: {
+    padding: 16,
+    elevation: 2,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  profileInfo: {
-    padding: 16,
-  },
-  listContainer: {
-    padding: 16,
-  },
-  emptyListContainer: {
-    flexGrow: 1,
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 32,
+  headerActions: {
+    flexDirection: "row",
   },
-  emptyText: {
+  profileInfo: {
+    padding: 16,
     marginTop: 16,
-    textAlign: "center",
   },
-  footerLoader: {
-    paddingVertical: 16,
-    alignItems: 'center',
+  navigationContainer: {
+    marginTop: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginHorizontal: 16,
+  },
+  navigationButton: {
+    height: 70,
+    marginHorizontal: 0,
+    borderRadius: 0,
+  },
+  buttonContent: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  loadingMoreText: {
-    color: '#666',
-  },
-  endOfListContainer: {
-    paddingVertical: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    marginTop: 16,
+    paddingHorizontal: 24,
+    height: '100%',
   },
-  endOfListText: {
+  buttonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flex: 1,
+    paddingVertical: 8,
+  },
+  buttonLeftContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  buttonText: {
+    marginLeft: 16,
     fontSize: 16,
-    fontWeight: '600',
-    marginTop: 8,
+    fontWeight: '500',
+  },
+  buttonLabel: {
+    fontSize: 16,
+    marginLeft: 12,
   },
 });

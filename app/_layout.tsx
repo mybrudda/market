@@ -10,6 +10,7 @@ import SafeScreen from "@/components/SafeScreen";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from '../components/AuthProvider';
 import { getTheme } from '../constants/theme';
+import { View } from "react-native";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -54,18 +55,23 @@ function RootLayoutNav() {
 
   return (
     <SafeAreaProvider>
-      <SafeScreen>
-        <PaperProvider theme={paperTheme}>
-          <AuthProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="register" />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </AuthProvider>
-        </PaperProvider>
-      </SafeScreen>
-      <StatusBar style={isDarkMode ? "light" : "dark"} />
+      <View style={{ flex: 1, backgroundColor: paperTheme.colors.background }}>
+        <StatusBar 
+          style={isDarkMode ? "light" : "dark"}
+          translucent={true}
+        />
+        <SafeScreen>
+          <PaperProvider theme={paperTheme}>
+            <AuthProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="register" />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+            </AuthProvider>
+          </PaperProvider>
+        </SafeScreen>
+      </View>
     </SafeAreaProvider>
   );
 }

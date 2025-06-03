@@ -18,7 +18,6 @@ export default function SafeScreen({ children, style }: SafeScreenProps) {
         styles.container, 
         { 
           paddingTop: insets.top,
-          backgroundColor: theme.colors.surfaceVariant 
         },
         style
       ]}

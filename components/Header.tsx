@@ -55,7 +55,7 @@ export default function Header({ title, onBackPress, rightElement }: HeaderProps
 
 const styles = StyleSheet.create({
   container: {
-    height: 56,
+    height: 40,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
@@ -72,8 +72,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   backButton: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -82,8 +82,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   rightContainer: {
-    minWidth: 48,
-    height: 48,
+    minWidth: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },

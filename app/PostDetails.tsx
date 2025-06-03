@@ -89,10 +89,8 @@ export default function PostDetails() {
 
   useEffect(() => {
     if (params.post) {
-      console.log('Raw route params:', params.post);
       try {
         const postData = JSON.parse(params.post as string) as Post;
-        console.log('Parsed post data:', postData);
         setPost(postData);
         setLoading(false);
       } catch (error) {

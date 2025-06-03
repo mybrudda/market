@@ -224,7 +224,7 @@ export default function CreateRealEstatePost() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.secondaryContainer }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="Create Real Estate Post" />
 
       <ScrollView 

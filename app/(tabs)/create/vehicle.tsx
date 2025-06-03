@@ -232,7 +232,7 @@ export default function CreateVehiclePost() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.secondaryContainer }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="Create Vehicle Post" />
 
       {/* Scrollable Content */}

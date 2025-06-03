@@ -4,11 +4,11 @@ export const lightTheme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    background: '#ECECEC', // Darker than F5F5F5
+    background: '#F5F5F5', // Slightly darker than pure white
     surface: '#FFFFFF',
     elevation: {
       ...MD3LightTheme.colors.elevation,
-      level0: '#ECECEC',
+      level0: '#F5F5F5',
     }
   }
 };
@@ -17,11 +17,14 @@ export const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    background: '#333333', // Much lighter dark background
-    surface: '#454545', // Lighter surface to match
+    background: '#1A1A1A', // Darker background
+    surface: '#242424', // Slightly lighter than background
     elevation: {
       ...MD3DarkTheme.colors.elevation,
-      level0: '#333333',
+      level0: '#1A1A1A',
+      level1: '#242424',
+      level2: '#2A2A2A',
+      level3: '#303030',
     }
   }
 };

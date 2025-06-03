@@ -225,7 +225,6 @@ export default function PostCard({ post }: PostCardProps) {
               {formatPrice(post.price, post.currency)}
             </Text>
             <Chip 
-              icon={post.post_type === 'vehicle' ? 'car' : 'home'} 
               mode="flat" 
               style={{ backgroundColor: theme.colors.primaryContainer }}
             >
