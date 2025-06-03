@@ -1,21 +1,24 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/components/useColorScheme';
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { PaperProvider } from "react-native-paper";
+import { useThemeStore } from "../store/useThemeStore";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import SafeScreen from "@/components/SafeScreen";
+import { StatusBar } from "expo-status-bar";
+import { AuthProvider } from '../components/AuthProvider';
+import { getTheme } from '../constants/theme';
 
 export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
-} from 'expo-router';
+} from "expo-router";
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: "(tabs)",
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -23,7 +26,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,
   });
 
@@ -46,14 +49,23 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const paperTheme = getTheme(isDarkMode);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <SafeScreen>
+        <PaperProvider theme={paperTheme}>
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="register" />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </AuthProvider>
+        </PaperProvider>
+      </SafeScreen>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
+    </SafeAreaProvider>
   );
 }
