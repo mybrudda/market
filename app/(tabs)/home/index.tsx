@@ -1,4 +1,4 @@
-import { View, FlatList, StyleSheet, RefreshControl, ListRenderItem } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, ListRenderItem, Pressable } from 'react-native';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Text, useTheme, ActivityIndicator, Button } from 'react-native-paper';
 import { supabase } from '../../../supabaseClient';
@@ -93,7 +93,7 @@ export default function Home() {
           if (activeFilters.fuelType) {
             query = query.eq('details->>fuel_type', activeFilters.fuelType);
           }
-          if (activeFilters.transmission) {
+          if (activeFilters.transmission === 'Manual' || activeFilters.transmission === 'Automatic') {
             query = query.eq('details->>transmission', activeFilters.transmission);
           }
           if (activeFilters.yearRange.min && activeFilters.yearRange.max) {
@@ -112,8 +112,9 @@ export default function Home() {
             query = query.lte('details->size->>value', parseFloat(activeFilters.size.max));
           }
           if (activeFilters.features.length > 0) {
-            // For array containment in JSONB, we need to use ?& operator
-            query = query.contains('details->features', activeFilters.features);
+            // Format the features array as a proper JSON array string
+            const featuresArray = JSON.stringify(activeFilters.features);
+            query = query.contains('details->features', featuresArray);
           }
         }
       }
@@ -164,19 +165,153 @@ export default function Home() {
   }, [fetchPosts]);
 
   // Handle filters
-  const handleFilter = useCallback((filters: FilterOptions) => {
+  const handleFilter = useCallback(async (filters: FilterOptions) => {
+    console.log('=== Filter Button Pressed ===');
+    console.log('Starting filter operation with:', filters);
+    
+    // Update filter state
     setActiveFilters(filters);
     setPage(0);
     setHasMore(true);
+    
+    // Clear existing posts before fetching
+    setPosts([]);
     setLoading(true);
-    fetchPosts(0, true).finally(() => setLoading(false));
-  }, [fetchPosts]);
+    
+    try {
+      console.log('Building query with filters...');
+      // Build query
+      let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            email,
+            user_type,
+            is_verified
+          )
+        `, { count: 'exact' });
+
+      // Apply filters
+      if (filters) {
+        // Post type filter
+        query = query.eq('post_type', filters.postType);
+        
+        // Listing type filter
+        query = query.eq('listing_type', filters.listingType);
+        
+        // Location filter
+        if (filters.city) {
+          query = query.eq('location->>city', filters.city);
+        }
+        
+        // Category filter
+        if (filters.category) {
+          query = query.eq('category', filters.category);
+        }
+        
+        // Price range filter
+        if (filters.priceRange.min) {
+          query = query.gte('price', parseFloat(filters.priceRange.min));
+        }
+        if (filters.priceRange.max) {
+          query = query.lte('price', parseFloat(filters.priceRange.max));
+        }
+
+        // Vehicle-specific filters
+        if (filters.postType === 'vehicle') {
+          if (filters.make) {
+            query = query.eq('details->>make', filters.make);
+          }
+          if (filters.model) {
+            query = query.ilike('details->>model', `%${filters.model}%`);
+          }
+          if (filters.fuelType) {
+            query = query.eq('details->>fuel_type', filters.fuelType);
+          }
+          if (filters.transmission === 'Manual' || filters.transmission === 'Automatic') {
+            query = query.eq('details->>transmission', filters.transmission);
+          }
+          if (filters.yearRange.min && filters.yearRange.max) {
+            query = query
+              .gte('details->>year', filters.yearRange.min.toString())
+              .lte('details->>year', filters.yearRange.max.toString());
+          }
+        }
+
+        // Real estate-specific filters
+        if (filters.postType === 'realestate') {
+          if (filters.size?.min) {
+            query = query.gte('details->size->>value', parseFloat(filters.size.min));
+          }
+          if (filters.size?.max) {
+            query = query.lte('details->size->>value', parseFloat(filters.size.max));
+          }
+          if (filters.features.length > 0) {
+            // Format the features array as a proper JSON array string
+            const featuresArray = JSON.stringify(filters.features);
+            query = query.contains('details->features', featuresArray);
+          }
+        }
+      }
+
+      console.log('Executing query...');
+      // Execute query
+      const { data, error: supabaseError, count } = await query
+        .order('created_at', { ascending: false })
+        .range(0, POSTS_PER_PAGE - 1);
+
+      if (supabaseError) {
+        throw new Error(supabaseError.message);
+      }
+
+      console.log(`Query completed. Found ${count} total posts, fetched ${data?.length} posts`);
+
+      const total = count || 0;
+      setTotalCount(total);
+      setHasMore(POSTS_PER_PAGE < total);
+      setPosts(data || []);
+      
+    } catch (err) {
+      console.error('Error in filter operation:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
+    } finally {
+      setLoading(false);
+      console.log('=== Filter Operation Complete ===');
+    }
+  }, []);
 
   // Initial load
   useEffect(() => {
-    setLoading(true);
-    fetchPosts(0, true).finally(() => setLoading(false));
-  }, [fetchPosts]);
+    const initialFilters: FilterOptions = {
+      postType: 'vehicle',
+      listingType: 'sale',
+      city: null,
+      category: null,
+      make: null,
+      model: '',
+      fuelType: null,
+      transmission: '',
+      yearRange: {
+        min: 0,
+        max: 0
+      },
+      priceRange: {
+        min: '',
+        max: ''
+      },
+      features: [],
+      size: {
+        min: '',
+        max: ''
+      }
+    };
+    handleFilter(initialFilters);
+  }, [handleFilter]);
 
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
@@ -206,6 +341,63 @@ export default function Home() {
     setLoadingMore(false);
   }, [loadingMore, hasMore, page, totalCount, fetchPosts]);
 
+  // Add reset function
+  const handleReset = useCallback(async () => {
+    console.log('=== Logo Reset Pressed ===');
+    console.log('Clearing filters and search...');
+    
+    // Clear filters and search first
+    setSearchQuery('');
+    setActiveFilters(null);
+    setPage(0);
+    setHasMore(true);
+    
+    // Clear existing posts before fetching
+    setPosts([]);
+    setLoading(true);
+    
+    try {
+      console.log('Building initial query...');
+      // Fetch initial posts
+      const query = supabase
+        .from('posts')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            email,
+            user_type,
+            is_verified
+          )
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(0, POSTS_PER_PAGE - 1);
+
+      console.log('Executing query...');
+      const { data, error: supabaseError, count } = await query;
+
+      if (supabaseError) {
+        throw new Error(supabaseError.message);
+      }
+
+      console.log(`Query completed. Found ${count} total posts, fetched ${data?.length} posts`);
+
+      const total = count || 0;
+      setTotalCount(total);
+      setPosts(data || []);
+      setHasMore(total > POSTS_PER_PAGE);
+    } catch (err) {
+      console.error('Error in reset operation:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
+    } finally {
+      setLoading(false);
+      console.log('=== Reset Operation Complete ===');
+    }
+  }, []);
+
   // Memoized Components
   const ListHeaderComponent = useMemo(() => (
     <View style={styles.headerSpacer} />
@@ -213,11 +405,13 @@ export default function Home() {
 
   const ListEmptyComponent = useMemo(() => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons 
-        name="file-search-outline" 
-        size={48} 
-        color={theme.colors.onSurfaceVariant} 
-      />
+      <Pressable onPress={handleReset}>
+        <MaterialCommunityIcons 
+          name="shopping" 
+          size={48} 
+          color={theme.colors.onSurfaceVariant} 
+        />
+      </Pressable>
       <Text variant="titleMedium" style={styles.emptyText}>
         {loading ? "Loading posts..." : (searchQuery || activeFilters) ? "No posts found" : "No posts available"}
       </Text>
@@ -230,14 +424,14 @@ export default function Home() {
       {!searchQuery && !activeFilters && (
         <Button 
           mode="contained" 
-          onPress={() => router.push('/(tabs)/create/vehicle')}
+          onPress={() => router.replace('/(tabs)/create')}
           style={styles.emptyButton}
         >
           Create Post
         </Button>
       )}
     </View>
-  ), [theme.colors.onSurfaceVariant, loading, searchQuery, activeFilters]);
+  ), [theme.colors.onSurfaceVariant, loading, searchQuery, activeFilters, handleReset]);
 
   const ListFooterComponent = useCallback(() => {
     if (posts.length === 0) return null;
@@ -292,7 +486,11 @@ export default function Home() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <FilterSection onSearch={handleSearch} onFilter={handleFilter} />
+      <FilterSection 
+        onSearch={handleSearch} 
+        onFilter={handleFilter}
+        onLogoPress={handleReset}
+      />
       <FlatList
         data={posts}
         renderItem={renderItem}
@@ -314,7 +512,7 @@ export default function Home() {
       />
       <Button 
         mode="contained" 
-        onPress={() => router.push('/(tabs)/create/vehicle')}
+        onPress={() => router.push('/(tabs)/create')}
         style={styles.fab}
         icon="plus"
       >

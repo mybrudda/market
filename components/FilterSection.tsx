@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, Animated, Dimensions, Pressable } from 'react-native';
 import React, { useState, useRef, useCallback } from 'react';
 import { Text, Button, useTheme, Chip, TextInput, Divider, SegmentedButtons } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,9 +11,7 @@ import {
   MAKES,
   FUEL_TYPES,
   TRANSMISSIONS,
-  VEHICLE_CONDITION,
   PROPERTY_FEATURES,
-  REAL_ESTATE_CONDITION,
 } from '../constants/FormOptions';
 
 type PostType = 'vehicle' | 'realestate';
@@ -27,7 +25,7 @@ export interface FilterOptions {
   make: string | null;
   model: string;
   fuelType: string | null;
-  transmission: 'manual' | 'automatic' | '';
+  transmission: 'Manual' | 'Automatic' | '';
   yearRange: {
     min: number;
     max: number;
@@ -46,6 +44,7 @@ export interface FilterOptions {
 interface FilterSectionProps {
   onSearch?: (query: string) => void;
   onFilter?: (filters: FilterOptions) => void;
+  onLogoPress?: () => void;
 }
 
 const currentYear = new Date().getFullYear();
@@ -73,7 +72,7 @@ const initialFilters: FilterOptions = {
   },
 };
 
-export default function FilterSection({ onSearch, onFilter }: FilterSectionProps) {
+export default function FilterSection({ onSearch, onFilter, onLogoPress }: FilterSectionProps) {
   const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,7 +126,9 @@ export default function FilterSection({ onSearch, onFilter }: FilterSectionProps
   }, []);
 
   const handleApplyFilters = useCallback(() => {
-    onFilter?.(filters);
+    if (onFilter) {
+      onFilter(filters);
+    }
     setIsExpanded(false);
     
     // Animate the filter section closed
@@ -138,6 +139,13 @@ export default function FilterSection({ onSearch, onFilter }: FilterSectionProps
       tension: 40,
     }).start();
   }, [filters, onFilter, expandAnimation]);
+
+  const handleTransmissionChange = useCallback((value: string) => {
+    setFilters(prev => ({ 
+      ...prev, 
+      transmission: value as 'Manual' | 'Automatic' | '' 
+    }));
+  }, []);
 
   const toggleExpand = () => {
     const toValue = isExpanded ? 0 : 1;
@@ -471,10 +479,10 @@ export default function FilterSection({ onSearch, onFilter }: FilterSectionProps
           </Text>
           <SegmentedButtons
             value={filters.transmission}
-            onValueChange={value => setFilters(prev => ({ ...prev, transmission: value as 'manual' | 'automatic' }))}
+            onValueChange={value => handleTransmissionChange(value as 'Manual' | 'Automatic' | '')}
             buttons={[
-              { value: 'manual', label: 'Manual' },
-              { value: 'automatic', label: 'Automatic' },
+              { value: 'Manual', label: 'Manual' },
+              { value: 'Automatic', label: 'Automatic' },
             ]}
             style={styles.segmentedButton}
           />
@@ -588,12 +596,14 @@ export default function FilterSection({ onSearch, onFilter }: FilterSectionProps
           }
         ]}>
           {!isSearchFocused && (
-            <MaterialCommunityIcons
-              name="shopping"
-              size={24}
-              color={theme.colors.primary}
-              style={styles.logo}
-            />
+            <Pressable onPress={onLogoPress}>
+              <MaterialCommunityIcons
+                name="shopping"
+                size={24}
+                color={theme.colors.primary}
+                style={styles.logo}
+              />
+            </Pressable>
           )}
           <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
             <TextInput
@@ -610,7 +620,6 @@ export default function FilterSection({ onSearch, onFilter }: FilterSectionProps
                   size={14}
                   onPress={() => {
                     setSearchQuery('');
-                    onSearch?.('');
                   }}
                 />
               ) : null}
