@@ -19,37 +19,125 @@ import {
 type PostType = 'vehicle' | 'realestate';
 type ListingType = 'rent' | 'sale';
 
-interface FilterSectionProps {
-  onSearch?: (query: string) => void;
+export interface FilterOptions {
+  postType: PostType;
+  listingType: ListingType;
+  city: string | null;
+  category: string | null;
+  make: string | null;
+  model: string;
+  fuelType: string | null;
+  transmission: 'manual' | 'automatic' | '';
+  yearRange: {
+    min: number;
+    max: number;
+  };
+  priceRange: {
+    min: string;
+    max: string;
+  };
+  features: string[];
+  size?: {
+    min: string;
+    max: string;
+  };
 }
 
-export default function FilterSection({ onSearch }: FilterSectionProps) {
+interface FilterSectionProps {
+  onSearch?: (query: string) => void;
+  onFilter?: (filters: FilterOptions) => void;
+}
+
+const currentYear = new Date().getFullYear();
+const initialFilters: FilterOptions = {
+  postType: 'vehicle',
+  listingType: 'sale',
+  city: null,
+  category: null,
+  make: null,
+  model: '',
+  fuelType: null,
+  transmission: '',
+  yearRange: {
+    min: currentYear - 20,
+    max: currentYear,
+  },
+  priceRange: {
+    min: '',
+    max: '',
+  },
+  features: [],
+  size: {
+    min: '',
+    max: '',
+  },
+};
+
+export default function FilterSection({ onSearch, onFilter }: FilterSectionProps) {
   const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [postType, setPostType] = useState<PostType>('vehicle');
-  const [listingType, setListingType] = useState<ListingType>('sale');
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedMake, setSelectedMake] = useState<string | null>(null);
-  const [selectedFuelType, setSelectedFuelType] = useState<string | null>(null);
-  const [transmission, setTransmission] = useState<'manual' | 'automatic' | ''>('');
-  const [model, setModel] = useState('');
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const expandAnimation = useRef(new Animated.Value(0)).current;
+  const searchWidthAnimation = useRef(new Animated.Value(0)).current;
   const { height: windowHeight } = Dimensions.get('window');
 
-  const currentYear = new Date().getFullYear();
-  const [lowYear, setLowYear] = useState(currentYear - 20);
-  const [highYear, setHighYear] = useState(currentYear);
-
   const handleYearChange = useCallback((low: number, high: number) => {
-    setLowYear(Math.floor(low));
-    setHighYear(Math.floor(high));
+    setFilters(prev => ({
+      ...prev,
+      yearRange: {
+        min: Math.floor(low),
+        max: Math.floor(high),
+      },
+    }));
   }, []);
 
-  const handleSearch = useCallback(() => {
-    onSearch?.(searchQuery);
-  }, [searchQuery, onSearch]);
+  const handlePriceChange = useCallback((field: 'min' | 'max', value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      priceRange: {
+        ...prev.priceRange,
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  const handleSizeChange = useCallback((field: 'min' | 'max', value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      size: {
+        ...prev.size!,
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  const toggleFeature = useCallback((feature: string) => {
+    setFilters(prev => ({
+      ...prev,
+      features: prev.features.includes(feature)
+        ? prev.features.filter(f => f !== feature)
+        : [...prev.features, feature],
+    }));
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters(initialFilters);
+  }, []);
+
+  const handleApplyFilters = useCallback(() => {
+    onFilter?.(filters);
+    setIsExpanded(false);
+    
+    // Animate the filter section closed
+    Animated.spring(expandAnimation, {
+      toValue: 0,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 40,
+    }).start();
+  }, [filters, onFilter, expandAnimation]);
 
   const toggleExpand = () => {
     const toValue = isExpanded ? 0 : 1;
@@ -71,6 +159,30 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
   const rotateIcon = expandAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
+  });
+
+  const animateSearchWidth = (focused: boolean) => {
+    Animated.spring(searchWidthAnimation, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 40,
+    }).start();
+  };
+
+  const handleSearchFocus = () => {
+    setIsSearchFocused(true);
+    animateSearchWidth(true);
+  };
+
+  const handleSearchBlur = () => {
+    setIsSearchFocused(false);
+    animateSearchWidth(false);
+  };
+
+  const searchContainerWidth = searchWidthAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['100%', '100%']
   });
 
   const citiesData = CITIES.map(city => ({ label: city, value: city }));
@@ -97,15 +209,25 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
       overflow: 'hidden',
     },
     header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 16,
       height: 64,
-      gap: 8,
+      paddingHorizontal: 16,
+    },
+    headerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: '100%',
+      gap: 12,
+    },
+    logo: {
+      marginRight: 4,
     },
     searchContainer: {
       flex: 1,
+    },
+    searchContainerFocused: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
     },
     searchInput: {
       backgroundColor: 'transparent',
@@ -203,6 +325,15 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
     transmissionLabel: {
       marginBottom: 8,
     },
+    filterActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 16,
+      gap: 12,
+    },
+    actionButton: {
+      flex: 1,
+    },
   });
 
   const renderCommonInputs = () => (
@@ -211,8 +342,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
       <View style={styles.section}>
         <Text variant="titleSmall">Listing Type</Text>
         <SegmentedButtons
-          value={listingType}
-          onValueChange={value => setListingType(value as ListingType)}
+          value={filters.listingType}
+          onValueChange={value => setFilters(prev => ({ ...prev, listingType: value as ListingType }))}
           buttons={[
             { value: 'sale', label: 'Sale' },
             { value: 'rent', label: 'Rent' },
@@ -227,8 +358,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
       <View style={styles.section}>
         <Text variant="titleSmall">Post Type</Text>
         <SegmentedButtons
-          value={postType}
-          onValueChange={value => setPostType(value as PostType)}
+          value={filters.postType}
+          onValueChange={value => setFilters(prev => ({ ...prev, postType: value as PostType }))}
           buttons={[
             { value: 'vehicle', label: 'Vehicle' },
             { value: 'realestate', label: 'Real Estate' },
@@ -244,8 +375,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
         <Text variant="titleSmall">Location</Text>
         <Dropdown
           data={citiesData}
-          value={selectedCity}
-          onChange={setSelectedCity}
+          value={filters.city}
+          onChange={value => setFilters(prev => ({ ...prev, city: value }))}
           placeholder="Select Location"
         />
       </View>
@@ -256,11 +387,39 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
       <View style={styles.section}>
         <Text variant="titleSmall">Category</Text>
         <Dropdown
-          data={postType === 'vehicle' ? vehicleCategoriesData : realEstateCategoriesData}
-          value={selectedCategory}
-          onChange={setSelectedCategory}
+          data={filters.postType === 'vehicle' ? vehicleCategoriesData : realEstateCategoriesData}
+          value={filters.category}
+          onChange={value => setFilters(prev => ({ ...prev, category: value }))}
           placeholder="Select Category"
         />
+      </View>
+
+      <Divider style={styles.divider} />
+
+      {/* Price Range */}
+      <View style={styles.section}>
+        <Text variant="titleSmall">Price Range</Text>
+        <View style={styles.row}>
+          <TextInput
+            mode="outlined"
+            label="Min"
+            value={filters.priceRange.min}
+            onChangeText={value => handlePriceChange('min', value)}
+            style={styles.input}
+            keyboardType="numeric"
+            dense
+          />
+          <Text style={styles.toText}>to</Text>
+          <TextInput
+            mode="outlined"
+            label="Max"
+            value={filters.priceRange.max}
+            onChangeText={value => handlePriceChange('max', value)}
+            style={styles.input}
+            keyboardType="numeric"
+            dense
+          />
+        </View>
       </View>
 
       <Divider style={styles.divider} />
@@ -275,15 +434,15 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
         <View style={styles.dropdownGroup}>
           <Dropdown
             data={makesData}
-            value={selectedMake}
-            onChange={setSelectedMake}
+            value={filters.make}
+            onChange={value => setFilters(prev => ({ ...prev, make: value }))}
             placeholder="Select Make"
           />
           <TextInput
             mode="outlined"
             label="Model"
-            value={model}
-            onChangeText={setModel}
+            value={filters.model}
+            onChangeText={value => setFilters(prev => ({ ...prev, model: value }))}
             style={styles.input}
             dense
           />
@@ -298,8 +457,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
         <View style={styles.dropdownGroup}>
           <Dropdown
             data={fuelTypesData}
-            value={selectedFuelType}
-            onChange={setSelectedFuelType}
+            value={filters.fuelType}
+            onChange={value => setFilters(prev => ({ ...prev, fuelType: value }))}
             placeholder="Select Fuel Type"
           />
         </View>
@@ -311,8 +470,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
             Transmission
           </Text>
           <SegmentedButtons
-            value={transmission}
-            onValueChange={value => setTransmission(value as 'manual' | 'automatic')}
+            value={filters.transmission}
+            onValueChange={value => setFilters(prev => ({ ...prev, transmission: value as 'manual' | 'automatic' }))}
             buttons={[
               { value: 'manual', label: 'Manual' },
               { value: 'automatic', label: 'Automatic' },
@@ -330,10 +489,10 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
         <View style={styles.yearContainer}>
           <View style={styles.yearLabels}>
             <Text style={[styles.yearText, { color: theme.colors.onSurfaceVariant }]}>
-              {lowYear}
+              {filters.yearRange.min}
             </Text>
             <Text style={[styles.yearText, { color: theme.colors.onSurfaceVariant }]}>
-              {highYear}
+              {filters.yearRange.max}
             </Text>
           </View>
           <View style={styles.sliderContainer}>
@@ -369,6 +528,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
           <TextInput
             mode="outlined"
             label="Min"
+            value={filters.size?.min}
+            onChangeText={value => handleSizeChange('min', value)}
             style={styles.input}
             keyboardType="numeric"
             dense
@@ -377,6 +538,8 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
           <TextInput
             mode="outlined"
             label="Max"
+            value={filters.size?.max}
+            onChangeText={value => handleSizeChange('max', value)}
             style={styles.input}
             keyboardType="numeric"
             dense
@@ -394,8 +557,9 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
             <Chip
               key={feature}
               mode="outlined"
+              selected={filters.features.includes(feature)}
               style={styles.chip}
-              onPress={() => {}}
+              onPress={() => toggleFeature(feature)}
             >
               {feature}
             </Chip>
@@ -417,79 +581,89 @@ export default function FilterSection({ onSearch }: FilterSectionProps) {
     >
       {/* Header Section */}
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <TextInput
-            mode="outlined"
-            placeholder="Search posts by title..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-            contentStyle={{ paddingLeft: 0 }}
-            left={<TextInput.Icon icon="magnify" size={16} style={{ marginLeft: -4 }} />}
-            right={searchQuery ? (
-              <TextInput.Icon 
-                icon="close" 
-                size={14}
-                onPress={() => {
-                  setSearchQuery('');
-                  onSearch?.('');
-                }}
-              />
-            ) : null}
-            dense
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-          />
-        </View>
-        <Button
-          mode="contained-tonal"
-          onPress={toggleExpand}
-          style={styles.expandButton}
-          labelStyle={{ fontSize: 13 }}
-          contentStyle={{ flexDirection: 'row-reverse', height: 36 }}
-          icon={({ size, color }) => (
-            <MaterialCommunityIcons 
-              name={isExpanded ? "chevron-up" : "chevron-right"} 
-              size={16} 
-              color={color} 
+        <Animated.View style={[
+          styles.headerContent,
+          {
+            width: searchContainerWidth,
+          }
+        ]}>
+          {!isSearchFocused && (
+            <MaterialCommunityIcons
+              name="shopping"
+              size={24}
+              color={theme.colors.primary}
+              style={styles.logo}
             />
           )}
-        >
-          Filter
-        </Button>
+          <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
+            <TextInput
+              mode="outlined"
+              placeholder="Search for posts..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.searchInput}
+              contentStyle={{ paddingLeft: 0 }}
+              left={<TextInput.Icon icon="magnify" size={16} style={{ marginLeft: -4 }} />}
+              right={searchQuery ? (
+                <TextInput.Icon 
+                  icon="close" 
+                  size={14}
+                  onPress={() => {
+                    setSearchQuery('');
+                    onSearch?.('');
+                  }}
+                />
+              ) : null}
+              dense
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
+              onSubmitEditing={() => onSearch?.(searchQuery)}
+              returnKeyType="search"
+            />
+          </View>
+          {!isSearchFocused && (
+            <Button
+              mode="contained-tonal"
+              onPress={toggleExpand}
+              style={styles.expandButton}
+              labelStyle={{ fontSize: 13 }}
+              contentStyle={{ flexDirection: 'row-reverse', height: 36 }}
+              icon={({ color }) => (
+                <MaterialCommunityIcons 
+                  name={isExpanded ? "chevron-up" : "chevron-right"} 
+                  size={16} 
+                  color={color} 
+                />
+              )}
+            >
+              Filter
+            </Button>
+          )}
+        </Animated.View>
       </View>
 
       {/* Expanded Content */}
       <ScrollView style={styles.expandedContent} contentContainerStyle={styles.scrollContent}>
-        {/* Common Inputs */}
         {renderCommonInputs()}
-
-        {/* Price Range (Common for both types) */}
-        <View style={styles.section}>
-          <Text variant="titleSmall">Price Range</Text>
-          <View style={styles.row}>
-            <TextInput
-              mode="outlined"
-              label="Min"
-              style={styles.input}
-              keyboardType="numeric"
-              dense
-            />
-            <Text style={styles.toText}>to</Text>
-            <TextInput
-              mode="outlined"
-              label="Max"
-              style={styles.input}
-              keyboardType="numeric"
-              dense
-            />
-          </View>
+        {filters.postType === 'vehicle' ? renderVehicleInputs() : renderRealEstateInputs()}
+        
+        {/* Filter Action Buttons */}
+        <View style={styles.filterActions}>
+          <Button
+            mode="outlined"
+            onPress={handleClearFilters}
+            style={styles.actionButton}
+          >
+            Clear Filters
+          </Button>
+          <Button
+            mode="contained"
+            onPress={handleApplyFilters}
+            style={styles.actionButton}
+          >
+            Apply Filters
+          </Button>
         </View>
-
-        <Divider style={styles.divider} />
-
-        {/* Conditional Inputs */}
-        {postType === 'vehicle' ? renderVehicleInputs() : renderRealEstateInputs()}
       </ScrollView>
     </Animated.View>
   );

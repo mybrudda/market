@@ -5,7 +5,7 @@ import { supabase } from '../../../supabaseClient';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PostCard from '../../../components/PostCard';
-import FilterSection from '../../../components/FilterSection';
+import FilterSection, { FilterOptions } from '../../../components/FilterSection';
 import { Post } from '../../../types/post';
 
 // Constants
@@ -23,6 +23,7 @@ export default function Home() {
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null);
 
   // Fetch posts with pagination
   const fetchPosts = useCallback(async (start = 0, isRefresh = false) => {
@@ -55,6 +56,68 @@ export default function Home() {
         query = query.ilike('title', `%${searchQuery}%`);
       }
 
+      // Apply filters if they exist
+      if (activeFilters) {
+        // Post type filter
+        query = query.eq('post_type', activeFilters.postType);
+        
+        // Listing type filter
+        query = query.eq('listing_type', activeFilters.listingType);
+        
+        // Location filter
+        if (activeFilters.city) {
+          query = query.eq('location->>city', activeFilters.city);
+        }
+        
+        // Category filter
+        if (activeFilters.category) {
+          query = query.eq('category', activeFilters.category);
+        }
+        
+        // Price range filter
+        if (activeFilters.priceRange.min) {
+          query = query.gte('price', parseFloat(activeFilters.priceRange.min));
+        }
+        if (activeFilters.priceRange.max) {
+          query = query.lte('price', parseFloat(activeFilters.priceRange.max));
+        }
+
+        // Vehicle-specific filters
+        if (activeFilters.postType === 'vehicle') {
+          if (activeFilters.make) {
+            query = query.eq('details->>make', activeFilters.make);
+          }
+          if (activeFilters.model) {
+            query = query.ilike('details->>model', `%${activeFilters.model}%`);
+          }
+          if (activeFilters.fuelType) {
+            query = query.eq('details->>fuel_type', activeFilters.fuelType);
+          }
+          if (activeFilters.transmission) {
+            query = query.eq('details->>transmission', activeFilters.transmission);
+          }
+          if (activeFilters.yearRange.min && activeFilters.yearRange.max) {
+            query = query
+              .gte('details->>year', activeFilters.yearRange.min.toString())
+              .lte('details->>year', activeFilters.yearRange.max.toString());
+          }
+        }
+
+        // Real estate-specific filters
+        if (activeFilters.postType === 'realestate') {
+          if (activeFilters.size?.min) {
+            query = query.gte('details->size->>value', parseFloat(activeFilters.size.min));
+          }
+          if (activeFilters.size?.max) {
+            query = query.lte('details->size->>value', parseFloat(activeFilters.size.max));
+          }
+          if (activeFilters.features.length > 0) {
+            // For array containment in JSONB, we need to use ?& operator
+            query = query.contains('details->features', activeFilters.features);
+          }
+        }
+      }
+
       const { data, error: supabaseError, count } = await query
         .order('created_at', { ascending: false })
         .range(start, start + POSTS_PER_PAGE - 1);
@@ -75,6 +138,7 @@ export default function Home() {
           totalLoaded: isRefresh ? data?.length : posts.length + (data?.length || 0),
           start,
           searchQuery,
+          activeFilters,
         });
       }
 
@@ -88,11 +152,20 @@ export default function Home() {
       console.error('Error fetching posts:', err);
       setHasMore(false);
     }
-  }, [page, posts.length, totalCount, searchQuery]);
+  }, [page, posts.length, totalCount, searchQuery, activeFilters]);
 
   // Handle search
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
+    setPage(0);
+    setHasMore(true);
+    setLoading(true);
+    fetchPosts(0, true).finally(() => setLoading(false));
+  }, [fetchPosts]);
+
+  // Handle filters
+  const handleFilter = useCallback((filters: FilterOptions) => {
+    setActiveFilters(filters);
     setPage(0);
     setHasMore(true);
     setLoading(true);
@@ -141,22 +214,30 @@ export default function Home() {
   const ListEmptyComponent = useMemo(() => (
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons 
-        name="car-off" 
+        name="file-search-outline" 
         size={48} 
         color={theme.colors.onSurfaceVariant} 
       />
       <Text variant="titleMedium" style={styles.emptyText}>
-        {loading ? "Loading posts..." : "No vehicles listed yet"}
+        {loading ? "Loading posts..." : (searchQuery || activeFilters) ? "No posts found" : "No posts available"}
       </Text>
-      <Button 
-        mode="contained" 
-        onPress={() => router.push('/(tabs)/create/vehicle')}
-        style={styles.emptyButton}
-      >
-        Post Your Vehicle
-      </Button>
+      <Text style={styles.emptySubtext}>
+        {(searchQuery || activeFilters) ? 
+          "Try adjusting your search or filters" : 
+          "Be the first to post something!"
+        }
+      </Text>
+      {!searchQuery && !activeFilters && (
+        <Button 
+          mode="contained" 
+          onPress={() => router.push('/(tabs)/create/vehicle')}
+          style={styles.emptyButton}
+        >
+          Create Post
+        </Button>
+      )}
     </View>
-  ), [theme.colors.onSurfaceVariant, loading]);
+  ), [theme.colors.onSurfaceVariant, loading, searchQuery, activeFilters]);
 
   const ListFooterComponent = useCallback(() => {
     if (posts.length === 0) return null;
@@ -211,7 +292,7 @@ export default function Home() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <FilterSection onSearch={handleSearch} />
+      <FilterSection onSearch={handleSearch} onFilter={handleFilter} />
       <FlatList
         data={posts}
         renderItem={renderItem}
@@ -272,9 +353,15 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 8,
     textAlign: 'center',
     color: '#666',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 24,
   },
   emptyButton: {
     marginTop: 8,
