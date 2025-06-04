@@ -1,16 +1,49 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
-import { useTheme, Text, IconButton, Button, Divider } from "react-native-paper";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View, Image } from "react-native";
+import { useTheme, Text, IconButton, Button, Divider, Avatar } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { useThemeStore } from "../../../store/useThemeStore";
 import LoadingScreen from "../../../components/LoadingScreen";
+import { supabase } from "../../../supabaseClient";
+
+interface UserProfile {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  email: string;
+  user_type: 'person' | 'company';
+  is_verified: boolean | null;
+}
 
 export default function ProfileScreen() {
   const theme = useTheme();
   const { user, signOut } = useAuthStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user!.id)
+        .single();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -21,7 +54,7 @@ export default function ProfileScreen() {
     }
   };
 
-  if (!user) {
+  if (!user || !userProfile) {
     return <LoadingScreen />;
   }
 
@@ -31,13 +64,20 @@ export default function ProfileScreen() {
       <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
         <View style={styles.headerTop}>
           <View style={styles.logoContainer}>
-            <MaterialCommunityIcons
-              name="account"
-              size={28}
-              color={theme.colors.primary}
-            />
+            {userProfile.avatar_url ? (
+              <Image
+                source={{ uri: userProfile.avatar_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <MaterialCommunityIcons
+                name="account-circle"
+                size={40}
+                color={theme.colors.primary}
+              />
+            )}
             <Text variant="titleLarge" style={{ marginLeft: 8 }}>
-              Profile
+              {userProfile.username || 'Profile'}
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -58,13 +98,13 @@ export default function ProfileScreen() {
       {/* Profile Info */}
       <View style={[styles.profileInfo, { backgroundColor: theme.colors.surface }]}>
         <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-          {user?.email}
+          {userProfile.email}
         </Text>
         <Text
           variant="bodyMedium"
           style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
         >
-          {user?.user_metadata?.full_name || 'User'}
+          {userProfile.full_name || userProfile.username || 'User'}
         </Text>
       </View>
 
@@ -181,5 +221,10 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontSize: 16,
     marginLeft: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
 });
