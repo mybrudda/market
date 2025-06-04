@@ -22,6 +22,7 @@ export default function Home() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch posts with pagination
   const fetchPosts = useCallback(async (start = 0, isRefresh = false) => {
@@ -34,7 +35,7 @@ export default function Home() {
         return;
       }
       
-      const { data, error: supabaseError, count } = await supabase
+      let query = supabase
         .from('posts')
         .select(`
           *,
@@ -47,7 +48,14 @@ export default function Home() {
             user_type,
             is_verified
           )
-        `, { count: 'exact' })
+        `, { count: 'exact' });
+
+      // Add title search if searchQuery exists
+      if (searchQuery) {
+        query = query.ilike('title', `%${searchQuery}%`);
+      }
+
+      const { data, error: supabaseError, count } = await query
         .order('created_at', { ascending: false })
         .range(start, start + POSTS_PER_PAGE - 1);
 
@@ -66,6 +74,7 @@ export default function Home() {
           fetchedPosts: data?.length,
           totalLoaded: isRefresh ? data?.length : posts.length + (data?.length || 0),
           start,
+          searchQuery,
         });
       }
 
@@ -79,7 +88,16 @@ export default function Home() {
       console.error('Error fetching posts:', err);
       setHasMore(false);
     }
-  }, [page, posts.length, totalCount]);
+  }, [page, posts.length, totalCount, searchQuery]);
+
+  // Handle search
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setPage(0);
+    setHasMore(true);
+    setLoading(true);
+    fetchPosts(0, true).finally(() => setLoading(false));
+  }, [fetchPosts]);
 
   // Initial load
   useEffect(() => {
@@ -193,7 +211,7 @@ export default function Home() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <FilterSection />
+      <FilterSection onSearch={handleSearch} />
       <FlatList
         data={posts}
         renderItem={renderItem}

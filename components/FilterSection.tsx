@@ -19,7 +19,11 @@ import {
 type PostType = 'vehicle' | 'realestate';
 type ListingType = 'rent' | 'sale';
 
-export default function FilterSection() {
+interface FilterSectionProps {
+  onSearch?: (query: string) => void;
+}
+
+export default function FilterSection({ onSearch }: FilterSectionProps) {
   const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,6 +46,10 @@ export default function FilterSection() {
     setLowYear(Math.floor(low));
     setHighYear(Math.floor(high));
   }, []);
+
+  const handleSearch = useCallback(() => {
+    onSearch?.(searchQuery);
+  }, [searchQuery, onSearch]);
 
   const toggleExpand = () => {
     const toValue = isExpanded ? 0 : 1;
@@ -94,7 +102,7 @@ export default function FilterSection() {
       alignItems: 'center',
       paddingHorizontal: 16,
       height: 64,
-      gap: 12,
+      gap: 8,
     },
     searchContainer: {
       flex: 1,
@@ -106,7 +114,8 @@ export default function FilterSection() {
     },
     expandButton: {
       borderRadius: 20,
-      minWidth: 100,
+      minWidth: 80,
+      height: 36,
     },
     expandedContent: {
       flex: 1,
@@ -411,24 +420,37 @@ export default function FilterSection() {
         <View style={styles.searchContainer}>
           <TextInput
             mode="outlined"
-            placeholder="Search"
+            placeholder="Search posts by title..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchInput}
             contentStyle={{ paddingLeft: 0 }}
             left={<TextInput.Icon icon="magnify" size={16} style={{ marginLeft: -4 }} />}
+            right={searchQuery ? (
+              <TextInput.Icon 
+                icon="close" 
+                size={14}
+                onPress={() => {
+                  setSearchQuery('');
+                  onSearch?.('');
+                }}
+              />
+            ) : null}
             dense
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
           />
         </View>
         <Button
           mode="contained-tonal"
           onPress={toggleExpand}
           style={styles.expandButton}
-          contentStyle={{ flexDirection: 'row-reverse' }}
+          labelStyle={{ fontSize: 13 }}
+          contentStyle={{ flexDirection: 'row-reverse', height: 36 }}
           icon={({ size, color }) => (
             <MaterialCommunityIcons 
               name={isExpanded ? "chevron-up" : "chevron-right"} 
-              size={size} 
+              size={16} 
               color={color} 
             />
           )}
