@@ -33,10 +33,10 @@ export interface Post {
     address?: string;
     country?: string;
   };
-  post_type?: string;
-  listing_type?: string;
+  post_type: 'vehicle' | 'realestate';
+  listing_type: 'rent' | 'sale';
   category?: string;
   status?: string;
   expiry_date?: string;
   updated_at?: string;
-} 
+}

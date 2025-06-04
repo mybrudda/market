@@ -5,6 +5,7 @@ import { supabase } from '../../../supabaseClient';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PostCard from '../../../components/PostCard';
+import FilterSection from '../../../components/FilterSection';
 import { Post } from '../../../types/post';
 
 // Constants
@@ -116,16 +117,7 @@ export default function Home() {
 
   // Memoized Components
   const ListHeaderComponent = useMemo(() => (
-    <View style={styles.header}>
-      <Text variant="headlineMedium">Vehicle Listings</Text>
-      <Button 
-        mode="contained" 
-        onPress={() => router.push('/(tabs)/create/vehicle')}
-        icon="plus"
-      >
-        Post
-      </Button>
-    </View>
+    <View style={styles.headerSpacer} />
   ), []);
 
   const ListEmptyComponent = useMemo(() => (
@@ -201,6 +193,7 @@ export default function Home() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <FilterSection />
       <FlatList
         data={posts}
         renderItem={renderItem}
@@ -220,6 +213,14 @@ export default function Home() {
           />
         }
       />
+      <Button 
+        mode="contained" 
+        onPress={() => router.push('/(tabs)/create/vehicle')}
+        style={styles.fab}
+        icon="plus"
+      >
+        Post
+      </Button>
     </View>
   );
 }
@@ -228,14 +229,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  listContent: {
+  listContainer: {
     padding: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 16,
+  headerSpacer: {
+    height: 64, // Match the height of the FilterSection header
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    borderRadius: 28,
   },
   loadingContainer: {
     flex: 1,
@@ -291,9 +295,6 @@ const styles = StyleSheet.create({
   errorText: {
     textAlign: 'center',
     marginBottom: 16,
-    padding: 16,
-  },
-  listContainer: {
     padding: 16,
   },
 }); 

@@ -274,28 +274,28 @@ export default function PostCard({ post }: PostCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   cardImage: {
     height: 200,
     backgroundColor: '#f0f0f0',
   },
   cardContent: {
-    paddingTop: 12,
+    paddingTop: 8,
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   detailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
   },
   detail: {
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 12,
     opacity: 0.7,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   detailValue: {
     color: '#666',
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
