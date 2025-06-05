@@ -40,3 +40,30 @@ export interface Post {
   expiry_date?: string;
   updated_at?: string;
 }
+
+export interface VehicleDetails {
+  make: string;
+  model: string;
+  year: string;
+  mileage: {
+    value: number;
+    unit: string;
+  };
+  condition: string;
+  fuel_type?: string;
+  transmission?: string;
+  features?: string[];
+}
+
+export interface RealEstateDetails {
+  category: string;
+  rooms: number;
+  bathrooms: number;
+  year: string;
+  condition: string;
+  features: string[];
+  size: {
+    value: number;
+    unit: string;
+  };
+}

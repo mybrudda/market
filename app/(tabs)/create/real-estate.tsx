@@ -84,7 +84,7 @@ export default function CreateRealEstatePost() {
         mediaTypes: "images",
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.5,
+        quality: 0.3,
         base64: true,
       });
 

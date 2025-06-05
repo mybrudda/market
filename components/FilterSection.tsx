@@ -608,7 +608,7 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
           <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
             <TextInput
               mode="outlined"
-              placeholder="Search for posts..."
+              placeholder="Search..."
               value={searchQuery}
               onChangeText={setSearchQuery}
               style={styles.searchInput}

@@ -25,16 +25,59 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null);
 
-  // Fetch posts with pagination
-  const fetchPosts = useCallback(async (start = 0, isRefresh = false) => {
+  // Fetch initial posts without filters
+  const fetchInitialPosts = useCallback(async (start = 0) => {
     try {
       setError(null);
+      setLoading(true);
 
-      // First check if we're trying to fetch beyond available posts
-      if (start >= totalCount && totalCount > 0) {
-        setHasMore(false);
-        return;
+      const query = supabase
+        .from('posts')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            email,
+            user_type,
+            is_verified
+          )
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(start, start + POSTS_PER_PAGE - 1);
+
+      const { data, error: supabaseError, count } = await query;
+
+      if (supabaseError) {
+        throw new Error(supabaseError.message);
       }
+
+      const total = count || 0;
+      setTotalCount(total);
+      setHasMore(total > POSTS_PER_PAGE);
+      setPosts(data || []);
+
+      if (__DEV__) {
+        console.log('Initial fetch:', {
+          totalPosts: total,
+          fetchedPosts: data?.length,
+          start
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
+      console.error('Error fetching initial posts:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch posts with filters
+  const fetchFilteredPosts = useCallback(async (start = 0, filters: FilterOptions) => {
+    try {
+      setError(null);
       
       let query = supabase
         .from('posts')
@@ -56,66 +99,57 @@ export default function Home() {
         query = query.ilike('title', `%${searchQuery}%`);
       }
 
-      // Apply filters if they exist
-      if (activeFilters) {
-        // Post type filter
-        query = query.eq('post_type', activeFilters.postType);
-        
-        // Listing type filter
-        query = query.eq('listing_type', activeFilters.listingType);
-        
-        // Location filter
-        if (activeFilters.city) {
-          query = query.eq('location->>city', activeFilters.city);
-        }
-        
-        // Category filter
-        if (activeFilters.category) {
-          query = query.eq('category', activeFilters.category);
-        }
-        
-        // Price range filter
-        if (activeFilters.priceRange.min) {
-          query = query.gte('price', parseFloat(activeFilters.priceRange.min));
-        }
-        if (activeFilters.priceRange.max) {
-          query = query.lte('price', parseFloat(activeFilters.priceRange.max));
-        }
+      // Apply filters
+      query = query.eq('post_type', filters.postType)
+        .eq('listing_type', filters.listingType);
+      
+      if (filters.city) {
+        query = query.eq('location->>city', filters.city);
+      }
+      
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+      
+      if (filters.priceRange.min) {
+        query = query.gte('price', parseFloat(filters.priceRange.min));
+      }
+      if (filters.priceRange.max) {
+        query = query.lte('price', parseFloat(filters.priceRange.max));
+      }
 
-        // Vehicle-specific filters
-        if (activeFilters.postType === 'vehicle') {
-          if (activeFilters.make) {
-            query = query.eq('details->>make', activeFilters.make);
-          }
-          if (activeFilters.model) {
-            query = query.ilike('details->>model', `%${activeFilters.model}%`);
-          }
-          if (activeFilters.fuelType) {
-            query = query.eq('details->>fuel_type', activeFilters.fuelType);
-          }
-          if (activeFilters.transmission === 'Manual' || activeFilters.transmission === 'Automatic') {
-            query = query.eq('details->>transmission', activeFilters.transmission);
-          }
-          if (activeFilters.yearRange.min && activeFilters.yearRange.max) {
-            query = query
-              .gte('details->>year', activeFilters.yearRange.min.toString())
-              .lte('details->>year', activeFilters.yearRange.max.toString());
-          }
+      // Vehicle-specific filters
+      if (filters.postType === 'vehicle') {
+        if (filters.make) {
+          query = query.eq('details->>make', filters.make);
         }
+        if (filters.model) {
+          query = query.ilike('details->>model', `%${filters.model}%`);
+        }
+        if (filters.fuelType) {
+          query = query.eq('details->>fuel_type', filters.fuelType);
+        }
+        if (filters.transmission === 'Manual' || filters.transmission === 'Automatic') {
+          query = query.eq('details->>transmission', filters.transmission);
+        }
+        if (filters.yearRange.min && filters.yearRange.max) {
+          query = query
+            .gte('details->>year', filters.yearRange.min.toString())
+            .lte('details->>year', filters.yearRange.max.toString());
+        }
+      }
 
-        // Real estate-specific filters
-        if (activeFilters.postType === 'realestate') {
-          if (activeFilters.size?.min) {
-            query = query.gte('details->size->>value', parseFloat(activeFilters.size.min));
-          }
-          if (activeFilters.size?.max) {
-            query = query.lte('details->size->>value', parseFloat(activeFilters.size.max));
-          }
-          if (activeFilters.features.length > 0) {
-            // Format the features array as a proper JSON array string
-            const featuresArray = JSON.stringify(activeFilters.features);
-            query = query.contains('details->features', featuresArray);
-          }
+      // Real estate-specific filters
+      if (filters.postType === 'realestate') {
+        if (filters.size?.min) {
+          query = query.gte('details->size->>value', parseFloat(filters.size.min));
+        }
+        if (filters.size?.max) {
+          query = query.lte('details->size->>value', parseFloat(filters.size.max));
+        }
+        if (filters.features.length > 0) {
+          const featuresArray = JSON.stringify(filters.features);
+          query = query.contains('details->features', featuresArray);
         }
       }
 
@@ -129,31 +163,22 @@ export default function Home() {
 
       const total = count || 0;
       setTotalCount(total);
+      setHasMore(total > POSTS_PER_PAGE);
+      setPosts(data || []);
 
-      // Debug logging in development only
       if (__DEV__) {
-        console.log({
+        console.log('Filtered fetch:', {
           totalPosts: total,
-          currentPage: page + 1,
           fetchedPosts: data?.length,
-          totalLoaded: isRefresh ? data?.length : posts.length + (data?.length || 0),
-          start,
-          searchQuery,
-          activeFilters,
+          filters,
+          start
         });
       }
-
-      // Check if there are more posts to load
-      const hasMorePosts = start + POSTS_PER_PAGE < total;
-      setHasMore(hasMorePosts);
-
-      setPosts(prevPosts => isRefresh ? (data || []) : [...prevPosts, ...(data || [])]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
-      console.error('Error fetching posts:', err);
-      setHasMore(false);
+      console.error('Error fetching filtered posts:', err);
     }
-  }, [page, posts.length, totalCount, searchQuery, activeFilters]);
+  }, [searchQuery]);
 
   // Handle search
   const handleSearch = useCallback((query: string) => {
@@ -161,174 +186,64 @@ export default function Home() {
     setPage(0);
     setHasMore(true);
     setLoading(true);
-    fetchPosts(0, true).finally(() => setLoading(false));
-  }, [fetchPosts]);
-
-  // Handle filters
-  const handleFilter = useCallback(async (filters: FilterOptions) => {
-    console.log('=== Filter Button Pressed ===');
-    console.log('Starting filter operation with:', filters);
     
-    // Update filter state
+    if (activeFilters) {
+      fetchFilteredPosts(0, activeFilters).finally(() => setLoading(false));
+    } else {
+      fetchInitialPosts(0).finally(() => setLoading(false));
+    }
+  }, [fetchFilteredPosts, fetchInitialPosts, activeFilters]);
+
+  // Handle filters - Only called when user explicitly applies filters
+  const handleFilter = useCallback((filters: FilterOptions) => {
     setActiveFilters(filters);
     setPage(0);
     setHasMore(true);
-    
-    // Clear existing posts before fetching
-    setPosts([]);
     setLoading(true);
-    
-    try {
-      console.log('Building query with filters...');
-      // Build query
-      let query = supabase
-        .from('posts')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            username,
-            full_name,
-            avatar_url,
-            email,
-            user_type,
-            is_verified
-          )
-        `, { count: 'exact' });
+    fetchFilteredPosts(0, filters).finally(() => setLoading(false));
+  }, [fetchFilteredPosts]);
 
-      // Apply filters
-      if (filters) {
-        // Post type filter
-        query = query.eq('post_type', filters.postType);
-        
-        // Listing type filter
-        query = query.eq('listing_type', filters.listingType);
-        
-        // Location filter
-        if (filters.city) {
-          query = query.eq('location->>city', filters.city);
-        }
-        
-        // Category filter
-        if (filters.category) {
-          query = query.eq('category', filters.category);
-        }
-        
-        // Price range filter
-        if (filters.priceRange.min) {
-          query = query.gte('price', parseFloat(filters.priceRange.min));
-        }
-        if (filters.priceRange.max) {
-          query = query.lte('price', parseFloat(filters.priceRange.max));
-        }
+  // Initial load - fetch all posts without filters
+  useEffect(() => { // useEffect will run twice on initial load due to REACT sctrict mode
+  console.log('Mounted Home Screen')
+    let mounted = true;
 
-        // Vehicle-specific filters
-        if (filters.postType === 'vehicle') {
-          if (filters.make) {
-            query = query.eq('details->>make', filters.make);
-          }
-          if (filters.model) {
-            query = query.ilike('details->>model', `%${filters.model}%`);
-          }
-          if (filters.fuelType) {
-            query = query.eq('details->>fuel_type', filters.fuelType);
-          }
-          if (filters.transmission === 'Manual' || filters.transmission === 'Automatic') {
-            query = query.eq('details->>transmission', filters.transmission);
-          }
-          if (filters.yearRange.min && filters.yearRange.max) {
-            query = query
-              .gte('details->>year', filters.yearRange.min.toString())
-              .lte('details->>year', filters.yearRange.max.toString());
-          }
-        }
-
-        // Real estate-specific filters
-        if (filters.postType === 'realestate') {
-          if (filters.size?.min) {
-            query = query.gte('details->size->>value', parseFloat(filters.size.min));
-          }
-          if (filters.size?.max) {
-            query = query.lte('details->size->>value', parseFloat(filters.size.max));
-          }
-          if (filters.features.length > 0) {
-            // Format the features array as a proper JSON array string
-            const featuresArray = JSON.stringify(filters.features);
-            query = query.contains('details->features', featuresArray);
-          }
-        }
-      }
-
-      console.log('Executing query...');
-      // Execute query
-      const { data, error: supabaseError, count } = await query
-        .order('created_at', { ascending: false })
-        .range(0, POSTS_PER_PAGE - 1);
-
-      if (supabaseError) {
-        throw new Error(supabaseError.message);
-      }
-
-      console.log(`Query completed. Found ${count} total posts, fetched ${data?.length} posts`);
-
-      const total = count || 0;
-      setTotalCount(total);
-      setHasMore(POSTS_PER_PAGE < total);
-      setPosts(data || []);
-      
-    } catch (err) {
-      console.error('Error in filter operation:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
-    } finally {
-      setLoading(false);
-      console.log('=== Filter Operation Complete ===');
-    }
-  }, []);
-
-  // Initial load
-  useEffect(() => {
-    const initialFilters: FilterOptions = {
-      postType: 'vehicle',
-      listingType: 'sale',
-      city: null,
-      category: null,
-      make: null,
-      model: '',
-      fuelType: null,
-      transmission: '',
-      yearRange: {
-        min: 0,
-        max: 0
-      },
-      priceRange: {
-        min: '',
-        max: ''
-      },
-      features: [],
-      size: {
-        min: '',
-        max: ''
+    const loadInitialData = async () => {
+      if (mounted) {
+        await fetchInitialPosts(0);
       }
     };
-    handleFilter(initialFilters);
-  }, [handleFilter]);
+
+    loadInitialData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Pull to refresh
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = useCallback(() => {
     if (refreshing) return;
     setRefreshing(true);
     setPage(0);
-    await fetchPosts(0, true);
-    setRefreshing(false);
-  }, [fetchPosts, refreshing]);
+    
+    const fetchData = async () => {
+      if (activeFilters) {
+        await fetchFilteredPosts(0, activeFilters);
+      } else {
+        await fetchInitialPosts(0);
+      }
+      setRefreshing(false);
+    };
+    
+    fetchData();
+  }, [refreshing, activeFilters, fetchFilteredPosts, fetchInitialPosts]);
 
   // Load more posts
-  const handleLoadMore = useCallback(async () => {
+  const handleLoadMore = useCallback(() => {
     if (loadingMore || !hasMore) return;
 
     const nextStart = page * POSTS_PER_PAGE + POSTS_PER_PAGE;
-    
-    // Check if we've reached the end
     if (nextStart >= totalCount) {
       setHasMore(false);
       return;
@@ -337,66 +252,28 @@ export default function Home() {
     setLoadingMore(true);
     const nextPage = page + 1;
     setPage(nextPage);
-    await fetchPosts(nextStart);
-    setLoadingMore(false);
-  }, [loadingMore, hasMore, page, totalCount, fetchPosts]);
 
-  // Add reset function
-  const handleReset = useCallback(async () => {
-    console.log('=== Logo Reset Pressed ===');
-    console.log('Clearing filters and search...');
-    
-    // Clear filters and search first
+    const loadMore = async () => {
+      if (activeFilters) {
+        await fetchFilteredPosts(nextStart, activeFilters);
+      } else {
+        await fetchInitialPosts(nextStart);
+      }
+      setLoadingMore(false);
+    };
+
+    loadMore();
+  }, [loadingMore, hasMore, page, totalCount, activeFilters, fetchFilteredPosts, fetchInitialPosts]);
+
+  // Handle reset
+  const handleReset = useCallback(() => {
     setSearchQuery('');
     setActiveFilters(null);
     setPage(0);
     setHasMore(true);
-    
-    // Clear existing posts before fetching
-    setPosts([]);
     setLoading(true);
-    
-    try {
-      console.log('Building initial query...');
-      // Fetch initial posts
-      const query = supabase
-        .from('posts')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            username,
-            full_name,
-            avatar_url,
-            email,
-            user_type,
-            is_verified
-          )
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(0, POSTS_PER_PAGE - 1);
-
-      console.log('Executing query...');
-      const { data, error: supabaseError, count } = await query;
-
-      if (supabaseError) {
-        throw new Error(supabaseError.message);
-      }
-
-      console.log(`Query completed. Found ${count} total posts, fetched ${data?.length} posts`);
-
-      const total = count || 0;
-      setTotalCount(total);
-      setPosts(data || []);
-      setHasMore(total > POSTS_PER_PAGE);
-    } catch (err) {
-      console.error('Error in reset operation:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
-    } finally {
-      setLoading(false);
-      console.log('=== Reset Operation Complete ===');
-    }
-  }, []);
+    fetchInitialPosts(0).finally(() => setLoading(false));
+  }, [fetchInitialPosts]);
 
   // Memoized Components
   const ListHeaderComponent = useMemo(() => (

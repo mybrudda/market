@@ -82,10 +82,10 @@ export default function CreateVehiclePost() {
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: "imagess",
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.5,
+        quality: 0.3,
         base64: true,
       });
 
