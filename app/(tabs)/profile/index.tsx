@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, Image } from "react-native";
-import { useTheme, Text, IconButton, Button, Divider, Avatar } from "react-native-paper";
+import { useTheme, Text, IconButton, Button, Divider } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
@@ -29,6 +29,12 @@ export default function ProfileScreen() {
       fetchUserProfile();
     }
   }, [user]);
+
+  const getCleanAvatarUrl = (url: string | null) => {
+    if (!url) return null;
+    // Remove the @ prefix and ::text suffix from the URL
+    return url.replace(/^@/, '').replace(/::text$/, '');
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -65,10 +71,18 @@ export default function ProfileScreen() {
         <View style={styles.headerTop}>
           <View style={styles.logoContainer}>
             {userProfile.avatar_url ? (
-              <Image
-                source={{ uri: userProfile.avatar_url }}
-                style={styles.avatar}
-              />
+              getCleanAvatarUrl(userProfile.avatar_url) ? (
+                <Image
+                  source={{ uri: getCleanAvatarUrl(userProfile.avatar_url)! }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <MaterialCommunityIcons
+                  name="account-circle"
+                  size={40}
+                  color={theme.colors.primary}
+                />
+              )
             ) : (
               <MaterialCommunityIcons
                 name="account-circle"

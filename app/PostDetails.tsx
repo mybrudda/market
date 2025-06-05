@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Carousel from 'react-native-reanimated-carousel';
 import Header from '../components/Header';
+import { chatService } from '../lib/chatService';
 
 interface VehicleDetails {
   make: string;
@@ -121,6 +122,19 @@ export default function PostDetails() {
   const handleContact = async () => {
     if (!post?.user?.email) return;
     await Linking.openURL(`mailto:${post.user.email}`);
+  };
+
+  const handleMessageSeller = async () => {
+    if (!post?.user?.id) return;
+    try {
+      const conversation = await chatService.createConversation(post.id, post.user.id);
+      router.push({
+        pathname: "/chat/[id]",
+        params: { id: conversation.id }
+      });
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+    }
   };
 
   if (loading) {
@@ -380,9 +394,16 @@ export default function PostDetails() {
                   onPress={handleContact}
                   style={[styles.contactButton, { marginRight: 8 }]}
                 >
-                  Contact
+                  Email Seller
                 </Button>
-             
+                <Button
+                  mode="contained-tonal"
+                  onPress={handleMessageSeller}
+                  icon="message"
+                  style={[styles.contactButton, { marginRight: 8 }]}
+                >
+                  Message Seller
+                </Button>
               </View>
             </View>
           )}
@@ -494,7 +515,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   contactSection: {
-    marginBottom: 24,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 8,
   },
   sellerHeader: {
     marginBottom: 16,
