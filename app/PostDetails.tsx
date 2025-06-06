@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Carousel from 'react-native-reanimated-carousel';
 import Header from '../components/Header';
 import { chatService } from '../lib/chatService';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface VehicleDetails {
   make: string;
@@ -126,14 +127,32 @@ export default function PostDetails() {
 
   const handleMessageSeller = async () => {
     if (!post?.user?.id) return;
+
+    // Get current user from global state
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      // User not authenticated
+      router.push('/');
+      return;
+    }
+
+    // Prevent self-messaging
+    if (user.id === post.user.id) {
+      // Show error using react-native-paper Snackbar or Alert
+      alert("You cannot message yourself on your own post");
+      return;
+    }
+
     try {
+      // The createConversation function will handle checking for existing conversations
       const conversation = await chatService.createConversation(post.id, post.user.id);
       router.push({
-        pathname: "/chat/[id]",
+        pathname: "/chatDetails",
         params: { id: conversation.id }
       });
     } catch (error) {
       console.error('Error starting conversation:', error);
+      alert("Failed to start conversation. Please try again.");
     }
   };
 

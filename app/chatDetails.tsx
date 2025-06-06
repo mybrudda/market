@@ -10,6 +10,7 @@ import {
     SafeAreaView,
     ActivityIndicator,
     Image,
+    Alert,
 } from 'react-native';
 import { useTheme, Text, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,8 +35,11 @@ const MemoizedChatMessage = memo(ChatMessage);
 
 // Memoized header component
 const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAvatarUrl }: ListHeaderProps) => (
-    <View style={[styles.headerInfo, { backgroundColor: theme.colors.surface }]}>
-        <View style={styles.userInfoContainer}>
+    <View style={[styles.headerInfo, { backgroundColor: theme.colors.elevation.level1 }]}>
+        <View style={[styles.userInfoContainer, {
+            backgroundColor: theme.colors.elevation.level1,
+            borderBottomColor: theme.colors.surfaceVariant
+        }]}>
             <View style={styles.logoContainer}>
                 {conversation?.user?.avatar_url ? (
                     getCleanAvatarUrl(conversation.user.avatar_url) ? (
@@ -59,7 +63,7 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
                 )}
                 <View style={styles.userInfo}>
                     <View style={styles.nameRow}>
-                        <Text variant="titleLarge" style={styles.username}>
+                        <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
                             {conversation?.user?.username || conversation?.other_user_name}
                         </Text>
                         {conversation?.user?.is_verified && (
@@ -72,7 +76,7 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
                         )}
                     </View>
                     {conversation?.user?.user_type && (
-                        <Text variant="bodyMedium" style={[styles.userType, { color: theme.colors.onSurfaceVariant }]}>
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
                             {conversation.user.user_type.charAt(0).toUpperCase() + conversation.user.user_type.slice(1)}
                         </Text>
                     )}
@@ -80,7 +84,7 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
             </View>
         </View>
         {conversation?.post_image && (
-            <View style={styles.postContainer}>
+            <View style={[styles.postContainer, { backgroundColor: theme.colors.elevation.level2 }]}>
                 <View style={styles.postContent}>
                     <Image
                         source={{ uri: conversation.post_image }}
@@ -90,7 +94,7 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
                     <View style={styles.postTitleContainer}>
                         <Text 
                             variant="bodyMedium" 
-                            style={styles.postTitle}
+                            style={{ color: theme.colors.onSurface, marginBottom: 4 }}
                             numberOfLines={2}
                             ellipsizeMode="tail"
                         >
@@ -98,7 +102,7 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
                         </Text>
                         <Text 
                             variant="labelLarge" 
-                            style={[styles.postPrice, { color: theme.colors.primary }]}
+                            style={{ color: theme.colors.primary }}
                         >
                             {formatPrice(conversation.post_price || 0)}
                         </Text>
@@ -119,26 +123,110 @@ export default function ChatDetails() {
     const [conversation, setConversation] = useState<Conversation | null>(null);
     const flatListRef = useRef<FlatList>(null);
     const conversationId = params.id as string;
+    const [sendingMessage, setSendingMessage] = useState(false);
+    const [failedMessages, setFailedMessages] = useState<Set<string>>(new Set());
 
     // Memoized callbacks
     const handleSendMessage = useCallback(async () => {
         if (!conversationId || !newMessage.trim()) return;
+        
+        const messageContent = newMessage.trim();
+        const tempMessageId = Date.now().toString(); // Temporary ID for optimistic update
+        
+        // Create temporary message for optimistic update
+        const tempMessage: Message = {
+            id: tempMessageId,
+            conversation_id: conversationId,
+            sender_id: currentUser?.id,
+            content: messageContent,
+            created_at: new Date().toISOString(),
+            read_at: null,
+            sender: currentUser
+        };
+
+        // Optimistically add message to UI
+        setMessages(prev => [...prev, tempMessage]);
+        setNewMessage(''); // Clear input
+        setSendingMessage(true);
 
         try {
-            await chatService.sendMessage(conversationId, newMessage.trim());
-            setNewMessage('');
+            const sentMessage = await chatService.sendMessage(conversationId, messageContent);
+            
+            // Replace temp message with real one
+            setMessages(prev => 
+                prev.map(msg => msg.id === tempMessageId ? sentMessage : msg)
+            );
+            
+            // Scroll to bottom
             setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
             }, 100);
         } catch (error) {
             console.error('Error sending message:', error);
+            
+            // Add to failed messages set
+            setFailedMessages(prev => new Set(prev).add(tempMessageId));
+            
+            // Show error to user
+            Alert.alert(
+                'Failed to Send Message',
+                'There was a problem sending your message. Tap the message to try again.',
+                [{ text: 'OK' }]
+            );
+        } finally {
+            setSendingMessage(false);
         }
-    }, [conversationId, newMessage]);
+    }, [conversationId, newMessage, currentUser]);
+
+    // Add retry handler
+    const handleRetryMessage = useCallback(async (failedMessage: Message) => {
+        if (!conversationId) return;
+
+        try {
+            // Remove from failed messages
+            setFailedMessages(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(failedMessage.id);
+                return newSet;
+            });
+
+            // Try to send again
+            const sentMessage = await chatService.sendMessage(conversationId, failedMessage.content);
+            
+            // Replace failed message with successful one
+            setMessages(prev => 
+                prev.map(msg => msg.id === failedMessage.id ? sentMessage : msg)
+            );
+        } catch (error) {
+            console.error('Error retrying message:', error);
+            
+            // Add back to failed messages
+            setFailedMessages(prev => new Set(prev).add(failedMessage.id));
+            
+            Alert.alert(
+                'Failed to Send Message',
+                'There was a problem sending your message. Please try again later.',
+                [{ text: 'OK' }]
+            );
+        }
+    }, [conversationId]);
 
     const renderMessage = useCallback(({ item }: { item: Message }) => {
         const isOwnMessage = item.sender_id === currentUser?.id;
-        return <MemoizedChatMessage message={item} isOwnMessage={isOwnMessage} />;
-    }, [currentUser?.id]);
+        const hasFailed = failedMessages.has(item.id);
+        return (
+            <TouchableOpacity 
+                onPress={() => hasFailed ? handleRetryMessage(item) : null}
+                disabled={!hasFailed}
+            >
+                <MemoizedChatMessage 
+                    message={item} 
+                    isOwnMessage={isOwnMessage}
+                    hasFailed={hasFailed}
+                />
+            </TouchableOpacity>
+        );
+    }, [currentUser?.id, failedMessages, handleRetryMessage]);
 
     const keyExtractor = useCallback((item: Message) => item.id, []);
 
@@ -194,30 +282,66 @@ export default function ChatDetails() {
                         table: 'messages',
                         filter: `conversation_id=eq.${conversationId}`,
                     },
-                    (payload) => {
-                        const newMsg = payload.new as Message;
-                        setMessages((prev) => {
-                            const exists = prev.some((msg) => msg.id === newMsg.id);
-                            if (exists) return prev;
-                            return [...prev, newMsg];
-                        });
+                    async (payload) => {
+                        try {
+                            // Get the complete message with sender info
+                            const { data: messages } = await supabase
+                                .from('messages')
+                                .select(`
+                                    *,
+                                    sender:sender_id (
+                                        id,
+                                        username,
+                                        avatar_url
+                                    )
+                                `)
+                                .eq('id', payload.new.id)
+                                .single();
 
-                        if (newMsg.sender_id !== user.id) {
-                            setTimeout(() => {
-                                flatListRef.current?.scrollToEnd({ animated: true });
-                            }, 100);
+                            if (!messages) return;
+
+                            const newMsg = messages as Message;
+
+                            setMessages((prev) => {
+                                // Check if message already exists (avoid duplicates)
+                                const exists = prev.some((msg) => msg.id === newMsg.id);
+                                if (exists) return prev;
+                                
+                                // Add new message
+                                const updatedMessages = [...prev, newMsg];
+                                
+                                // Sort by created_at to maintain order
+                                return updatedMessages.sort((a, b) => 
+                                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                                );
+                            });
+
+                            // If message is from other user, scroll to bottom
+                            if (newMsg.sender_id !== user.id) {
+                                setTimeout(() => {
+                                    flatListRef.current?.scrollToEnd({ animated: true });
+                                }, 100);
+                            }
+
+                            // Mark messages as read
+                            await chatService.markMessagesAsRead(conversationId);
+                        } catch (error) {
+                            console.error('Error handling real-time message:', error);
                         }
-
-                        chatService.markMessagesAsRead(conversationId);
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Successfully subscribed to messages');
+                    }
+                });
         };
 
         init();
 
         return () => {
             if (messageChannel) {
+                console.log('Cleaning up message subscription');
                 supabase.removeChannel(messageChannel);
             }
         };
@@ -333,8 +457,6 @@ const styles = StyleSheet.create({
     userInfoContainer: {
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0, 0, 0, 0.1)',
-        backgroundColor: 'white',
     },
     logoContainer: {
         flexDirection: 'row',
@@ -353,18 +475,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    username: {
-        fontWeight: '600',
-    },
     verifiedIcon: {
         marginLeft: 4,
     },
-    userType: {
-        marginTop: 2,
-    },
     postContainer: {
         padding: 12,
-        backgroundColor: 'rgba(0, 0, 0, 0.03)',
     },
     postContent: {
         flexDirection: 'row',
@@ -378,13 +493,6 @@ const styles = StyleSheet.create({
     postTitleContainer: {
         flex: 1,
         marginLeft: 12,
-    },
-    postTitle: {
-        fontWeight: '500',
-        marginBottom: 4,
-    },
-    postPrice: {
-        fontWeight: '600',
     },
     inputContainer: {
         flexDirection: 'row',
@@ -408,5 +516,11 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    failedMessage: {
+        opacity: 0.7,
+    },
+    retryButton: {
+        padding: 8,
     },
 });

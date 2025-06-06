@@ -1,7 +1,6 @@
-import React from 'react';
+ import React from 'react';
 import {
     View,
-    Text,
     FlatList,
     TouchableOpacity,
     StyleSheet,
@@ -10,6 +9,7 @@ import {
 import { Image } from 'expo-image';
 import { Conversation } from '../types/chat';
 import { format } from 'date-fns';
+import { Text, useTheme } from 'react-native-paper';
 
 interface ConversationListProps {
     conversations: Conversation[];
@@ -22,45 +22,65 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     loading,
     onSelectConversation,
 }) => {
+    const theme = useTheme();
+
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" />
+            <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
         );
     }
 
     if (conversations.length === 0) {
         return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No conversations yet</Text>
+            <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+                <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                    No conversations yet
+                </Text>
             </View>
         );
     }
 
     const renderItem = ({ item }: { item: Conversation }) => (
         <TouchableOpacity
-            style={styles.conversationItem}
+            style={[
+                styles.conversationItem,
+                {
+                    backgroundColor: theme.colors.surface,
+                    borderBottomColor: theme.colors.surfaceVariant
+                }
+            ]}
             onPress={() => onSelectConversation(item)}
         >
             <Image
-                source={item.other_user_avatar || 'https://via.placeholder.com/40'}
-                style={styles.avatar}
+                source={item.post_image || 'https://via.placeholder.com/60'}
+                style={styles.postImage}
                 contentFit="cover"
                 transition={200}
             />
             <View style={styles.conversationInfo}>
                 <View style={styles.headerRow}>
-                    <Text style={styles.username}>{item.other_user_name}</Text>
-                    <Text style={styles.time}>
+                    <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                        {item.other_user_name}
+                    </Text>
+                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                         {format(new Date(item.updated_at), 'MMM d, h:mm a')}
                     </Text>
                 </View>
-                <Text style={styles.postTitle} numberOfLines={1}>
+                <Text
+                    variant="bodyMedium"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                    numberOfLines={1}
+                >
                     Re: {item.post_title}
                 </Text>
                 {item.last_message && (
-                    <Text style={styles.lastMessage} numberOfLines={1}>
+                    <Text
+                        variant="bodyMedium"
+                        style={{ color: theme.colors.onSurface }}
+                        numberOfLines={1}
+                    >
                         {item.last_message}
                     </Text>
                 )}
@@ -73,7 +93,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             data={conversations}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
-            style={styles.container}
+            style={[styles.container, { backgroundColor: theme.colors.background }]}
         />
     );
 };
@@ -81,7 +101,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
     },
     loadingContainer: {
         flex: 1,
@@ -94,20 +113,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
     },
-    emptyText: {
-        fontSize: 16,
-        color: '#666',
-    },
     conversationItem: {
         flexDirection: 'row',
         padding: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
     },
-    avatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+    postImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
         marginRight: 12,
     },
     conversationInfo: {
@@ -118,22 +132,5 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 4,
-    },
-    username: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    time: {
-        fontSize: 12,
-        color: '#666',
-    },
-    postTitle: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 4,
-    },
-    lastMessage: {
-        fontSize: 14,
-        color: '#444',
     },
 }); 

@@ -1,22 +1,25 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Text, useTheme, IconButton } from 'react-native-paper';
 import { Message } from '../types/chat';
 import { format } from 'date-fns';
 import { Image } from 'expo-image';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ChatMessageProps {
     message: Message;
     isOwnMessage: boolean;
+    hasFailed?: boolean;
 }
 
-export function ChatMessage({ message, isOwnMessage }: ChatMessageProps) {
+export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessageProps) {
     const theme = useTheme();
 
     return (
         <View style={[
             styles.container,
-            isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer
+            isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer,
+            hasFailed && styles.failedMessage
         ]}>
             {!isOwnMessage && message.sender?.avatar_url && (
                 <Image
@@ -29,28 +32,48 @@ export function ChatMessage({ message, isOwnMessage }: ChatMessageProps) {
             <View style={[
                 styles.bubble,
                 {
-                    backgroundColor: isOwnMessage ? theme.colors.primary : theme.colors.surfaceVariant,
+                    backgroundColor: isOwnMessage 
+                        ? hasFailed 
+                            ? theme.colors.errorContainer 
+                            : theme.colors.primary 
+                        : theme.colors.surfaceVariant,
                 },
             ]}>
                 <Text
                     variant="bodyMedium"
                     style={[
                         styles.messageText,
-                        { color: isOwnMessage ? theme.colors.onPrimary : theme.colors.onSurface }
+                        { 
+                            color: isOwnMessage 
+                                ? hasFailed
+                                    ? theme.colors.error
+                                    : theme.colors.onPrimary 
+                                : theme.colors.onSurface 
+                        }
                     ]}
                 >
                     {message.content}
                 </Text>
+                {hasFailed && (
+                    <MaterialCommunityIcons
+                        name="alert-circle"
+                        size={16}
+                        color={theme.colors.error}
+                        style={styles.errorIcon}
+                    />
+                )}
             </View>
-            <Text 
-                variant="labelSmall"
-                style={[
-                    styles.timeText,
-                    { color: theme.colors.onSurfaceVariant }
-                ]}
-            >
-                {format(new Date(message.created_at), 'h:mm a')}
-            </Text>
+            <View style={styles.messageFooter}>
+                <Text 
+                    variant="labelSmall"
+                    style={[
+                        styles.timeText,
+                        { color: hasFailed ? theme.colors.error : theme.colors.onSurfaceVariant }
+                    ]}
+                >
+                    {hasFailed ? 'Failed to send - Tap to retry' : format(new Date(message.created_at), 'h:mm a')}
+                </Text>
+            </View>
         </View>
     );
 }
@@ -75,12 +98,27 @@ const styles = StyleSheet.create({
     bubble: {
         borderRadius: 16,
         padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     messageText: {
         flexShrink: 1,
+        marginRight: 4,
     },
-    timeText: {
+    messageFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
         marginTop: 4,
         marginHorizontal: 4,
+    },
+    timeText: {
+        fontSize: 11,
+    },
+    failedMessage: {
+        opacity: 0.9,
+    },
+    errorIcon: {
+        marginLeft: 4,
     },
 }); 
