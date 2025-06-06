@@ -388,19 +388,11 @@ export default function PostDetails() {
                 </View>
               </View>
               <View style={styles.contactButtons}>
-                <Button 
-                  mode="contained" 
-                  icon="email" 
-                  onPress={handleContact}
-                  style={[styles.contactButton, { marginRight: 8 }]}
-                >
-                  Email Seller
-                </Button>
                 <Button
-                  mode="contained-tonal"
+                  mode="contained"
                   onPress={handleMessageSeller}
                   icon="message"
-                  style={[styles.contactButton, { marginRight: 8 }]}
+                  style={styles.contactButton}
                 >
                   Message Seller
                 </Button>
@@ -516,8 +508,6 @@ const styles = StyleSheet.create({
   },
   contactSection: {
     padding: 16,
-    flexDirection: 'row',
-    gap: 8,
   },
   sellerHeader: {
     marginBottom: 16,
@@ -544,10 +534,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   contactButtons: {
-    flexDirection: 'row',
+    marginTop: 16,
   },
   contactButton: {
-    flex: 1,
+    paddingVertical: 8,
   },
   priceContainer: {
     flexDirection: 'row',

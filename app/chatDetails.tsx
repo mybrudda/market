@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import {
     View,
     StyleSheet,
@@ -21,6 +21,94 @@ import { supabase } from '../supabaseClient';
 import Header from '../components/Header';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+// Types for the memoized header component
+interface ListHeaderProps {
+    conversation: Conversation | null;
+    theme: any;
+    formatPrice: (price: number) => string;
+    getCleanAvatarUrl: (url: string | null) => string | null;
+}
+
+// Memoized message component
+const MemoizedChatMessage = memo(ChatMessage);
+
+// Memoized header component
+const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAvatarUrl }: ListHeaderProps) => (
+    <View style={[styles.headerInfo, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.userInfoContainer}>
+            <View style={styles.logoContainer}>
+                {conversation?.user?.avatar_url ? (
+                    getCleanAvatarUrl(conversation.user.avatar_url) ? (
+                        <Image
+                            source={{ uri: getCleanAvatarUrl(conversation.user.avatar_url)! }}
+                            style={styles.avatar}
+                        />
+                    ) : (
+                        <MaterialCommunityIcons
+                            name="account-circle"
+                            size={40}
+                            color={theme.colors.primary}
+                        />
+                    )
+                ) : (
+                    <MaterialCommunityIcons
+                        name="account-circle"
+                        size={40}
+                        color={theme.colors.primary}
+                    />
+                )}
+                <View style={styles.userInfo}>
+                    <View style={styles.nameRow}>
+                        <Text variant="titleLarge" style={styles.username}>
+                            {conversation?.user?.username || conversation?.other_user_name}
+                        </Text>
+                        {conversation?.user?.is_verified && (
+                            <MaterialCommunityIcons
+                                name="check-decagram"
+                                size={20}
+                                color={theme.colors.primary}
+                                style={styles.verifiedIcon}
+                            />
+                        )}
+                    </View>
+                    {conversation?.user?.user_type && (
+                        <Text variant="bodyMedium" style={[styles.userType, { color: theme.colors.onSurfaceVariant }]}>
+                            {conversation.user.user_type.charAt(0).toUpperCase() + conversation.user.user_type.slice(1)}
+                        </Text>
+                    )}
+                </View>
+            </View>
+        </View>
+        {conversation?.post_image && (
+            <View style={styles.postContainer}>
+                <View style={styles.postContent}>
+                    <Image
+                        source={{ uri: conversation.post_image }}
+                        style={styles.postImage}
+                        resizeMode="cover"
+                    />
+                    <View style={styles.postTitleContainer}>
+                        <Text 
+                            variant="bodyMedium" 
+                            style={styles.postTitle}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                        >
+                            {conversation.post_title}
+                        </Text>
+                        <Text 
+                            variant="labelLarge" 
+                            style={[styles.postPrice, { color: theme.colors.primary }]}
+                        >
+                            {formatPrice(conversation.post_price || 0)}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        )}
+    </View>
+));
+
 export default function ChatDetails() {
     const theme = useTheme();
     const params = useLocalSearchParams();
@@ -31,6 +119,38 @@ export default function ChatDetails() {
     const [conversation, setConversation] = useState<Conversation | null>(null);
     const flatListRef = useRef<FlatList>(null);
     const conversationId = params.id as string;
+
+    // Memoized callbacks
+    const handleSendMessage = useCallback(async () => {
+        if (!conversationId || !newMessage.trim()) return;
+
+        try {
+            await chatService.sendMessage(conversationId, newMessage.trim());
+            setNewMessage('');
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
+    }, [conversationId, newMessage]);
+
+    const renderMessage = useCallback(({ item }: { item: Message }) => {
+        const isOwnMessage = item.sender_id === currentUser?.id;
+        return <MemoizedChatMessage message={item} isOwnMessage={isOwnMessage} />;
+    }, [currentUser?.id]);
+
+    const keyExtractor = useCallback((item: Message) => item.id, []);
+
+    // Memoized header component
+    const ListHeaderComponent = useCallback(() => (
+        <MemoizedListHeader
+            conversation={conversation}
+            theme={theme}
+            formatPrice={formatPrice}
+            getCleanAvatarUrl={getCleanAvatarUrl}
+        />
+    ), [conversation, theme]);
 
     useEffect(() => {
         let messageChannel: any;
@@ -45,28 +165,25 @@ export default function ChatDetails() {
             }
             setCurrentUser(user);
 
-            // Load conversation details
+            // Load conversation details and messages in parallel
             try {
-                const conversations = await chatService.getConversations();
-                const currentConversation = conversations.find(c => c.id === conversationId);
+                const [conversationsResponse, messagesResponse] = await Promise.all([
+                    chatService.getConversations(),
+                    chatService.getMessages(conversationId)
+                ]);
+
+                const currentConversation = conversationsResponse.find(c => c.id === conversationId);
                 if (currentConversation) {
                     setConversation(currentConversation);
                 }
-            } catch (error) {
-                console.error('Failed to load conversation:', error);
-            }
-
-            // Load existing messages
-            try {
-                const data = await chatService.getMessages(conversationId);
-                setMessages(data);
+                setMessages(messagesResponse);
                 await chatService.markMessagesAsRead(conversationId);
             } catch (error) {
-                console.error('Failed to load messages:', error);
+                console.error('Failed to load data:', error);
             }
             setLoading(false);
 
-            // Setup realtime subscription AFTER user is set
+            // Setup realtime subscription
             messageChannel = supabase
                 .channel(`messages:conversation:${conversationId}`)
                 .on(
@@ -79,15 +196,12 @@ export default function ChatDetails() {
                     },
                     (payload) => {
                         const newMsg = payload.new as Message;
-
                         setMessages((prev) => {
-                            // Prevent duplicates
                             const exists = prev.some((msg) => msg.id === newMsg.id);
                             if (exists) return prev;
                             return [...prev, newMsg];
                         });
 
-                        // Scroll only if incoming message (not sent by current user)
                         if (newMsg.sender_id !== user.id) {
                             setTimeout(() => {
                                 flatListRef.current?.scrollToEnd({ animated: true });
@@ -102,32 +216,12 @@ export default function ChatDetails() {
 
         init();
 
-        // Cleanup subscription on unmount
         return () => {
             if (messageChannel) {
                 supabase.removeChannel(messageChannel);
             }
         };
     }, [conversationId]);
-
-    const handleSendMessage = async () => {
-        if (!conversationId || !newMessage.trim()) return;
-
-        try {
-            await chatService.sendMessage(conversationId, newMessage.trim());
-            setNewMessage('');
-            setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-        } catch (error) {
-            console.error('Error sending message:', error);
-        }
-    };
-
-    const renderMessage = ({ item }: { item: Message }) => {
-        const isOwnMessage = item.sender_id === currentUser?.id;
-        return <ChatMessage message={item} isOwnMessage={isOwnMessage} />;
-    };
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -143,82 +237,6 @@ export default function ChatDetails() {
         return url.replace(/^@/, '').replace(/::text$/, '');
     };
 
-    const ListHeaderComponent = () => (
-        <View style={[styles.headerInfo, { backgroundColor: theme.colors.surface }]}>
-            <View style={styles.userInfoContainer}>
-                <View style={styles.logoContainer}>
-                    {conversation?.user?.avatar_url ? (
-                        getCleanAvatarUrl(conversation.user.avatar_url) ? (
-                            <Image
-                                source={{ uri: getCleanAvatarUrl(conversation.user.avatar_url)! }}
-                                style={styles.avatar}
-                            />
-                        ) : (
-                            <MaterialCommunityIcons
-                                name="account-circle"
-                                size={40}
-                                color={theme.colors.primary}
-                            />
-                        )
-                    ) : (
-                        <MaterialCommunityIcons
-                            name="account-circle"
-                            size={40}
-                            color={theme.colors.primary}
-                        />
-                    )}
-                    <View style={styles.userInfo}>
-                        <View style={styles.nameRow}>
-                            <Text variant="titleLarge" style={styles.username}>
-                                {conversation?.user?.username || conversation?.other_user_name}
-                            </Text>
-                            {conversation?.user?.is_verified && (
-                                <MaterialCommunityIcons
-                                    name="check-decagram"
-                                    size={20}
-                                    color={theme.colors.primary}
-                                    style={styles.verifiedIcon}
-                                />
-                            )}
-                        </View>
-                        {conversation?.user?.user_type && (
-                            <Text variant="bodyMedium" style={[styles.userType, { color: theme.colors.onSurfaceVariant }]}>
-                                {conversation.user.user_type.charAt(0).toUpperCase() + conversation.user.user_type.slice(1)}
-                            </Text>
-                        )}
-                    </View>
-                </View>
-            </View>
-            {conversation?.post_image && (
-                <View style={styles.postContainer}>
-                    <View style={styles.postContent}>
-                        <Image
-                            source={{ uri: conversation.post_image }}
-                            style={styles.postImage}
-                            resizeMode="cover"
-                        />
-                        <View style={styles.postTitleContainer}>
-                            <Text 
-                                variant="bodyMedium" 
-                                style={styles.postTitle}
-                                numberOfLines={2}
-                                ellipsizeMode="tail"
-                            >
-                                {conversation.post_title}
-                            </Text>
-                            <Text 
-                                variant="labelLarge" 
-                                style={[styles.postPrice, { color: theme.colors.primary }]}
-                            >
-                                {formatPrice(conversation.post_price || 0)}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-            )}
-        </View>
-    );
-
     if (loading || !currentUser) {
         return (
             <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -228,28 +246,34 @@ export default function ChatDetails() {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <Header title={'Chat'} />
-            <KeyboardAvoidingView
-                style={styles.keyboardView}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
             >
+                <Header title={'Chat'} />
                 <FlatList
                     ref={flatListRef}
                     data={messages}
                     renderItem={renderMessage}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={keyExtractor}
                     style={styles.messageList}
                     contentContainerStyle={[
                         styles.messageListContent,
                         { backgroundColor: theme.colors.background }
                     ]}
                     showsVerticalScrollIndicator={false}
-                    initialNumToRender={20}
+                    initialNumToRender={15}
+                    maxToRenderPerBatch={10}
+                    windowSize={10}
+                    removeClippedSubviews={true}
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                     onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
                     ListHeaderComponent={ListHeaderComponent}
+                    maintainVisibleContentPosition={{
+                        minIndexForVisible: 0,
+                        autoscrollToTopThreshold: 10
+                    }}
                 />
                 <View style={[styles.inputContainer, { 
                     backgroundColor: theme.colors.surface,
@@ -282,7 +306,7 @@ export default function ChatDetails() {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -293,9 +317,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     container: {
-        flex: 1,
-    },
-    keyboardView: {
         flex: 1,
     },
     messageList: {
@@ -368,7 +389,9 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 8,
+        paddingBottom: 60,
+        paddingTop: 10,
+        paddingHorizontal: 10,
         borderTopWidth: 1,
     },
     input: {
