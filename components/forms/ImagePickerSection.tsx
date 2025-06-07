@@ -1,7 +1,9 @@
-import { View, StyleSheet, Image, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Text, IconButton, useTheme } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
+import { Image } from 'expo-image';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 interface ImagePickerSectionProps {
   images: string[];
@@ -9,6 +11,8 @@ interface ImagePickerSectionProps {
   onRemoveImage: (index: number) => void;
   maxImages?: number;
 }
+
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function ImagePickerSection({
   images,
@@ -32,8 +36,11 @@ export default function ImagePickerSection({
           {images.map((base64Image, index) => (
             <View key={index} style={styles.imageWrapper}>
               <Image
-                source={{ uri: `data:image/jpeg;base64,${base64Image}` }}
+                source={`data:image/jpeg;base64,${base64Image}`}
                 style={styles.image}
+                contentFit="cover"
+                transition={200}
+                placeholder={blurhash}
               />
               <IconButton
                 icon="close"
@@ -62,32 +69,35 @@ export default function ImagePickerSection({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
+    marginVertical: 16,
   },
   imageText: {
     marginBottom: 8,
-    fontSize: 14,
   },
   scrollView: {
     flexGrow: 0,
   },
   imageContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
   },
   imageWrapper: {
     position: 'relative',
-  },
-  image: {
     width: 100,
     height: 100,
     borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
   },
   removeButton: {
     position: 'absolute',
     top: -8,
     right: -8,
-    margin: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   addButton: {
     width: 100,

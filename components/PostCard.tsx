@@ -1,8 +1,9 @@
 import { View, StyleSheet, Pressable } from 'react-native';
-import React from 'react';
-import { Text, Card, Chip, useTheme } from 'react-native-paper';
+import React, { useState } from 'react';
+import { Text, Card, Chip, useTheme, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 
 interface VehicleDetails {
   make: string;
@@ -63,6 +64,7 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const theme = useTheme();
+  const [imageError, setImageError] = useState(false);
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -213,8 +215,24 @@ export default function PostCard({ post }: PostCardProps) {
       pathname: '/PostDetails',
       params: { post: JSON.stringify(post) }
     })}>
-      <Card style={styles.card} mode="elevated">
-        <Card.Cover source={{ uri: post.images[0] }} style={styles.cardImage} />
+      <Card style={styles.card}>
+        <View style={styles.imageContainer}>
+          <Image
+            source={post.images[0]}
+            style={styles.cardImage}
+            contentFit="cover"
+            transition={300}
+            placeholder={blurhash}
+            onError={() => setImageError(true)}
+            contentPosition="center"
+          />
+          {imageError && (
+            <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <MaterialCommunityIcons name="image-off" size={24} color={theme.colors.onSurfaceVariant} />
+              <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
+            </View>
+          )}
+        </View>
         <Card.Content style={styles.cardContent}>
           <View style={styles.priceRow}>
             <Text 
@@ -272,13 +290,29 @@ export default function PostCard({ post }: PostCardProps) {
   );
 }
 
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
+
 const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
   },
-  cardImage: {
+  imageContainer: {
+    position: 'relative',
     height: 200,
     backgroundColor: '#f0f0f0',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  errorOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardContent: {
     paddingTop: 8,

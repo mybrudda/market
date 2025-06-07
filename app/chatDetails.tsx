@@ -12,7 +12,7 @@ import {
     Image,
     Alert,
 } from 'react-native';
-import { useTheme, Text, Divider } from 'react-native-paper';
+import { useTheme, Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { ChatMessage } from '../components/ChatMessage';
@@ -21,6 +21,10 @@ import { Message, Conversation } from '../types/chat';
 import { supabase } from '../supabaseClient';
 import Header from '../components/Header';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
+
+// Add blurhash constant at the top level
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 // Types for the memoized header component
 interface ListHeaderProps {
@@ -34,39 +38,46 @@ interface ListHeaderProps {
 const MemoizedChatMessage = memo(ChatMessage);
 
 // Memoized header component
-const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAvatarUrl }: ListHeaderProps) => (
-    <View style={[styles.headerInfo, { backgroundColor: theme.colors.elevation.level1 }]}>
-        <View style={[styles.userInfoContainer, {
-            backgroundColor: theme.colors.elevation.level1,
-            borderBottomColor: theme.colors.surfaceVariant
-        }]}>
-            <View style={styles.logoContainer}>
-                {conversation?.user?.avatar_url ? (
-                    getCleanAvatarUrl(conversation.user.avatar_url) ? (
-                        <Image
-                            source={{ uri: getCleanAvatarUrl(conversation.user.avatar_url)! }}
-                            style={styles.avatar}
-                        />
+const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAvatarUrl }: ListHeaderProps) => {
+    if (!conversation) return null;
+    
+    return (
+        <View style={[styles.headerInfo, { backgroundColor: theme.colors.elevation.level1 }]}>
+            <View style={[styles.userInfoContainer, {
+                backgroundColor: theme.colors.elevation.level1,
+                borderBottomColor: theme.colors.surfaceVariant
+            }]}>
+                <View style={styles.logoContainer}>
+                    {conversation.user?.avatar_url ? (
+                        getCleanAvatarUrl(conversation.user.avatar_url) ? (
+                            <ExpoImage
+                                source={{ uri: getCleanAvatarUrl(conversation.user.avatar_url)! }}
+                                style={styles.avatar}
+                                contentFit="cover"
+                                transition={200}
+                                placeholder={blurhash}
+                                cachePolicy="memory-disk"
+                            />
+                        ) : (
+                            <MaterialCommunityIcons
+                                name="account-circle"
+                                size={40}
+                                color={theme.colors.primary}
+                            />
+                        )
                     ) : (
                         <MaterialCommunityIcons
                             name="account-circle"
                             size={40}
                             color={theme.colors.primary}
                         />
-                    )
-                ) : (
-                    <MaterialCommunityIcons
-                        name="account-circle"
-                        size={40}
-                        color={theme.colors.primary}
-                    />
-                )}
-                <View style={styles.userInfo}>
+                    )}
+                    
                     <View style={styles.nameRow}>
                         <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
-                            {conversation?.user?.username || conversation?.other_user_name}
+                            {conversation.user?.username || conversation.other_user_name}
                         </Text>
-                        {conversation?.user?.is_verified && (
+                        {conversation.user?.is_verified && (
                             <MaterialCommunityIcons
                                 name="check-decagram"
                                 size={20}
@@ -75,21 +86,23 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
                             />
                         )}
                     </View>
-                    {conversation?.user?.user_type && (
+                    {conversation.user?.user_type && (
                         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
                             {conversation.user.user_type.charAt(0).toUpperCase() + conversation.user.user_type.slice(1)}
                         </Text>
                     )}
                 </View>
             </View>
-        </View>
-        {conversation?.post_image && (
+            
             <View style={[styles.postContainer, { backgroundColor: theme.colors.elevation.level2 }]}>
                 <View style={styles.postContent}>
-                    <Image
+                    <ExpoImage
                         source={{ uri: conversation.post_image }}
                         style={styles.postImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        transition={300}
+                        placeholder={blurhash}
+                        cachePolicy="memory-disk"
                     />
                     <View style={styles.postTitleContainer}>
                         <Text 
@@ -109,9 +122,9 @@ const MemoizedListHeader = memo(({ conversation, theme, formatPrice, getCleanAva
                     </View>
                 </View>
             </View>
-        )}
-    </View>
-));
+        </View>
+    );
+});
 
 export default function ChatDetails() {
     const theme = useTheme();

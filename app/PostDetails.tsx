@@ -8,6 +8,7 @@ import Carousel from 'react-native-reanimated-carousel';
 import Header from '../components/Header';
 import { chatService } from '../lib/chatService';
 import { useAuthStore } from '../store/useAuthStore';
+import { Image as ExpoImage } from 'expo-image';
 
 interface VehicleDetails {
   make: string;
@@ -81,6 +82,8 @@ interface CarouselRenderItemInfo {
 }
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
+
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function PostDetails() {
   const theme = useTheme();
@@ -156,6 +159,19 @@ export default function PostDetails() {
     }
   };
 
+  const renderCarouselItem = ({ item }: CarouselRenderItemInfo) => (
+    <View style={styles.carouselImageContainer}>
+      <ExpoImage
+        source={item}
+        style={styles.carouselImage}
+        contentFit="cover"
+        transition={300}
+        placeholder={blurhash}
+        cachePolicy="memory-disk"
+      />
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -198,13 +214,8 @@ export default function PostDetails() {
             height={300}
             data={post.images}
             scrollAnimationDuration={1000}
-            renderItem={({ item }: CarouselRenderItemInfo) => (
-              <Image
-                source={{ uri: item }}
-                style={styles.carouselImage}
-                resizeMode="cover"
-              />
-            )}
+            renderItem={renderCarouselItem}
+            defaultIndex={0}
           />
         </View>
 
@@ -381,9 +392,13 @@ export default function PostDetails() {
               <View style={styles.sellerHeader}>
                 <View style={styles.sellerInfo}>
                   {post.user.avatar_url && (
-                    <Image
-                      source={{ uri: post.user.avatar_url }}
+                    <ExpoImage
+                      source={post.user.avatar_url}
                       style={styles.avatar}
+                      contentFit="cover"
+                      transition={200}
+                      placeholder={blurhash}
+                      cachePolicy="memory-disk"
                     />
                   )}
                   <View>
@@ -459,10 +474,15 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     backgroundColor: '#000',
+    height: 300,
+  },
+  carouselImageContainer: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
   },
   carouselImage: {
+    flex: 1,
     width: '100%',
-    height: 300,
   },
   content: {
     padding: 16,

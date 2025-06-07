@@ -53,8 +53,8 @@ export default function CreateVehiclePost() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const handlePickImage = async () => {
-    if (formState.images.length >= 3) {
-      Alert.alert('Limit Reached', 'You can only select up to 3 images.');
+    if (formState.images.length >= 5) {
+      Alert.alert('Limit Reached', 'You can only select up to 5 images.');
       return;
     }
 
@@ -63,21 +63,19 @@ export default function CreateVehiclePost() {
         mediaTypes: "images",
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.3,
+        quality: 0.1,
         base64: true,
       });
 
-      if (!result.canceled && result.assets?.[0]?.base64) {
-        const base64Image = result.assets[0].base64;
-        if (base64Image) {
-          setFormState(prev => ({
-            ...prev,
-            images: [...prev.images, base64Image]
-          }));
-        }
+      if (!result.canceled && result.assets?.[0] && result.assets[0].base64) {
+        setFormState(prev => ({
+          ...prev,
+          images: [...prev.images, result.assets[0].base64 as string]
+        }));
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
@@ -304,7 +302,7 @@ export default function CreateVehiclePost() {
         onLocationChange={handleLocationChange}
         onPickImage={handlePickImage}
         onRemoveImage={handleRemoveImage}
-        maxImages={3}
+        maxImages={5}
       >
         {renderVehicleFields()}
       </BasePostForm>

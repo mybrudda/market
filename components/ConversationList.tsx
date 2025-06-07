@@ -1,4 +1,4 @@
- import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     FlatList,
@@ -16,6 +16,9 @@ interface ConversationListProps {
     loading: boolean;
     onSelectConversation: (conversation: Conversation) => void;
 }
+
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/60';
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export const ConversationList: React.FC<ConversationListProps> = ({
     conversations,
@@ -54,10 +57,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             onPress={() => onSelectConversation(item)}
         >
             <Image
-                source={item.post_image || 'https://via.placeholder.com/60'}
+                source={item.post_image || PLACEHOLDER_IMAGE}
                 style={styles.postImage}
                 contentFit="cover"
                 transition={200}
+                placeholder={blurhash}
+                cachePolicy="memory-disk"
             />
             <View style={styles.conversationInfo}>
                 <View style={styles.headerRow}>
@@ -94,6 +99,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
             style={[styles.container, { backgroundColor: theme.colors.background }]}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
         />
     );
 };
@@ -123,6 +132,7 @@ const styles = StyleSheet.create({
         height: 60,
         borderRadius: 8,
         marginRight: 12,
+        backgroundColor: '#f0f0f0',
     },
     conversationInfo: {
         flex: 1,
