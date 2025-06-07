@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PostCard from '../../../components/PostCard';
 import FilterSection, { FilterOptions } from '../../../components/FilterSection';
-import { Post } from '../../../types/post';
+import { Post } from '../../../types/database';
 
 // Constants
 const POSTS_PER_PAGE = 10;
@@ -26,10 +26,12 @@ export default function Home() {
   const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null);
 
   // Fetch initial posts without filters
-  const fetchInitialPosts = useCallback(async (start = 0) => {
+  const fetchInitialPosts = useCallback(async (start = 0, shouldAccumulate = false) => {
     try {
       setError(null);
-      setLoading(true);
+      if (!shouldAccumulate) {
+        setLoading(true);
+      }
 
       const query = supabase
         .from('posts')
@@ -56,14 +58,17 @@ export default function Home() {
 
       const total = count || 0;
       setTotalCount(total);
-      setHasMore(total > POSTS_PER_PAGE);
-      setPosts(data || []);
+      setHasMore(start + POSTS_PER_PAGE < total);
+      
+      // Accumulate data if loading more, otherwise replace
+      setPosts(prev => shouldAccumulate ? [...prev, ...(data || [])] : (data || []));
 
       if (__DEV__) {
         console.log('Initial fetch:', {
           totalPosts: total,
           fetchedPosts: data?.length,
-          start
+          start,
+          shouldAccumulate
         });
       }
     } catch (err) {
@@ -75,9 +80,12 @@ export default function Home() {
   }, []);
 
   // Fetch posts with filters
-  const fetchFilteredPosts = useCallback(async (start = 0, filters: FilterOptions) => {
+  const fetchFilteredPosts = useCallback(async (start = 0, filters: FilterOptions, shouldAccumulate = false) => {
     try {
       setError(null);
+      if (!shouldAccumulate) {
+        setLoading(true);
+      }
       
       let query = supabase
         .from('posts')
@@ -163,20 +171,27 @@ export default function Home() {
 
       const total = count || 0;
       setTotalCount(total);
-      setHasMore(total > POSTS_PER_PAGE);
-      setPosts(data || []);
+      setHasMore(start + POSTS_PER_PAGE < total);
+      
+      // Accumulate data if loading more, otherwise replace
+      setPosts(prev => shouldAccumulate ? [...prev, ...(data || [])] : (data || []));
 
       if (__DEV__) {
         console.log('Filtered fetch:', {
           totalPosts: total,
           fetchedPosts: data?.length,
           filters,
-          start
+          start,
+          shouldAccumulate
         });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
       console.error('Error fetching filtered posts:', err);
+    } finally {
+      if (!shouldAccumulate) {
+        setLoading(false);
+      }
     }
   }, [searchQuery]);
 
@@ -185,22 +200,20 @@ export default function Home() {
     setSearchQuery(query);
     setPage(0);
     setHasMore(true);
-    setLoading(true);
     
     if (activeFilters) {
-      fetchFilteredPosts(0, activeFilters).finally(() => setLoading(false));
+      fetchFilteredPosts(0, activeFilters, false);
     } else {
-      fetchInitialPosts(0).finally(() => setLoading(false));
+      fetchInitialPosts(0, false);
     }
   }, [fetchFilteredPosts, fetchInitialPosts, activeFilters]);
 
-  // Handle filters - Only called when user explicitly applies filters
+  // Handle filters
   const handleFilter = useCallback((filters: FilterOptions) => {
     setActiveFilters(filters);
     setPage(0);
     setHasMore(true);
-    setLoading(true);
-    fetchFilteredPosts(0, filters).finally(() => setLoading(false));
+    fetchFilteredPosts(0, filters, false);
   }, [fetchFilteredPosts]);
 
   // Initial load - fetch all posts without filters
@@ -210,7 +223,7 @@ export default function Home() {
 
     const loadInitialData = async () => {
       if (mounted) {
-        await fetchInitialPosts(0);
+        await fetchInitialPosts(0, false);
       }
     };
 
@@ -229,9 +242,9 @@ export default function Home() {
     
     const fetchData = async () => {
       if (activeFilters) {
-        await fetchFilteredPosts(0, activeFilters);
+        await fetchFilteredPosts(0, activeFilters, false);
       } else {
-        await fetchInitialPosts(0);
+        await fetchInitialPosts(0, false);
       }
       setRefreshing(false);
     };
@@ -243,21 +256,20 @@ export default function Home() {
   const handleLoadMore = useCallback(() => {
     if (loadingMore || !hasMore) return;
 
-    const nextStart = page * POSTS_PER_PAGE + POSTS_PER_PAGE;
+    const nextStart = (page + 1) * POSTS_PER_PAGE;
     if (nextStart >= totalCount) {
       setHasMore(false);
       return;
     }
 
     setLoadingMore(true);
-    const nextPage = page + 1;
-    setPage(nextPage);
+    setPage(prev => prev + 1);
 
     const loadMore = async () => {
       if (activeFilters) {
-        await fetchFilteredPosts(nextStart, activeFilters);
+        await fetchFilteredPosts(nextStart, activeFilters, true);
       } else {
-        await fetchInitialPosts(nextStart);
+        await fetchInitialPosts(nextStart, true);
       }
       setLoadingMore(false);
     };
@@ -272,7 +284,7 @@ export default function Home() {
     setPage(0);
     setHasMore(true);
     setLoading(true);
-    fetchInitialPosts(0).finally(() => setLoading(false));
+    fetchInitialPosts(0, false).finally(() => setLoading(false));
   }, [fetchInitialPosts]);
 
   // Memoized Components

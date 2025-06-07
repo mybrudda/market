@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { supabase } from "../../../supabaseClient";
 import PostCard from "../../../components/PostCard";
-import { Post } from "../../../types/post";
+import { Post } from "../../../types/database";
 import LoadingScreen from "../../../components/LoadingScreen";
 import Header from "../../../components/Header";
 

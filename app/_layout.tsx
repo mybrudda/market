@@ -3,14 +3,15 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { PaperProvider } from "react-native-paper";
+import { PaperProvider, MD3DarkTheme, MD3LightTheme } from "react-native-paper";
 import { useThemeStore } from "../store/useThemeStore";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SafeScreen from "@/components/SafeScreen";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from '../components/AuthProvider';
 import { getTheme } from '../constants/theme';
-import { View } from "react-native";
+import { View, useColorScheme } from "react-native";
+import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -31,7 +32,6 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -51,7 +51,19 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const setTheme = useThemeStore((state) => state.setTheme);
+  const systemColorScheme = useColorScheme();
   const paperTheme = getTheme(isDarkMode);
+
+  // Sync with system theme on first launch
+  useEffect(() => {
+    const userHasSetTheme = useThemeStore.getState().isDarkMode !== undefined;
+    if (!userHasSetTheme && systemColorScheme) {
+      setTheme(systemColorScheme === 'dark');
+    }
+  }, [systemColorScheme]);
+
+  const navigationTheme = isDarkMode ? NavigationDarkTheme : NavigationDefaultTheme;
 
   return (
     <SafeAreaProvider>
@@ -63,7 +75,12 @@ function RootLayoutNav() {
         <SafeScreen>
           <PaperProvider theme={paperTheme}>
             <AuthProvider>
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack 
+                screenOptions={{ 
+                  headerShown: false,
+                  contentStyle: { backgroundColor: navigationTheme.colors.background }
+                }}
+              >
                 <Stack.Screen name="index" />
                 <Stack.Screen name="register" />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
