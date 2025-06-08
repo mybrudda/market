@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { useThemeStore } from "../../../store/useThemeStore";
-import LoadingScreen from "../../../components/LoadingScreen";
+import LoadingScreen from "../../../components/ui/LoadingScreen";
 import { supabase } from "../../../supabaseClient";
 
 interface UserProfile {

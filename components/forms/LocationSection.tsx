@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { Card, Text, TextInput } from 'react-native-paper';
 import React from 'react';
-import DropdownComponent from '../Dropdown';
+import DropdownComponent from '../ui/Dropdown';
 import { CITIES } from '../../constants/FormOptions';
 
 interface LocationSectionProps {

@@ -4,8 +4,8 @@ import { Text, useTheme, ActivityIndicator, Button } from 'react-native-paper';
 import { supabase } from '../../../supabaseClient';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import PostCard from '../../../components/PostCard';
-import FilterSection, { FilterOptions } from '../../../components/FilterSection';
+import PostCard from '../../../components/posts/PostCard';
+import FilterSection, { FilterOptions } from '../../../components/posts/FilterSection';
 import { Post } from '../../../types/database';
 
 // Constants
@@ -102,11 +102,6 @@ export default function Home() {
           )
         `, { count: 'exact' });
 
-      // Add title search if searchQuery exists
-      if (searchQuery) {
-        query = query.ilike('title', `%${searchQuery}%`);
-      }
-
       // Apply filters
       query = query.eq('post_type', filters.postType)
         .eq('listing_type', filters.listingType);
@@ -193,28 +188,79 @@ export default function Home() {
         setLoading(false);
       }
     }
-  }, [searchQuery]);
+  }, []);
 
   // Handle search
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
+  const handleSearch = useCallback((searchText: string) => {
+    // Clear any active filters when searching
+    setActiveFilters(null);
+    setSearchQuery(searchText);
     setPage(0);
     setHasMore(true);
     
-    if (activeFilters) {
-      fetchFilteredPosts(0, activeFilters, false);
-    } else {
-      fetchInitialPosts(0, false);
-    }
-  }, [fetchFilteredPosts, fetchInitialPosts, activeFilters]);
+    const searchPosts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error: supabaseError, count } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            user:user_id (
+              id,
+              username,
+              full_name,
+              avatar_url,
+              email,
+              user_type,
+              is_verified
+            )
+          `, { count: 'exact' })
+          .ilike('title', `%${searchText}%`)
+          .order('created_at', { ascending: false })
+          .range(0, POSTS_PER_PAGE - 1);
+
+        if (supabaseError) {
+          throw new Error(supabaseError.message);
+        }
+
+        const total = count || 0;
+        setTotalCount(total);
+        setHasMore(POSTS_PER_PAGE < total);
+        setPosts(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred while searching posts');
+        console.error('Error searching posts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    searchPosts();
+  }, []);
 
   // Handle filters
   const handleFilter = useCallback((filters: FilterOptions) => {
+    // Clear search query when filtering
+    if (searchQuery) {
+      setSearchQuery('');
+    }
     setActiveFilters(filters);
     setPage(0);
     setHasMore(true);
     fetchFilteredPosts(0, filters, false);
-  }, [fetchFilteredPosts]);
+  }, [fetchFilteredPosts, searchQuery]);
+
+  // Handle reset
+  const handleReset = useCallback(() => {
+    setSearchQuery('');
+    setActiveFilters(null);
+    setPage(0);
+    setHasMore(true);
+    setLoading(true);
+    fetchInitialPosts(0, false).finally(() => setLoading(false));
+  }, [fetchInitialPosts]);
 
   // Initial load - fetch all posts without filters
   useEffect(() => { // useEffect will run twice on initial load due to REACT sctrict mode
@@ -276,16 +322,6 @@ export default function Home() {
 
     loadMore();
   }, [loadingMore, hasMore, page, totalCount, activeFilters, fetchFilteredPosts, fetchInitialPosts]);
-
-  // Handle reset
-  const handleReset = useCallback(() => {
-    setSearchQuery('');
-    setActiveFilters(null);
-    setPage(0);
-    setHasMore(true);
-    setLoading(true);
-    fetchInitialPosts(0, false).finally(() => setLoading(false));
-  }, [fetchInitialPosts]);
 
   // Memoized Components
   const ListHeaderComponent = useMemo(() => (

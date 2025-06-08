@@ -4,10 +4,10 @@ import { ActivityIndicator, useTheme, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { supabase } from "../../../supabaseClient";
-import PostCard from "../../../components/PostCard";
+import PostCard from "../../../components/posts/PostCard";
 import { Post } from "../../../types/database";
-import LoadingScreen from "../../../components/LoadingScreen";
-import Header from "../../../components/Header";
+import LoadingScreen from "../../../components/ui/LoadingScreen";
+import Header from "../../../components/layout/Header";
 
 const POSTS_PER_PAGE = 10;
 

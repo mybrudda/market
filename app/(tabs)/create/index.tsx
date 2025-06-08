@@ -3,7 +3,7 @@ import React from 'react';
 import { Button, Text, useTheme, Card } from 'react-native-paper';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Header from '../../../components/Header';
+import Header from '../../../components/layout/Header';
 
 export default function CreateScreen() {
   const theme = useTheme();

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
-import { ConversationList } from '../../../components/ConversationList';
+import { ConversationList } from '../../../components/chat/ConversationList';
 import { useRouter } from 'expo-router';
 import { Conversation } from '../../../types/chat';
 import { chatService } from '../../../lib/chatService';

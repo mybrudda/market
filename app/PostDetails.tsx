@@ -5,7 +5,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../supabaseClient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Carousel from 'react-native-reanimated-carousel';
-import Header from '../components/Header';
+import Header from '../components/layout/Header';
 import { chatService } from '../lib/chatService';
 import { useAuthStore } from '../store/useAuthStore';
 import { Image as ExpoImage } from 'expo-image';

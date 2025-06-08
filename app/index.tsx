@@ -2,7 +2,7 @@ import { View, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 're
 import React, { useState, useEffect } from 'react';
 import { TextInput, Button, Text, useTheme, HelperText } from 'react-native-paper';
 import { router, Redirect } from 'expo-router';
-import SafeScreen from '../components/SafeScreen';
+import SafeScreen from '../components/layout/SafeScreen';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function Login() {

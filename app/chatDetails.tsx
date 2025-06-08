@@ -15,11 +15,11 @@ import {
 import { useTheme, Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { ChatMessage } from "../components/ChatMessage";
+import { ChatMessage } from "../components/chat/ChatMessage";
 import { chatService } from "../lib/chatService";
 import { Message, Conversation } from "../types/chat";
 import { supabase } from "../supabaseClient";
-import Header from "../components/Header";
+import Header from "../components/layout/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Header from '../../../components/Header';
+import Header from '../../../components/layout/Header';
 
 export default function SavedPostsScreen() {
   const theme = useTheme();

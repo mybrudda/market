@@ -5,10 +5,10 @@ import { router } from 'expo-router';
 import { supabase } from '../../../supabaseClient';
 import { useAuthStore } from '../../../store/useAuthStore';
 import * as ImagePicker from 'expo-image-picker';
-import LoadingScreen from '../../../components/LoadingScreen';
-import DropdownComponent from '../../../components/Dropdown';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
+import DropdownComponent from '../../../components/ui/Dropdown';
 import { uploadToCloudinary } from '../../../lib/cloudinary';
-import Header from '../../../components/Header';
+import Header from '../../../components/layout/Header';
 import FeaturesSection from '../../../components/forms/FeaturesSection';
 import { RealEstateFormData, FormErrors, transformRealEstateForm } from '../../../types/forms';
 import { 

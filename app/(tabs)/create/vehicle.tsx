@@ -3,14 +3,14 @@ import React, { useState } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../../store/useAuthStore';
-import DropdownComponent from '../../../components/Dropdown';
+import DropdownComponent from '../../../components/ui/Dropdown';
 import { uploadToCloudinary } from '../../../lib/cloudinary';
-import Header from '../../../components/Header';
+import Header from '../../../components/layout/Header';
 import BasePostForm from '../../../components/forms/BasePostForm';
 import FeaturesSection from '../../../components/forms/FeaturesSection';
 import { VehicleFormData, FormErrors, transformVehicleForm } from '../../../types/forms';
 import * as ImagePicker from 'expo-image-picker';
-import LoadingScreen from '../../../components/LoadingScreen';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { supabase } from '../../../supabaseClient';
 import {
   MAKES,

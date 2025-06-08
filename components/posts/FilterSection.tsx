@@ -3,7 +3,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Text, Button, useTheme, Chip, TextInput, Divider, SegmentedButtons } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from 'rn-range-slider';
-import Dropdown from './Dropdown';
+import Dropdown from '../ui/Dropdown';
 import {
   CITIES,
   VEHICLE_CATEGORIES,
@@ -12,7 +12,7 @@ import {
   FUEL_TYPES,
   TRANSMISSIONS,
   PROPERTY_FEATURES,
-} from '../constants/FormOptions';
+} from '../../constants/FormOptions';
 
 type PostType = 'vehicle' | 'realestate';
 type ListingType = 'rent' | 'sale';
@@ -618,9 +618,7 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
                 <TextInput.Icon 
                   icon="close" 
                   size={14}
-                  onPress={() => {
-                    setSearchQuery('');
-                  }}
+                  onPress={() => setSearchQuery('')}
                 />
               ) : null}
               dense

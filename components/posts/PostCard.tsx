@@ -234,22 +234,6 @@ export default function PostCard({ post }: PostCardProps) {
           )}
         </View>
         <Card.Content style={styles.cardContent}>
-          <View style={styles.priceRow}>
-            <Text 
-              variant="headlineSmall" 
-              numberOfLines={1}
-              style={{ color: theme.colors.primary }}
-            >
-              {formatPrice(post.price, post.currency)}
-            </Text>
-            <Chip 
-              mode="flat" 
-              style={{ backgroundColor: theme.colors.primaryContainer }}
-            >
-              {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-            </Chip>
-          </View>
-          
           <Text 
             variant="titleLarge" 
             numberOfLines={1} 
@@ -258,6 +242,24 @@ export default function PostCard({ post }: PostCardProps) {
           >
             {post.title}
           </Text>
+
+          <View style={styles.priceRow}>
+            <Text 
+              variant="titleMedium" 
+              numberOfLines={1}
+              style={{ color: theme.colors.primary }}
+            >
+              {formatPrice(post.price, post.currency)}
+            </Text>
+            <Chip 
+              mode="flat" 
+              style={{ backgroundColor: theme.colors.primaryContainer }}
+              textStyle={{ fontSize: 12 }}
+              compact
+            >
+              {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
+            </Chip>
+          </View>
           
           {post.post_type === 'vehicle' 
             ? renderVehicleDetails(post.details as VehicleDetails)
@@ -300,10 +302,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 200,
     backgroundColor: '#f0f0f0',
+    borderRadius: 10,
   },
   cardImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 10,
   },
   errorOverlay: {
     position: 'absolute',
