@@ -109,6 +109,10 @@ SELECT
         ELSE creator.username
     END as other_user_name,
     CASE 
+        WHEN auth.uid() = c.creator_id THEN participant.full_name
+        ELSE creator.full_name
+    END as other_user_full_name,
+    CASE 
         WHEN auth.uid() = c.creator_id THEN participant.avatar_url
         ELSE creator.avatar_url
     END as other_user_avatar,
@@ -139,4 +143,4 @@ SELECT
 FROM conversations c
 JOIN posts p ON c.post_id = p.id
 JOIN users creator ON c.creator_id = creator.id
-JOIN users participant ON c.participant_id = participant.id; 
+JOIN users participant ON c.participant_id = participant.id;

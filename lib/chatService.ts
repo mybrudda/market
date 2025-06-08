@@ -13,7 +13,6 @@ export const chatService = {
 
         return conversations.map(conv => ({
             ...conv,
-            post_image: conv.post_images?.[0] || null,
             last_message: typeof conv.last_message === 'string' 
                 ? conv.last_message 
                 : conv.last_message?.content

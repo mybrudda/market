@@ -67,7 +67,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             <View style={styles.conversationInfo}>
                 <View style={styles.headerRow}>
                     <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                        {item.other_user_name}
+                        {item.other_user_full_name || item.other_user_name}
                     </Text>
                     <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                         {format(new Date(item.updated_at), 'MMM d, h:mm a')}

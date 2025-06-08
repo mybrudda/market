@@ -94,7 +94,10 @@ export default function MessagesScreen() {
     const handleSelectConversation = (conversation: Conversation) => {
         router.push({
             pathname: "/chatDetails",
-            params: { id: conversation.id }
+            params: { 
+                id: conversation.id,
+                conversation: JSON.stringify(conversation)
+            }
         });
     };
 
