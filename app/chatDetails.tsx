@@ -144,7 +144,7 @@ export default function ChatDetails() {
         if (!conversationId || !newMessage.trim()) return;
         
         const messageContent = newMessage.trim();
-        const tempMessageId = Date.now().toString(); // Temporary ID for optimistic update
+        const tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         // Create temporary message for optimistic update
         const tempMessage: Message = {
@@ -157,30 +157,38 @@ export default function ChatDetails() {
             sender: currentUser
         };
 
-        // Optimistically add message to UI
-        setMessages(prev => [...prev, tempMessage]);
-        setNewMessage(''); // Clear input
+        setNewMessage(''); // Clear input first
         setSendingMessage(true);
 
         try {
+            // Add temporary message
+            setMessages(prev => {
+                // Check for any duplicate content in recent messages (last 5 seconds)
+                const recentDuplicate = prev.some(msg => 
+                    msg.content === messageContent &&
+                    !msg.id.startsWith('temp-') &&
+                    Date.now() - new Date(msg.created_at).getTime() < 5000
+                );
+
+                if (recentDuplicate) {
+                    return prev;
+                }
+
+                return [...prev, tempMessage].sort((a, b) => 
+                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+            });
+
             const sentMessage = await chatService.sendMessage(conversationId, messageContent);
             
-            // Replace temp message with real one
+            // Remove temporary message once real message is received
+            // (The real-time subscription will handle adding the real message)
             setMessages(prev => 
-                prev.map(msg => msg.id === tempMessageId ? sentMessage : msg)
+                prev.filter(msg => msg.id !== tempMessageId)
             );
-            
-            // Scroll to bottom
-            setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
         } catch (error) {
             console.error('Error sending message:', error);
-            
-            // Add to failed messages set
             setFailedMessages(prev => new Set(prev).add(tempMessageId));
-            
-            // Show error to user
             Alert.alert(
                 'Failed to Send Message',
                 'There was a problem sending your message. Tap the message to try again.',
@@ -277,7 +285,13 @@ export default function ChatDetails() {
                 if (currentConversation) {
                     setConversation(currentConversation);
                 }
-                setMessages(messagesResponse);
+                
+                // Ensure messages are unique before setting state
+                const uniqueMessages = Array.from(
+                    new Map(messagesResponse.map(msg => [msg.id, msg])).values()
+                );
+                setMessages(uniqueMessages);
+                
                 await chatService.markMessagesAsRead(conversationId);
             } catch (error) {
                 console.error('Failed to load data:', error);
@@ -296,58 +310,43 @@ export default function ChatDetails() {
                         filter: `conversation_id=eq.${conversationId}`,
                     },
                     async (payload) => {
+                        console.log('Received realtime message:', payload);
                         try {
-                            // Get the complete message with sender info
-                            const { data: messages } = await supabase
-                                .from('messages')
-                                .select(`
-                                    *,
-                                    sender:sender_id (
-                                        id,
-                                        username,
-                                        avatar_url
-                                    )
-                                `)
-                                .eq('id', payload.new.id)
-                                .single();
-
-                            if (!messages) return;
-
-                            const newMsg = messages as Message;
+                            const newMsg = {
+                                ...payload.new,
+                                sender: conversation && conversation.user?.id === payload.new.sender_id 
+                                    ? conversation.user 
+                                    : currentUser
+                            } as Message;
 
                             setMessages((prev) => {
-                                // Check if message already exists (avoid duplicates)
-                                const exists = prev.some((msg) => msg.id === newMsg.id);
-                                if (exists) return prev;
-                                
-                                // Add new message
-                                const updatedMessages = [...prev, newMsg];
-                                
-                                // Sort by created_at to maintain order
-                                return updatedMessages.sort((a, b) => 
-                                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                                // Check if message already exists by ID
+                                if (prev.some(msg => msg.id === newMsg.id)) {
+                                    return prev;
+                                }
+
+                                // Remove any temporary versions of this message
+                                const withoutTemp = prev.filter(msg => 
+                                    !msg.id.startsWith('temp-') || 
+                                    msg.content !== newMsg.content
                                 );
+
+                                // Add new message and sort
+                                return [...withoutTemp, newMsg]
+                                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                             });
 
-                            // If message is from other user, scroll to bottom
-                            if (newMsg.sender_id !== user.id) {
-                                setTimeout(() => {
-                                    flatListRef.current?.scrollToEnd({ animated: true });
-                                }, 100);
+                            // If message is from other user, scroll to bottom and mark as read
+                            if (newMsg.sender_id !== currentUser?.id) {
+                                flatListRef.current?.scrollToEnd({ animated: true });
+                                await chatService.markMessagesAsRead(conversationId);
                             }
-
-                            // Mark messages as read
-                            await chatService.markMessagesAsRead(conversationId);
                         } catch (error) {
-                            console.error('Error handling real-time message:', error);
+                            console.error('Error handling realtime message:', error);
                         }
                     }
                 )
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') {
-                        console.log('Successfully subscribed to messages');
-                    }
-                });
+                .subscribe();
         };
 
         init();
