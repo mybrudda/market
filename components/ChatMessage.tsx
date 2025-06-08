@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, useTheme, IconButton } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { Message } from '../types/chat';
 import { format } from 'date-fns';
-import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ChatMessageProps {
@@ -21,14 +20,6 @@ export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessagePro
             isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer,
             hasFailed && styles.failedMessage
         ]}>
-            {!isOwnMessage && message.sender?.avatar_url && (
-                <Image
-                    source={message.sender.avatar_url}
-                    style={styles.avatar}
-                    contentFit="cover"
-                    transition={200}
-                />
-            )}
             <View style={[
                 styles.bubble,
                 {
@@ -63,7 +54,10 @@ export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessagePro
                     />
                 )}
             </View>
-            <View style={styles.messageFooter}>
+            <View style={[
+                styles.messageFooter,
+                isOwnMessage ? styles.ownMessageFooter : styles.otherMessageFooter
+            ]}>
                 <Text 
                     variant="labelSmall"
                     style={[
@@ -80,7 +74,7 @@ export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessagePro
 
 const styles = StyleSheet.create({
     container: {
-        marginVertical: 4,
+        marginVertical: 8,
         maxWidth: '80%',
     },
     ownMessageContainer: {
@@ -88,12 +82,6 @@ const styles = StyleSheet.create({
     },
     otherMessageContainer: {
         alignSelf: 'flex-start',
-    },
-    avatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        marginRight: 8,
     },
     bubble: {
         borderRadius: 16,
@@ -108,9 +96,14 @@ const styles = StyleSheet.create({
     messageFooter: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-end',
         marginTop: 4,
         marginHorizontal: 4,
+    },
+    ownMessageFooter: {
+        justifyContent: 'flex-end',
+    },
+    otherMessageFooter: {
+        justifyContent: 'flex-start',
     },
     timeText: {
         fontSize: 11,
