@@ -47,6 +47,8 @@ const MemoizedListHeader = memo(
   }: ListHeaderProps) => {
     if (!conversation) return null;
 
+    const isPostActive = conversation.post_status === 'active';
+
     return (
       <View
         style={[
@@ -122,7 +124,10 @@ const MemoizedListHeader = memo(
         <View style={styles.postContent}>
           <ExpoImage
             source={{ uri: conversation.post_image }}
-            style={styles.postImage}
+            style={[
+              styles.postImage,
+              !isPostActive && { opacity: 0.5 }
+            ]}
             contentFit="cover"
             transition={300}
             placeholder={blurhash}
@@ -140,6 +145,18 @@ const MemoizedListHeader = memo(
             <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
               {formatPrice(conversation.post_price || 0)}
             </Text>
+            {!isPostActive && (
+              <Text
+                variant="bodySmall"
+                style={{ 
+                  color: theme.colors.error,
+                  fontStyle: 'italic',
+                  marginTop: 4
+                }}
+              >
+                This post is no longer available
+              </Text>
+            )}
           </View>
         </View>
       </View>

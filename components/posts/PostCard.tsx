@@ -81,34 +81,7 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
 
   return (
     <View style={styles.container}>
-      {showMenu && (
-        <View style={styles.menuContainer}>
-          <Menu
-            visible={menuVisible}
-            onDismiss={closeMenu}
-            anchor={
-              <IconButton
-                icon="dots-vertical"
-                size={24}
-                onPress={openMenu}
-                style={styles.menuButton}
-              />
-            }
-          >
-            <Menu.Item 
-              onPress={handleDelete} 
-              title="Delete Post" 
-              leadingIcon="delete"
-              titleStyle={{ color: theme.colors.error }}
-            />
-          </Menu>
-        </View>
-      )}
-
-      <Pressable onPress={() => router.push({
-        pathname: '/PostDetails',
-        params: { post: JSON.stringify(post) }
-      })}>
+      <Pressable onPress={() => router.push({ pathname: '/PostDetails', params: { post: JSON.stringify(post) } })}>
         <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.imageContainer}>
             <Image
@@ -125,6 +98,23 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
                 <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
               </View>
             )}
+            <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+              <Text 
+                variant="titleMedium" 
+                numberOfLines={1}
+                style={{ color: "white", fontWeight: 'bold' }}
+              >
+                {formatPrice(post.price, post.currency)}
+              </Text>
+              <Chip 
+                mode="flat" 
+                style={{ backgroundColor: theme.colors.primary }}
+                textStyle={{ color: theme.colors.onSecondary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1 }}
+                compact
+              >
+                {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
+              </Chip>
+            </View>
           </View>
 
           <Card.Content style={styles.cardContent}>
@@ -136,24 +126,6 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
             >
               {post.title}
             </Text>
-
-            <View style={styles.priceRow}>
-              <Text 
-                variant="titleMedium" 
-                numberOfLines={1}
-                style={{ color: theme.colors.primary }}
-              >
-                {formatPrice(post.price, post.currency)}
-              </Text>
-              <Chip 
-                mode="flat" 
-                style={{ backgroundColor: theme.colors.primaryContainer }}
-                textStyle={{ fontSize: 12 }}
-                compact
-              >
-                {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-              </Chip>
-            </View>
             
             {post.post_type === 'vehicle' 
               ? renderVehicleDetails(post.details as VehicleDetails)
@@ -181,6 +153,28 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
               </Text>
             </View>
           </Card.Content>
+          
+          {showMenu && (
+            <View style={styles.menuContainer}>
+              <Menu
+                visible={menuVisible}
+                onDismiss={closeMenu}
+                anchor={
+                  <IconButton
+                    icon="dots-vertical"
+                    onPress={openMenu}
+                    style={styles.menuButton}
+                  />
+                }
+              >
+                <Menu.Item 
+                  onPress={handleDelete} 
+                  title="Delete"
+                  leadingIcon="delete"
+                />
+              </Menu>
+            </View>
+          )}
         </Card>
       </Pressable>
     </View>
@@ -189,21 +183,30 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
 
 const styles = StyleSheet.create({
   container: {
-    position: 'relative',
+    marginBottom: 16,
   },
   card: {
-    marginVertical: 8,
-    borderRadius: 12,
     overflow: 'hidden',
   },
   imageContainer: {
-    height: 200,
     position: 'relative',
+    height: 200,
+    width: '100%',
   },
   cardImage: {
-    width: '100%',
     height: '100%',
-    borderRadius: 10,
+    width: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   errorOverlay: {
     position: 'absolute',
@@ -215,50 +218,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   title: {
     marginBottom: 8,
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
   detailsContainer: {
-    gap: 8,
     marginBottom: 12,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 4,
   },
   detailValue: {
-    color: '#666',
+    marginLeft: 8,
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   date: {
-    color: '#999',
+    color: '#666',
   },
   menuContainer: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1,
+    top: 0,
+    right: 0,
+    zIndex: 2,
   },
   menuButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
+    margin: 4,
+    backgroundColor: 'rgba(255,255,255,0.8)',
   },
 });
