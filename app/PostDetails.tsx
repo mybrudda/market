@@ -1,6 +1,6 @@
-import { View, StyleSheet, ScrollView, Dimensions, Linking, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, Linking, Image, Alert } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip } from 'react-native-paper';
+import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip, Portal, Dialog } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../supabaseClient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -90,7 +90,9 @@ export default function PostDetails() {
   const params = useLocalSearchParams();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const width = Dimensions.get('window').width;
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (params.post) {
@@ -125,24 +127,26 @@ export default function PostDetails() {
 
   const handleContact = async () => {
     if (!post?.user?.email) return;
+    
+    if (!user) {
+      setShowAuthDialog(true);
+      return;
+    }
+
     await Linking.openURL(`mailto:${post.user.email}`);
   };
 
   const handleMessageSeller = async () => {
     if (!post?.user?.id) return;
 
-    // Get current user from global state
-    const { user } = useAuthStore.getState();
     if (!user) {
-      // User not authenticated
-      router.push('/');
+      setShowAuthDialog(true);
       return;
     }
 
     // Prevent self-messaging
     if (user.id === post.user.id) {
-      // Show error using react-native-paper Snackbar or Alert
-      alert("You cannot message yourself on your own post");
+      Alert.alert("Cannot Message", "You cannot message yourself on your own post");
       return;
     }
 
@@ -150,13 +154,22 @@ export default function PostDetails() {
       // The createConversation function will handle checking for existing conversations
       const conversation = await chatService.createConversation(post.id, post.user.id);
       router.push({
-        pathname: "/chatDetails",
+        pathname: "/ChatRoom",
         params: { id: conversation.id }
       });
     } catch (error) {
       console.error('Error starting conversation:', error);
-      alert("Failed to start conversation. Please try again.");
+      Alert.alert("Error", "Failed to start conversation. Please try again.");
     }
+  };
+
+  const handleLogin = () => {
+    setShowAuthDialog(false);
+    router.push('/(auth)/login');
+  };
+
+  const handleContinueAsGuest = () => {
+    setShowAuthDialog(false);
   };
 
   const renderCarouselItem = ({ item }: CarouselRenderItemInfo) => (
@@ -203,239 +216,255 @@ export default function PostDetails() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Header title="Details" />
-      <ScrollView>
-        {/* Image Carousel */}
-        <View style={styles.carouselContainer}>
-          <Carousel
-            loop
-            width={width}
-            height={300}
-            data={post.images}
-            scrollAnimationDuration={1000}
-            renderItem={renderCarouselItem}
-            defaultIndex={0}
-          />
-        </View>
-
-        <View style={styles.content}>
-          {/* Header Section */}
-          <View style={styles.header}>
-            <Text variant="headlineMedium" style={styles.title}>
-              {post.title}
-            </Text>
-            <View style={styles.priceContainer}>
-              <Text variant="headlineLarge" style={{ color: theme.colors.primary }}>
-                {formatPrice(post.price, post.currency)}
-              </Text>
-              <Chip 
-                icon={post.post_type === 'vehicle' ? 'car' : 'home'}
-                mode="flat"
-                style={{ backgroundColor: theme.colors.primaryContainer }}
-              >
-                {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-              </Chip>
-            </View>
+    <>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Header title="Details" />
+        <ScrollView>
+          {/* Image Carousel */}
+          <View style={styles.carouselContainer}>
+            <Carousel
+              loop
+              width={width}
+              height={300}
+              data={post.images}
+              scrollAnimationDuration={1000}
+              renderItem={renderCarouselItem}
+              defaultIndex={0}
+            />
           </View>
 
-          {/* Location and Date */}
-          <View style={styles.metadata}>
-            <View style={styles.metadataItem}>
-              <MaterialCommunityIcons 
-                name="map-marker" 
-                size={20} 
-                color={theme.colors.onSurfaceVariant} 
-              />
-              <Text variant="bodyLarge" style={styles.metadataText}>
-                {post.location.city}
-                {post.location.address && `, ${post.location.address}`}
+          <View style={styles.content}>
+            {/* Header Section */}
+            <View style={styles.header}>
+              <Text variant="headlineMedium" style={styles.title}>
+                {post.title}
               </Text>
-            </View>
-            <Text variant="bodyMedium" style={styles.date}>
-              Posted on {formatDate(post.created_at)}
-            </Text>
-          </View>
-
-          <Divider style={styles.divider} />
-
-          {/* Dynamic Details Section */}
-          {post.post_type === 'vehicle' ? (
-            <View style={styles.detailsSection}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Vehicle Details
-              </Text>
-              <View style={styles.detailsGrid}>
-                <DetailItem 
-                  icon="car" 
-                  label="Make & Model" 
-                  value={`${(post.details as VehicleDetails).make} ${(post.details as VehicleDetails).model}`} 
-                />
-                <DetailItem 
-                  icon="calendar" 
-                  label="Year" 
-                  value={(post.details as VehicleDetails).year} 
-                />
-                <DetailItem 
-                  icon="speedometer" 
-                  label="Mileage" 
-                  value={`${(post.details as VehicleDetails).mileage.value.toLocaleString()} ${(post.details as VehicleDetails).mileage.unit}`} 
-                />
-                <DetailItem 
-                  icon="car-cog" 
-                  label="Condition" 
-                  value={(post.details as VehicleDetails).condition} 
-                />
-                <DetailItem 
-                  icon="gas-station" 
-                  label="Fuel Type" 
-                  value={(post.details as VehicleDetails).fuel_type} 
-                />
-                <DetailItem 
-                  icon="car-shift-pattern" 
-                  label="Transmission" 
-                  value={(post.details as VehicleDetails).transmission} 
-                />
+              <View style={styles.priceContainer}>
+                <Text variant="headlineLarge" style={{ color: theme.colors.primary }}>
+                  {formatPrice(post.price, post.currency)}
+                </Text>
+                <Chip 
+                  icon={post.post_type === 'vehicle' ? 'car' : 'home'}
+                  mode="flat"
+                  style={{ backgroundColor: theme.colors.primaryContainer }}
+                >
+                  {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
+                </Chip>
               </View>
-              {(post.details as VehicleDetails).features && (post.details as VehicleDetails).features.length > 0 && (
-                <>
-                  <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 16 }]}>
-                    Features
-                  </Text>
-                  <View style={styles.featuresContainer}>
-                    {(post.details as VehicleDetails).features.map((feature, index) => (
-                      <Chip
-                        key={index}
-                        mode="outlined"
-                        style={styles.featureChip}
-                      >
-                        {feature}
-                      </Chip>
-                    ))}
-                  </View>
-                </>
-              )}
             </View>
-          ) : (
-            <View style={styles.detailsSection}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Property Details
-              </Text>
-              <View style={styles.detailsGrid}>
-                <DetailItem 
-                  icon="home" 
-                  label="Property Type" 
-                  value={post.category || 'Not specified'} 
+
+            {/* Location and Date */}
+            <View style={styles.metadata}>
+              <View style={styles.metadataItem}>
+                <MaterialCommunityIcons 
+                  name="map-marker" 
+                  size={20} 
+                  color={theme.colors.onSurfaceVariant} 
                 />
-                <DetailItem 
-                  icon="bed" 
-                  label="Rooms" 
-                  value={(post.details as RealEstateDetails).rooms.toString()} 
-                />
-                <DetailItem 
-                  icon="shower" 
-                  label="Bathrooms" 
-                  value={(post.details as RealEstateDetails).bathrooms.toString()} 
-                />
-                <DetailItem 
-                  icon="calendar" 
-                  label="Year Built" 
-                  value={(post.details as RealEstateDetails).year} 
-                />
-                <DetailItem 
-                  icon="ruler-square" 
-                  label="Size" 
-                  value={`${(post.details as RealEstateDetails).size.value} ${(post.details as RealEstateDetails).size.unit}`} 
-                />
-                <DetailItem 
-                  icon="home-variant" 
-                  label="Condition" 
-                  value={(post.details as RealEstateDetails).condition} 
-                />
+                <Text variant="bodyLarge" style={styles.metadataText}>
+                  {post.location.city}
+                  {post.location.address && `, ${post.location.address}`}
+                </Text>
               </View>
-              {(post.details as RealEstateDetails).features && (post.details as RealEstateDetails).features.length > 0 && (
-                <>
-                  <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 16 }]}>
-                    Features
-                  </Text>
-                  <View style={styles.featuresContainer}>
-                    {(post.details as RealEstateDetails).features.map((feature, index) => (
-                      <Chip
-                        key={index}
-                        mode="outlined"
-                        style={styles.featureChip}
-                      >
-                        {feature}
-                      </Chip>
-                    ))}
-                  </View>
-                </>
-              )}
+              <Text variant="bodyMedium" style={styles.date}>
+                Posted on {formatDate(post.created_at)}
+              </Text>
             </View>
-          )}
 
-          <Divider style={styles.divider} />
+            <Divider style={styles.divider} />
 
-          {/* Description */}
-          <View style={styles.descriptionSection}>
-            <Text variant="titleLarge" style={styles.sectionTitle}>
-              Description
-            </Text>
-            <Text variant="bodyLarge" style={styles.description}>
-              {post.description}
-            </Text>
-          </View>
-
-          {/* Contact Buttons */}
-          {post?.user && (
-            <View style={styles.contactSection}>
-              <View style={styles.sellerHeader}>
-                <View style={styles.sellerInfo}>
-                  {post.user.avatar_url && (
-                    <ExpoImage
-                      source={post.user.avatar_url}
-                      style={styles.avatar}
-                      contentFit="cover"
-                      transition={200}
-                      placeholder={blurhash}
-                      cachePolicy="memory-disk"
-                    />
-                  )}
-                  <View>
-                    <View style={styles.sellerNameRow}>
-                      <Text variant="titleMedium">
-                        {post.user.full_name || post.user.username}
-                      </Text>
-                      {post.user.is_verified && (
-                        <MaterialCommunityIcons
-                          name="check-decagram"
-                          size={20}
-                          color={theme.colors.primary}
-                          style={styles.verifiedIcon}
-                        />
-                      )}
-                    </View>
-                    <Text variant="bodyMedium" style={styles.userType}>
-                      {post.user.user_type.charAt(0).toUpperCase() + post.user.user_type.slice(1)}
+            {/* Dynamic Details Section */}
+            {post.post_type === 'vehicle' ? (
+              <View style={styles.detailsSection}>
+                <Text variant="titleLarge" style={styles.sectionTitle}>
+                  Vehicle Details
+                </Text>
+                <View style={styles.detailsGrid}>
+                  <DetailItem 
+                    icon="car" 
+                    label="Make & Model" 
+                    value={`${(post.details as VehicleDetails).make} ${(post.details as VehicleDetails).model}`} 
+                  />
+                  <DetailItem 
+                    icon="calendar" 
+                    label="Year" 
+                    value={(post.details as VehicleDetails).year} 
+                  />
+                  <DetailItem 
+                    icon="speedometer" 
+                    label="Mileage" 
+                    value={`${(post.details as VehicleDetails).mileage.value.toLocaleString()} ${(post.details as VehicleDetails).mileage.unit}`} 
+                  />
+                  <DetailItem 
+                    icon="car-cog" 
+                    label="Condition" 
+                    value={(post.details as VehicleDetails).condition} 
+                  />
+                  <DetailItem 
+                    icon="gas-station" 
+                    label="Fuel Type" 
+                    value={(post.details as VehicleDetails).fuel_type} 
+                  />
+                  <DetailItem 
+                    icon="car-shift-pattern" 
+                    label="Transmission" 
+                    value={(post.details as VehicleDetails).transmission} 
+                  />
+                </View>
+                {(post.details as VehicleDetails).features && (post.details as VehicleDetails).features.length > 0 && (
+                  <>
+                    <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 16 }]}>
+                      Features
                     </Text>
+                    <View style={styles.featuresContainer}>
+                      {(post.details as VehicleDetails).features.map((feature, index) => (
+                        <Chip
+                          key={index}
+                          mode="outlined"
+                          style={styles.featureChip}
+                        >
+                          {feature}
+                        </Chip>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : (
+              <View style={styles.detailsSection}>
+                <Text variant="titleLarge" style={styles.sectionTitle}>
+                  Property Details
+                </Text>
+                <View style={styles.detailsGrid}>
+                  <DetailItem 
+                    icon="home" 
+                    label="Property Type" 
+                    value={post.category || 'Not specified'} 
+                  />
+                  <DetailItem 
+                    icon="bed" 
+                    label="Rooms" 
+                    value={(post.details as RealEstateDetails).rooms.toString()} 
+                  />
+                  <DetailItem 
+                    icon="shower" 
+                    label="Bathrooms" 
+                    value={(post.details as RealEstateDetails).bathrooms.toString()} 
+                  />
+                  <DetailItem 
+                    icon="calendar" 
+                    label="Year Built" 
+                    value={(post.details as RealEstateDetails).year} 
+                  />
+                  <DetailItem 
+                    icon="ruler-square" 
+                    label="Size" 
+                    value={`${(post.details as RealEstateDetails).size.value} ${(post.details as RealEstateDetails).size.unit}`} 
+                  />
+                  <DetailItem 
+                    icon="home-variant" 
+                    label="Condition" 
+                    value={(post.details as RealEstateDetails).condition} 
+                  />
+                </View>
+                {(post.details as RealEstateDetails).features && (post.details as RealEstateDetails).features.length > 0 && (
+                  <>
+                    <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 16 }]}>
+                      Features
+                    </Text>
+                    <View style={styles.featuresContainer}>
+                      {(post.details as RealEstateDetails).features.map((feature, index) => (
+                        <Chip
+                          key={index}
+                          mode="outlined"
+                          style={styles.featureChip}
+                        >
+                          {feature}
+                        </Chip>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            <Divider style={styles.divider} />
+
+            {/* Description */}
+            <View style={styles.descriptionSection}>
+              <Text variant="titleLarge" style={styles.sectionTitle}>
+                Description
+              </Text>
+              <Text variant="bodyLarge" style={styles.description}>
+                {post.description}
+              </Text>
+            </View>
+
+            {/* Contact Buttons */}
+            {post?.user && (
+              <View style={styles.contactSection}>
+                <View style={styles.sellerHeader}>
+                  <View style={styles.sellerInfo}>
+                    {post.user.avatar_url && (
+                      <ExpoImage
+                        source={post.user.avatar_url}
+                        style={styles.avatar}
+                        contentFit="cover"
+                        transition={200}
+                        placeholder={blurhash}
+                        cachePolicy="memory-disk"
+                      />
+                    )}
+                    <View>
+                      <View style={styles.sellerNameRow}>
+                        <Text variant="titleMedium">
+                          {post.user.full_name || post.user.username}
+                        </Text>
+                        {post.user.is_verified && (
+                          <MaterialCommunityIcons
+                            name="check-decagram"
+                            size={20}
+                            color={theme.colors.primary}
+                            style={styles.verifiedIcon}
+                          />
+                        )}
+                      </View>
+                      <Text variant="bodyMedium" style={styles.userType}>
+                        {post.user.user_type.charAt(0).toUpperCase() + post.user.user_type.slice(1)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
+                <View style={styles.contactButtons}>
+                  <Button
+                    mode="contained"
+                    onPress={handleMessageSeller}
+                    icon="message"
+                    style={styles.contactButton}
+                  >
+                    Message Seller
+                  </Button>
+                </View>
               </View>
-              <View style={styles.contactButtons}>
-                <Button
-                  mode="contained"
-                  onPress={handleMessageSeller}
-                  icon="message"
-                  style={styles.contactButton}
-                >
-                  Message Seller
-                </Button>
-              </View>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+      <Portal>
+        <Dialog visible={showAuthDialog} onDismiss={() => setShowAuthDialog(false)}>
+          <Dialog.Title>Login Required</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              You need to be logged in to contact sellers. Would you like to login or continue browsing as a guest?
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={handleContinueAsGuest}>Continue as Guest</Button>
+            <Button mode="contained" onPress={handleLogin}>Login</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </>
   );
 }
 

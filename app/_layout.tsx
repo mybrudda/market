@@ -3,7 +3,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { PaperProvider, MD3DarkTheme, MD3LightTheme } from "react-native-paper";
+import { PaperProvider, } from "react-native-paper";
 import { useThemeStore } from "../store/useThemeStore";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SafeScreen from "@/components/layout/SafeScreen";
@@ -82,7 +82,7 @@ function RootLayoutNav() {
                 }}
               >
                 <Stack.Screen name="index" />
-                <Stack.Screen name="register" />
+                <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               </Stack>
             </AuthProvider>

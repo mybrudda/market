@@ -2,8 +2,8 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 're
 import React, { useState } from 'react';
 import { TextInput, Button, Text, useTheme, HelperText } from 'react-native-paper';
 import { router, Redirect } from 'expo-router';
-import SafeScreen from '../components/layout/SafeScreen';
-import { useAuthStore } from '../store/useAuthStore';
+import SafeScreen from '../../components/layout/SafeScreen';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function Register() {
   const [username, setUsername] = useState('');
@@ -138,7 +138,7 @@ export default function Register() {
               <Button 
                 mode="text" 
                 compact 
-                onPress={() => router.replace('/')}
+                onPress={() => router.replace('/(auth)/login')}
                 disabled={loading}
               >
                 Login
@@ -157,5 +157,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
   },
-  // ... rest of the styles ...
 }); 

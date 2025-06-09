@@ -7,11 +7,13 @@ import { Conversation } from '../../../types/chat';
 import { chatService } from '../../../lib/chatService';
 import { supabase } from '../../../supabaseClient';
 import { useIsFocused } from '@react-navigation/native';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 export default function MessagesScreen() {
     const router = useRouter();
     const theme = useTheme();
     const isFocused = useIsFocused();
+    const { user } = useAuthStore();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -19,11 +21,6 @@ export default function MessagesScreen() {
     const loadConversations = useCallback(async () => {
         try {
             setError(null);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                setError('Please sign in to view messages');
-                return;
-            }
             const data = await chatService.getConversations();
             setConversations(data);
         } catch (error) {
@@ -32,9 +29,16 @@ export default function MessagesScreen() {
         } finally {
             setLoading(false);
         }
-    }, []); // No dependencies needed as it's a self-contained function
+    }, []); 
 
     useEffect(() => {
+        // Don't load or subscribe if user is not authenticated
+        if (!user) {
+            setError('Please sign in to view messages');
+            setLoading(false);
+            return;
+        }
+
         // Initial load
         loadConversations();
 
@@ -89,11 +93,11 @@ export default function MessagesScreen() {
             console.log('Unsubscribing from real-time updates');
             channel.unsubscribe();
         };
-    }, [isFocused, loadConversations]); // Added loadConversations to dependencies
+    }, [isFocused, loadConversations, user]); // Added user to dependencies
 
     const handleSelectConversation = (conversation: Conversation) => {
         router.push({
-            pathname: "/chatDetails",
+            pathname: "/ChatRoom",
             params: { 
                 id: conversation.id,
                 conversation: JSON.stringify(conversation)

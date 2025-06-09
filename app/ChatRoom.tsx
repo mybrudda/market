@@ -147,7 +147,7 @@ const MemoizedListHeader = memo(
   }
 );
 
-export default function ChatDetails() {
+export default function ChatRoom() {
   const theme = useTheme();
   const params = useLocalSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);

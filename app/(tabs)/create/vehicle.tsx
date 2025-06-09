@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../../store/useAuthStore';
+import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
 import { uploadToCloudinary } from '../../../lib/cloudinary';
 import Header from '../../../components/layout/Header';
@@ -134,6 +135,12 @@ export default function CreateVehiclePost() {
   };
 
   const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please login to create a post.');
+      router.push('/(auth)/login');
+      return;
+    }
+
     if (!validateForm()) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -292,34 +299,38 @@ export default function CreateVehiclePost() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Header title="Create Vehicle Post" />
-      <BasePostForm<VehicleFormData>
-        title="Create Vehicle Post"
-        formState={formState}
-        errors={errors}
-        onInputChange={handleInputChange}
-        onLocationChange={handleLocationChange}
-        onPickImage={handlePickImage}
-        onRemoveImage={handleRemoveImage}
-        maxImages={5}
-      >
-        {renderVehicleFields()}
-      </BasePostForm>
-      <Button
-        mode="contained"
-        onPress={handleSubmit}
-        style={styles.submitButton}
-      >
-        Create Post
-      </Button>
-    </View>
+    <RequireAuth message="You need to be logged in to create a vehicle listing.">
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Header title="Create Vehicle Post" />
+        <BasePostForm<VehicleFormData>
+          title="Create Vehicle Post"
+          formState={formState}
+          errors={errors}
+          onInputChange={handleInputChange}
+          onLocationChange={handleLocationChange}
+          onPickImage={handlePickImage}
+          onRemoveImage={handleRemoveImage}
+          maxImages={5}
+        >
+          {renderVehicleFields()}
+        </BasePostForm>
+        <Button
+          mode="contained"
+          onPress={handleSubmit}
+          style={styles.submitButton}
+        >
+          Create Post
+        </Button>
+      </View>
+    </RequireAuth>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    padding: 16,
   },
   card: {
     marginBottom: 16,

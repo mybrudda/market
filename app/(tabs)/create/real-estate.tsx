@@ -4,6 +4,7 @@ import { Button, Text, Card, useTheme, TextInput, } from 'react-native-paper';
 import { router } from 'expo-router';
 import { supabase } from '../../../supabaseClient';
 import { useAuthStore } from '../../../store/useAuthStore';
+import RequireAuth from '../../../components/auth/RequireAuth';
 import * as ImagePicker from 'expo-image-picker';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import DropdownComponent from '../../../components/ui/Dropdown';
@@ -131,6 +132,12 @@ export default function CreateRealEstatePost() {
   };
 
   const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please login to create a post.');
+      router.push('/(auth)/login');
+      return;
+    }
+
     if (!validateForm()) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -256,28 +263,30 @@ export default function CreateRealEstatePost() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Header title="Create Real Estate Post" />
-      <BasePostForm<RealEstateFormData>
-        title="Create Real Estate Post"
-        formState={formState}
-        errors={errors}
-        onInputChange={handleInputChange}
-        onLocationChange={handleLocationChange}
-        onPickImage={handlePickImage}
-        onRemoveImage={handleRemoveImage}
-        maxImages={3}
-      >
-        {renderPropertyFields()}
-      </BasePostForm>
-      <Button
-        mode="contained"
-        onPress={handleSubmit}
-        style={styles.submitButton}
-      >
-        Create Post
-      </Button>
-    </View>
+    <RequireAuth message="You need to be logged in to create a real estate listing.">
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Header title="Create Real Estate Post" />
+        <BasePostForm<RealEstateFormData>
+          title="Create Real Estate Post"
+          formState={formState}
+          errors={errors}
+          onInputChange={handleInputChange}
+          onLocationChange={handleLocationChange}
+          onPickImage={handlePickImage}
+          onRemoveImage={handleRemoveImage}
+          maxImages={3}
+        >
+          {renderPropertyFields()}
+        </BasePostForm>
+        <Button
+          mode="contained"
+          onPress={handleSubmit}
+          style={styles.submitButton}
+        >
+          Create Post
+        </Button>
+      </View>
+    </RequireAuth>
   );
 }
 
