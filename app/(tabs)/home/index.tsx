@@ -47,6 +47,7 @@ export default function Home() {
             is_verified
           )
         `, { count: 'exact' })
+        .eq('status', 'active')
         .order('created_at', { ascending: false })
         .range(start, start + POSTS_PER_PAGE - 1);
 
@@ -100,7 +101,8 @@ export default function Home() {
             user_type,
             is_verified
           )
-        `, { count: 'exact' });
+        `, { count: 'exact' })
+        .eq('status', 'active');
 
       // Apply filters
       query = query.eq('post_type', filters.postType)
@@ -217,6 +219,7 @@ export default function Home() {
               is_verified
             )
           `, { count: 'exact' })
+          .eq('status', 'active')
           .ilike('title', `%${searchText}%`)
           .order('created_at', { ascending: false })
           .range(0, POSTS_PER_PAGE - 1);

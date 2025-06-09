@@ -7,7 +7,7 @@ import {
     ActivityIndicator
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Conversation } from '../types/chat';
+import { Conversation } from '../../types/chat';
 import { format } from 'date-fns';
 import { Text, useTheme } from 'react-native-paper';
 
@@ -45,53 +45,63 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         );
     }
 
-    const renderItem = ({ item }: { item: Conversation }) => (
-        <TouchableOpacity
-            style={[
-                styles.conversationItem,
-                {
-                    backgroundColor: theme.colors.surface,
-                    borderBottomColor: theme.colors.surfaceVariant
-                }
-            ]}
-            onPress={() => onSelectConversation(item)}
-        >
-            <Image
-                source={item.post_image || PLACEHOLDER_IMAGE}
-                style={styles.postImage}
-                contentFit="cover"
-                transition={200}
-                placeholder={blurhash}
-                cachePolicy="memory-disk"
-            />
-            <View style={styles.conversationInfo}>
-                <View style={styles.headerRow}>
-                    <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                        {item.other_user_full_name || item.other_user_name}
-                    </Text>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {format(new Date(item.updated_at), 'MMM d, h:mm a')}
-                    </Text>
-                </View>
-                <Text
-                    variant="bodyMedium"
-                    style={{ color: theme.colors.onSurfaceVariant }}
-                    numberOfLines={1}
-                >
-                    Re: {item.post_title}
-                </Text>
-                {item.last_message && (
+    const renderItem = ({ item }: { item: Conversation }) => {
+        const isPostActive = item.post_status === 'active';
+
+        return (
+            <TouchableOpacity
+                style={[
+                    styles.conversationItem,
+                    {
+                        backgroundColor: theme.colors.surface,
+                        borderBottomColor: theme.colors.surfaceVariant
+                    }
+                ]}
+                onPress={() => onSelectConversation(item)}
+            >
+                <Image
+                    source={isPostActive ? (item.post_image || PLACEHOLDER_IMAGE) : PLACEHOLDER_IMAGE}
+                    style={[
+                        styles.postImage,
+                        !isPostActive && { opacity: 0.5 }
+                    ]}
+                    contentFit="cover"
+                    transition={200}
+                    placeholder={blurhash}
+                    cachePolicy="memory-disk"
+                />
+                <View style={styles.conversationInfo}>
+                    <View style={styles.headerRow}>
+                        <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                            {item.other_user_full_name || item.other_user_name}
+                        </Text>
+                        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                            {format(new Date(item.updated_at), 'MMM d, h:mm a')}
+                        </Text>
+                    </View>
                     <Text
                         variant="bodyMedium"
-                        style={{ color: theme.colors.onSurface }}
+                        style={{ 
+                            color: isPostActive ? theme.colors.onSurfaceVariant : theme.colors.error,
+                            fontStyle: isPostActive ? 'normal' : 'italic'
+                        }}
                         numberOfLines={1}
                     >
-                        {item.last_message}
+                        {isPostActive ? `Re: ${item.post_title}` : 'This post is no longer available'}
                     </Text>
-                )}
-            </View>
-        </TouchableOpacity>
-    );
+                    {item.last_message && (
+                        <Text
+                            variant="bodyMedium"
+                            style={{ color: theme.colors.onSurface }}
+                            numberOfLines={1}
+                        >
+                            {item.last_message}
+                        </Text>
+                    )}
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <FlatList

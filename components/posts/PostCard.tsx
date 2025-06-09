@@ -1,308 +1,204 @@
-import { View, StyleSheet, Pressable } from 'react-native';
 import React, { useState } from 'react';
-import { Text, Card, Chip, useTheme, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Card, Text, Chip, useTheme, Menu, IconButton, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { Image } from 'expo-image';
+import { format } from 'date-fns';
+import { Post, VehicleDetails, RealEstateDetails } from '../../types/database';
+import { formatPrice } from '../../utils/format';
+import { router } from 'expo-router';
 
-interface VehicleDetails {
-  make: string;
-  model: string;
-  year: string;
-  mileage: {
-    value: number;
-    unit: string;
-  };
-  condition: string;
-  fuel_type: string;
-  transmission: string;
-  features: string[];
-}
-
-interface RealEstateDetails {
-  category: string;
-  rooms: number;
-  bathrooms: number;
-  year: string;
-  condition: string;
-  features: string[];
-  size: {
-    value: number;
-    unit: string;
-  };
-}
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 interface PostCardProps {
-  post: {
-    id: string;
-    title: string;
-    description: string;
-    price: number;
-    currency: string;
-    images: string[];
-    created_at: string;
-    post_type: 'vehicle' | 'realestate';
-    listing_type: 'rent' | 'sale';
-    user_id: string;
-    user: {
-      id: string;
-      username: string;
-      full_name: string | null;
-      avatar_url: string | null;
-      email: string;
-      user_type: 'person' | 'company';
-      is_verified: boolean | null;
-    };
-    details: VehicleDetails | RealEstateDetails;
-    location: {
-      city: string;
-      address?: string;
-      country: string;
-    };
-  };
+  post: Post;
+  showMenu?: boolean;
+  onDelete?: (postId: string) => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, showMenu = false, onDelete }: PostCardProps) {
   const theme = useTheme();
   const [imageError, setImageError] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
-  const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      maximumFractionDigits: 0,
-    }).format(price);
+  const openMenu = () => setMenuVisible(true);
+  const closeMenu = () => setMenuVisible(false);
+
+  const handleDelete = () => {
+    closeMenu();
+    onDelete?.(post.id);
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+    return format(new Date(dateString), 'MMM d, yyyy');
   };
 
   const renderVehicleDetails = (details: VehicleDetails) => (
-    <View style={styles.detailsRow}>
-      <View style={styles.detail}>
-        <View style={styles.detailIconContainer}>
-          <MaterialCommunityIcons 
-            name="car" 
-            size={16} 
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-        <View style={styles.detailTextContainer}>
-          <Text variant="bodyMedium" style={styles.detailLabel}>Make</Text>
-          <Text 
-            variant="bodyMedium" 
-            numberOfLines={1}
-            style={styles.detailValue}
-          >
-            {details.make}
-          </Text>
-        </View>
+    <View style={styles.detailsContainer}>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons name="car" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodyMedium" style={styles.detailValue}>
+          {details.make} {details.model} ({details.year})
+        </Text>
       </View>
-
-      <View style={styles.detail}>
-        <View style={styles.detailIconContainer}>
-          <MaterialCommunityIcons 
-            name="calendar" 
-            size={16} 
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-        <View style={styles.detailTextContainer}>
-          <Text variant="bodyMedium" style={styles.detailLabel}>Year</Text>
-          <Text 
-            variant="bodyMedium" 
-            numberOfLines={1}
-            style={styles.detailValue}
-          >
-            {details.year}
-          </Text>
-        </View>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons name="speedometer" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodyMedium" style={styles.detailValue}>
+          {details.mileage.value.toLocaleString()} {details.mileage.unit}
+        </Text>
       </View>
-      
-      <View style={styles.detail}>
-        <View style={styles.detailIconContainer}>
-          <MaterialCommunityIcons 
-            name="speedometer" 
-            size={16} 
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-        <View style={styles.detailTextContainer}>
-          <Text variant="bodyMedium" style={styles.detailLabel}>Mileage</Text>
-          <Text 
-            variant="bodyMedium" 
-            numberOfLines={1}
-            style={styles.detailValue}
-          >
-            {details.mileage.value.toLocaleString()} {details.mileage.unit}
-          </Text>
-        </View>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons name="gas-station" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodyMedium" style={styles.detailValue}>
+          {details.fuel_type}
+        </Text>
       </View>
     </View>
   );
 
   const renderRealEstateDetails = (details: RealEstateDetails) => (
-    <View style={styles.detailsRow}>
-      <View style={styles.detail}>
-        <View style={styles.detailIconContainer}>
-          <MaterialCommunityIcons 
-            name="bed" 
-            size={16} 
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-        <View style={styles.detailTextContainer}>
-          <Text variant="bodyMedium" style={styles.detailLabel}>Rooms</Text>
-          <Text 
-            variant="bodyMedium" 
-            numberOfLines={1}
-            style={styles.detailValue}
-          >
-            {details.rooms}
-          </Text>
-        </View>
+    <View style={styles.detailsContainer}>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons name="home" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodyMedium" style={styles.detailValue}>
+          {post.category}
+        </Text>
       </View>
-
-      <View style={styles.detail}>
-        <View style={styles.detailIconContainer}>
-          <MaterialCommunityIcons 
-            name="calendar" 
-            size={16} 
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-        <View style={styles.detailTextContainer}>
-          <Text variant="bodyMedium" style={styles.detailLabel}>Year Built</Text>
-          <Text 
-            variant="bodyMedium" 
-            numberOfLines={1}
-            style={styles.detailValue}
-          >
-            {details.year}
-          </Text>
-        </View>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons name="bed" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodyMedium" style={styles.detailValue}>
+          {details.rooms} rooms, {details.bathrooms} baths
+        </Text>
       </View>
-      
-      <View style={styles.detail}>
-        <View style={styles.detailIconContainer}>
-          <MaterialCommunityIcons 
-            name="ruler-square" 
-            size={16} 
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-        <View style={styles.detailTextContainer}>
-          <Text variant="bodyMedium" style={styles.detailLabel}>Size</Text>
-          <Text 
-            variant="bodyMedium" 
-            numberOfLines={1}
-            style={styles.detailValue}
-          >
-            {details.size.value} {details.size.unit}
-          </Text>
-        </View>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons name="ruler-square" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodyMedium" style={styles.detailValue}>
+          {details.size.value} {details.size.unit}
+        </Text>
       </View>
     </View>
   );
 
   return (
-    <Pressable onPress={() => router.push({
-      pathname: '/PostDetails',
-      params: { post: JSON.stringify(post) }
-    })}>
-      <Card style={styles.card}>
-        <View style={styles.imageContainer}>
-          <Image
-            source={post.images[0]}
-            style={styles.cardImage}
-            contentFit="cover"
-            transition={300}
-            placeholder={blurhash}
-            onError={() => setImageError(true)}
-            contentPosition="center"
-          />
-          {imageError && (
-            <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <MaterialCommunityIcons name="image-off" size={24} color={theme.colors.onSurfaceVariant} />
-              <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
-            </View>
-          )}
-        </View>
-        <Card.Content style={styles.cardContent}>
-          <Text 
-            variant="titleLarge" 
-            numberOfLines={1} 
-            ellipsizeMode="tail"
-            style={styles.title}
+    <View style={styles.container}>
+      {showMenu && (
+        <View style={styles.menuContainer}>
+          <Menu
+            visible={menuVisible}
+            onDismiss={closeMenu}
+            anchor={
+              <IconButton
+                icon="dots-vertical"
+                size={24}
+                onPress={openMenu}
+                style={styles.menuButton}
+              />
+            }
           >
-            {post.title}
-          </Text>
+            <Menu.Item 
+              onPress={handleDelete} 
+              title="Delete Post" 
+              leadingIcon="delete"
+              titleStyle={{ color: theme.colors.error }}
+            />
+          </Menu>
+        </View>
+      )}
 
-          <View style={styles.priceRow}>
-            <Text 
-              variant="titleMedium" 
-              numberOfLines={1}
-              style={{ color: theme.colors.primary }}
-            >
-              {formatPrice(post.price, post.currency)}
-            </Text>
-            <Chip 
-              mode="flat" 
-              style={{ backgroundColor: theme.colors.primaryContainer }}
-              textStyle={{ fontSize: 12 }}
-              compact
-            >
-              {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-            </Chip>
+      <Pressable onPress={() => router.push({
+        pathname: '/PostDetails',
+        params: { post: JSON.stringify(post) }
+      })}>
+        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: post.images[0] }}
+              style={styles.cardImage}
+              contentFit="cover"
+              transition={300}
+              placeholder={blurhash}
+              onError={() => setImageError(true)}
+            />
+            {imageError && (
+              <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <MaterialCommunityIcons name="image-off" size={24} color={theme.colors.onSurfaceVariant} />
+                <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
+              </View>
+            )}
           </View>
-          
-          {post.post_type === 'vehicle' 
-            ? renderVehicleDetails(post.details as VehicleDetails)
-            : renderRealEstateDetails(post.details as RealEstateDetails)
-          }
 
-          <View style={styles.footerRow}>
-            <View style={styles.locationContainer}>
-              <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
+          <Card.Content style={styles.cardContent}>
+            <Text 
+              variant="titleLarge" 
+              numberOfLines={1} 
+              ellipsizeMode="tail"
+              style={styles.title}
+            >
+              {post.title}
+            </Text>
+
+            <View style={styles.priceRow}>
               <Text 
-                variant="bodyMedium" 
+                variant="titleMedium" 
                 numberOfLines={1}
-                style={styles.detailValue}
+                style={{ color: theme.colors.primary }}
               >
-                {post.location.city}
+                {formatPrice(post.price, post.currency)}
               </Text>
+              <Chip 
+                mode="flat" 
+                style={{ backgroundColor: theme.colors.primaryContainer }}
+                textStyle={{ fontSize: 12 }}
+                compact
+              >
+                {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
+              </Chip>
             </View>
             
-            <Text 
-              variant="bodySmall" 
-              numberOfLines={1}
-              style={styles.date}
-            >
-              Posted {formatDate(post.created_at)}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
-    </Pressable>
+            {post.post_type === 'vehicle' 
+              ? renderVehicleDetails(post.details as VehicleDetails)
+              : renderRealEstateDetails(post.details as RealEstateDetails)
+            }
+
+            <View style={styles.footerRow}>
+              <View style={styles.locationContainer}>
+                <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
+                <Text 
+                  variant="bodyMedium" 
+                  numberOfLines={1}
+                  style={styles.detailValue}
+                >
+                  {post.location.city}
+                </Text>
+              </View>
+              
+              <Text 
+                variant="bodySmall" 
+                numberOfLines={1}
+                style={styles.date}
+              >
+                Posted {formatDate(post.created_at)}
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+      </Pressable>
+    </View>
   );
 }
 
-const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
-
 const styles = StyleSheet.create({
+  container: {
+    position: 'relative',
+  },
   card: {
-    marginBottom: 12,
+    marginVertical: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   imageContainer: {
-    position: 'relative',
     height: 200,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
+    position: 'relative',
   },
   cardImage: {
     width: '100%',
@@ -319,59 +215,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardContent: {
-    paddingTop: 8,
+    padding: 16,
+  },
+  title: {
+    marginBottom: 8,
   },
   priceRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
-  },
-  title: {
-    marginBottom: 12,
-  },
-  detailsRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  detailsContainer: {
     gap: 8,
+    marginBottom: 12,
   },
-  detail: {
-    flex: 1,
+  detailRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  detailIconContainer: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
     alignItems: 'center',
-  },
-  detailTextContainer: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 12,
-    opacity: 0.7,
-    marginBottom: 1,
+    gap: 8,
   },
   detailValue: {
     color: '#666',
-    fontWeight: '500',
   },
   footerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    justifyContent: 'space-between',
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   date: {
     color: '#999',
   },
-}); 
+  menuContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1,
+  },
+  menuButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+  },
+});

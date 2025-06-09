@@ -46,6 +46,7 @@ export default function MyPostsScreen() {
           )
         `, { count: 'exact' })
         .eq("user_id", user.id)
+        .neq("status", "removed")
         .order("created_at", { ascending: false })
         .range(start, start + POSTS_PER_PAGE - 1);
 
@@ -96,6 +97,29 @@ export default function MyPostsScreen() {
     setLoadingMore(false);
   }, [loadingMore, hasMore, page, totalCount, fetchUserPosts]);
 
+  const handleDelete = useCallback(async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ 
+          status: 'removed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', postId);
+
+      if (error) {
+        console.error('Error deleting post:', error);
+        return;
+      }
+
+      // Remove the post from the local state
+      setUserPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      setTotalCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Error deleting post:', error);
+    }
+  }, []);
+
   const ListEmptyComponent = useCallback(
     () => (
       <View style={styles.emptyContainer}>
@@ -124,7 +148,13 @@ export default function MyPostsScreen() {
       <Header title="My Posts" />
       <FlatList
         data={userPosts}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={({ item }) => (
+          <PostCard 
+            post={item} 
+            showMenu={true}
+            onDelete={handleDelete}
+          />
+        )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         onEndReached={handleLoadMore}
