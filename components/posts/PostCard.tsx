@@ -108,8 +108,8 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
               </Text>
               <Chip 
                 mode="flat" 
-                style={{ backgroundColor: theme.colors.primary }}
-                textStyle={{ color: theme.colors.onSecondary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1 }}
+                style={{ backgroundColor: theme.colors.primaryContainer }}
+                textStyle={{ color: theme.colors.primary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1 }}
                 compact
               >
                 {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
@@ -163,7 +163,8 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
                   <IconButton
                     icon="dots-vertical"
                     onPress={openMenu}
-                    style={styles.menuButton}
+                    style={[styles.menuButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                    iconColor={theme.colors.onSurfaceVariant}
                   />
                 }
               >
@@ -255,6 +256,5 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     margin: 4,
-    backgroundColor: 'rgba(255,255,255,0.8)',
   },
 });

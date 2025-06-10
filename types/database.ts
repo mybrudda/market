@@ -14,21 +14,22 @@ export interface BasePost {
   user?: User;
   title: string;
   description: string;
-  price: number;
-  currency: string;
-  images: string[];
-  created_at: string;
-  updated_at: string;
-  expiry_date: string;
   post_type: 'vehicle' | 'realestate';
   listing_type: 'rent' | 'sale';
   category: string;
-  status: 'active' | 'inactive' | 'deleted';
+  price: number;
+  currency: string ;
   location: {
     city: string;
     address?: string;
     country: string;
-  };
+  } ;
+  images: string[];
+  details: VehicleDetails | RealEstateDetails;
+  status: 'active' | 'pending' | 'removed' | 'expired';
+  expiry_date: string ;
+  created_at: string ;
+  updated_at: string ;
 }
 
 export interface VehicleDetails {
@@ -50,11 +51,11 @@ export interface RealEstateDetails {
     value: number;
     unit: string;
   };
-  rooms: number;
-  bathrooms: number;
-  year: string;
-  condition: string;
-  features: string[];
+  rooms: number | null;
+  bathrooms: number | null;
+  year: string | null;
+  condition: string | null;
+  features: string[] | null;
 }
 
 export interface VehiclePost extends BasePost {
