@@ -11,7 +11,7 @@ cloudinary.config({
 async function deleteCloudinaryImage(imageUrl) {
   try {
     // Extract public_id from the URL
-    const publicId = imageUrl.split('/upload/')[1].split('/')[1].split('.')[0];
+    const publicId = imageUrl.split("/").pop().split(".")[0];
     if (!publicId) {
       throw new Error(`Could not extract public_id from URL: ${imageUrl}`);
     }
