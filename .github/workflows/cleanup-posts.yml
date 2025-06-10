@@ -2,9 +2,8 @@ name: Cleanup Expired Posts
 
 on:
   schedule:
-    # Runs at 00:00 UTC every day
-    - cron: '0 0 * * *'
-  workflow_dispatch: # Allows manual triggering
+    - cron: '0 3 * * *'  # Run at 3 AM UTC daily
+  workflow_dispatch:      # Allow manual trigger
 
 jobs:
   cleanup:
@@ -13,19 +12,33 @@ jobs:
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY }}
-      
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
+      - uses: actions/checkout@v3
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
           
       - name: Install dependencies
-        working-directory: .github/scripts
-        run: npm install @supabase/supabase-js
-          
-      - name: Run cleanup function
-        run: node .github/scripts/cleanup.js 
+        run: |
+          npm install @supabase/supabase-js
+          npm install node-fetch
+
+      - name: Run cleanup script
+        run: |
+          node -e "
+            const { cleanupExpiredPosts } = require('./.github/scripts/cleanup.js');
+            
+            async function runCleanup() {
+              const result = await cleanupExpiredPosts();
+              if (!result.success) {
+                console.error('Cleanup failed:', result.error);
+                process.exit(1);
+              }
+              console.log('Cleanup succeeded:', result);
+            }
+            
+            runCleanup();
+          "
