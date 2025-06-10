@@ -1,11 +1,10 @@
-const { supabase } = require('../../supabaseClient')
-
-// Override the client's API key with the service role key for admin operations
-supabase.supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
+const { supabaseAdmin } = require('./supabaseAdmin')
 
 async function cleanupPosts() {
   try {
-    const { data, error } = await supabase.functions.invoke('cleanup_expired_posts')
+    console.log('Starting cleanup of expired posts...')
+    
+    const { data, error } = await supabaseAdmin.functions.invoke('cleanup_expired_posts')
     
     if (error) {
       console.error('Error cleaning up expired posts:', error)

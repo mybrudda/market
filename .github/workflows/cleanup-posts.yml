@@ -12,8 +12,7 @@ jobs:
     
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY }}
+      EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY }}
       
     steps:
       - name: Checkout repository
@@ -25,8 +24,8 @@ jobs:
           node-version: '18'
           
       - name: Install dependencies
-        run: |
-          npm install @supabase/supabase-js
+        working-directory: .github/scripts
+        run: npm install @supabase/supabase-js
           
       - name: Run cleanup function
         run: node .github/scripts/cleanup.js 
