@@ -12,6 +12,8 @@ jobs:
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
 
     steps:
       - uses: actions/checkout@v3
@@ -23,22 +25,10 @@ jobs:
           
       - name: Install dependencies
         run: |
-          npm install @supabase/supabase-js
-          npm install node-fetch
+          cd .github/scripts
+          npm init -y
+          npm install node-fetch@2 @supabase/supabase-js
 
       - name: Run cleanup script
         run: |
-          node -e "
-            const { cleanupExpiredPosts } = require('./.github/scripts/cleanup.js');
-            
-            async function runCleanup() {
-              const result = await cleanupExpiredPosts();
-              if (!result.success) {
-                console.error('Cleanup failed:', result.error);
-                process.exit(1);
-              }
-              console.log('Cleanup succeeded:', result);
-            }
-            
-            runCleanup();
-          "
+          node .github/scripts/cleanup.js
