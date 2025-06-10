@@ -7,11 +7,13 @@ const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
 async function deleteCloudinaryImage(imageUrl) {
   try {
-    const publicId = imageUrl.match(/\/upload\/(?:v\d+\/)?([^/.]+)/)?.[1];
+    const publicId = imageUrl.split('/upload/')[1].split('/')[1].split('.')[0];
     if (!publicId) {
       console.error(`Could not extract public_id from URL: ${imageUrl}`);
       return false;
     }
+
+    console.log(`Attempting to delete image with public_id: ${publicId}`);
 
     const basicAuth = Buffer.from(`${CLOUDINARY_API_KEY}:${CLOUDINARY_API_SECRET}`).toString('base64');
 
