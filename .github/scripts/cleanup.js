@@ -4,7 +4,7 @@ async function cleanupPosts() {
   try {
     console.log('Starting cleanup of expired posts...')
     
-    const { data, error } = await supabaseAdmin.functions.invoke('cleanup_expired_posts')
+    const { data, error } = await supabaseAdmin.rpc('cleanup_expired_posts')
     
     if (error) {
       console.error('Error cleaning up expired posts:', error)
