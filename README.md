@@ -26,48 +26,96 @@ Posts can have one of the following statuses:
 
 ## Chat System
 
-### Conversation Management
-The chat system implements a soft deletion mechanism that allows:
-- Independent deletion by both creator and participant
-- Preservation of chat history for the other party
-- Proper handling of post status in conversations
+### How It Works
 
-### Soft Deletion in Conversations
-The system uses two boolean fields to manage conversation visibility:
-- `deleted_by_creator`: Tracks if the creator has deleted the conversation
-- `deleted_by_participant`: Tracks if the participant has deleted the conversation
+The chat system connects buyers and sellers through a seamless messaging experience. Here's how it works:
 
-When a user deletes a conversation:
-1. The appropriate field is set to `true` based on their role
-2. The conversation becomes hidden for that user only
-3. The other user can still access the conversation normally
-4. No actual data is deleted from the database
+#### Messaging Flow
+1. When viewing a listing, potential buyers can start a conversation with the seller
+2. Each chat is connected to a specific listing, keeping conversations organized
+3. Messages are delivered instantly to both users
+4. Users receive notifications when they have new messages
+5. The Messages tab shows a red badge with the total number of unread messages
 
-Example:
-```sql
--- When creator deletes the conversation
-UPDATE conversations
-SET deleted_by_creator = true
-WHERE id = 'conversation_id';
+#### Conversation Features
+- **Real-Time Updates**: Messages appear instantly without needing to refresh
+- **Read Status**: Users can see when their messages have been read
+- **Post Context**: The related listing's details stay visible in the chat
+- **Message History**: Full chat history is maintained for reference
 
--- When participant deletes the conversation
-UPDATE conversations
-SET deleted_by_participant = true
-WHERE id = 'conversation_id';
-```
+#### Conversation Management
+- **Deleting Conversations**
+  - Users can swipe left on any conversation to delete it
+  - Deleted conversations are completely hidden from your view
+  - Deletion is personal - the other user can still see the conversation
+  - New messages in deleted conversations won't make them reappear
+  - You won't see unread message counts for deleted conversations
+  - The other user's experience remains unchanged
 
-### Conversation Visibility
-The `conversation_details` view handles visibility rules:
-```sql
-WHERE 
-    (auth.uid() = c.creator_id AND NOT c.deleted_by_creator) OR
-    (auth.uid() = c.participant_id AND NOT c.deleted_by_participant)
-```
+- **Organization**
+  - Chats are sorted by most recent activity
+  - Each conversation shows:
+    - The other user's profile picture and name
+    - A preview of the last message
+    - The listing's title and image
+    - Unread message count (for non-deleted conversations)
+    - Time of last message
 
-This ensures:
-- Users only see conversations they haven't deleted
-- Deletion actions are independent for each user
-- Data integrity is maintained for both parties
+#### Unread Messages System
+- Each active conversation shows its own unread message count
+- The Messages tab shows the total number of unread messages
+- Counts update automatically when messages are read
+- Red badges make it easy to spot new messages
+- Deleted conversations never show unread counts
+
+#### Privacy Features
+- Conversations are private between buyer and seller
+- Users can permanently hide conversations from their view
+- Deletion is one-sided - the other person's view stays intact
+- Chat history is preserved for record-keeping
+- Deleted conversations stay hidden even if new messages arrive
+
+#### User Experience
+- **For Buyers**:
+  - Easy to contact sellers about listings
+  - Keep conversations organized by hiding completed ones
+  - See unread counts only for active conversations
+  - Quick access to listing details while chatting
+
+- **For Sellers**:
+  - Manage multiple buyer conversations
+  - Hide conversations for sold items
+  - Keep active inquiries separate from old ones
+  - Respond quickly to active inquiries
+
+### Using the Chat
+
+1. **Starting a Chat**
+   - Find an interesting listing
+   - Click "Message Seller"
+   - Type your message
+   - The conversation appears in your Messages tab
+
+2. **Managing Conversations**
+   - Open the Messages tab to see all your active chats
+   - Swipe left on any conversation to permanently hide it
+   - Hidden conversations won't reappear with new messages
+   - Focus on your active conversations without clutter
+
+3. **During a Chat**
+   - Messages send instantly
+   - See when the other person has read your messages
+   - The listing details stay visible at the top
+   - Previous messages are available for context
+
+### Coming Soon
+We're planning to add more features like:
+- Sharing images in chats
+- Message reactions
+- Quick replies
+- Better search options
+- Message organization tools
+- Enhanced notifications
 
 ## Automated Cleanup
 

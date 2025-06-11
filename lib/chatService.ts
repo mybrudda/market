@@ -19,7 +19,10 @@ export const chatService = {
             ...conv,
             last_message: typeof conv.last_message === 'string' 
                 ? conv.last_message 
-                : conv.last_message?.content
+                : conv.last_message?.content,
+            unread_count: conv.creator_id === currentUser.user.id 
+                ? (conv.unread_count_creator || 0)
+                : (conv.unread_count_participant || 0)
         }));
     },
 
@@ -115,6 +118,8 @@ export const chatService = {
             .is('read_at', null);
 
         if (error) throw error;
+
+        // The unread count will be automatically updated by the database trigger
     },
 
     async deleteConversation(conversationId: string) {

@@ -1,26 +1,31 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useUnreadMessagesStore } from '../../store/useUnreadMessagesStore';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 export default function TabLayout() {
   const theme = useTheme();
+  const { totalUnread } = useUnreadMessagesStore();
 
   return (
-    <Tabs  screenOptions={{
-      headerShown: false,
-      tabBarActiveTintColor: theme.colors.primary,
-      tabBarInactiveTintColor: theme.colors.onSurfaceDisabled,
-      tabBarStyle: {
-        backgroundColor: theme.colors.surface,
-      },
-    }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.surfaceVariant,
+        },
+      }}
+    >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={24} color={color} />
+            <MaterialCommunityIcons name="home" size={size} color={color} />
           ),
         }}
       />
@@ -29,7 +34,7 @@ export default function TabLayout() {
         options={{
           title: 'Create',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle" size={24} color={color} />
+            <MaterialCommunityIcons name="plus-circle" size={size} color={color} />
           ),
         }}
       />
@@ -38,8 +43,9 @@ export default function TabLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={24} color={color} />
+            <MaterialCommunityIcons name="message" size={size} color={color} />
           ),
+          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
         }}
       />
       <Tabs.Screen
@@ -47,7 +53,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={24} color={color} />
+            <MaterialCommunityIcons name="account" size={size} color={color} />
           ),
         }}
       />

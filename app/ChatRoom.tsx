@@ -22,6 +22,7 @@ import { supabase } from "../supabaseClient";
 import Header from "../components/layout/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
+import { useUnreadMessagesStore } from "../store/useUnreadMessagesStore";
 
 // Add blurhash constant at the top level
 const blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4";
@@ -171,6 +172,7 @@ export default function ChatRoom() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const { clearUnreadCount } = useUnreadMessagesStore();
   const [conversation, setConversation] = useState<Conversation | null>(() => {
     // Initialize from params if available
     if (params.conversation) {
@@ -216,6 +218,9 @@ export default function ChatRoom() {
           setConversation(currentConversation);
         }
         setMessages(messagesResponse);
+        
+        // Clear unread count and mark messages as read
+        clearUnreadCount(conversationId);
         await chatService.markMessagesAsRead(conversationId);
       } catch (error) {
         console.error("Failed to load data:", error);
@@ -270,6 +275,7 @@ export default function ChatRoom() {
               if (newMsg.sender_id !== currentUser?.id) {
                 flatListRef.current?.scrollToEnd({ animated: true });
                 await chatService.markMessagesAsRead(conversationId);
+                clearUnreadCount(conversationId);
               }
             } catch (error) {
               console.error("Error handling realtime message:", error);
@@ -287,7 +293,7 @@ export default function ChatRoom() {
         supabase.removeChannel(messageChannel);
       }
     };
-  }, [conversationId]);
+  }, [conversationId, clearUnreadCount]);
 
   const handleSendMessage = useCallback(async () => {
     if (!conversationId || !newMessage.trim()) return;
