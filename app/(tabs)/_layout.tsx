@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUnreadMessagesStore } from '../../store/useUnreadMessagesStore';
+import { Platform } from 'react-native';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 export default function TabLayout() {
@@ -17,6 +18,7 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.surfaceVariant,
+          ...(Platform.OS === 'android' && { height: 60 }),
         },
       }}
     >
@@ -34,7 +36,7 @@ export default function TabLayout() {
         options={{
           title: 'Create',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="plus-circle" size={size} color={color} />
+            <MaterialCommunityIcons name="plus-box" size={size} color={color} />
           ),
         }}
       />
@@ -43,7 +45,7 @@ export default function TabLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="message" size={size} color={color} />
+            <MaterialCommunityIcons name="forum" size={size} color={color} />
           ),
           tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
         }}
@@ -53,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account" size={size} color={color} />
+            <MaterialCommunityIcons name="account-circle" size={size} color={color} />
           ),
         }}
       />
