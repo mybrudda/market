@@ -1,4 +1,4 @@
-name: Cleanup Expired Posts
+name: Cleanup Posts and Conversations
 
 on:
   schedule:
@@ -28,8 +28,24 @@ jobs:
         run: |
           cd .github/scripts
           npm init -y
-          npm install node-fetch@2 @supabase/supabase-js cloudinary
+          npm install typescript ts-node @types/node
+          npm install @supabase/supabase-js cloudinary
+          echo '{
+            "compilerOptions": {
+              "target": "es2018",
+              "module": "commonjs",
+              "strict": true,
+              "esModuleInterop": true,
+              "skipLibCheck": true,
+              "forceConsistentCasingInFileNames": true,
+              "outDir": "./dist"
+            },
+            "include": ["./**/*.ts"],
+            "exclude": ["node_modules"]
+          }' > tsconfig.json
 
-      - name: Run cleanup script
+      - name: Run cleanup scripts
         run: |
-          node .github/scripts/cleanup.js
+          cd .github/scripts
+          npx ts-node cleanupConversations.ts
+          npx ts-node cleanup.ts 
