@@ -48,4 +48,8 @@ SELECT
 FROM conversations c
 JOIN posts p ON c.post_id = p.id
 JOIN users creator ON c.creator_id = creator.id
-JOIN users participant ON c.participant_id = participant.id;
+JOIN users participant ON c.participant_id = participant.id
+WHERE 
+    -- Only show conversations that haven't been deleted by the current user
+    (auth.uid() = c.creator_id AND NOT c.deleted_by_creator) OR
+    (auth.uid() = c.participant_id AND NOT c.deleted_by_participant);

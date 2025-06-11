@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { ConversationList } from '../../../components/chat/ConversationList';
 import { useRouter } from 'expo-router';
@@ -30,6 +30,18 @@ export default function MessagesScreen() {
             setLoading(false);
         }
     }, []); 
+
+    const handleDeleteConversation = useCallback(async (conversationId: string) => {
+        try {
+            await chatService.deleteConversation(conversationId);
+            setConversations(prevConversations => 
+                prevConversations.filter(conv => conv.id !== conversationId)
+            );
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+            Alert.alert('Error', 'Failed to delete conversation');
+        }
+    }, []);
 
     useEffect(() => {
         // Don't load or subscribe if user is not authenticated
@@ -93,7 +105,7 @@ export default function MessagesScreen() {
             console.log('Unsubscribing from real-time updates');
             channel.unsubscribe();
         };
-    }, [isFocused, loadConversations, user]); // Added user to dependencies
+    }, [isFocused, loadConversations, user]);
 
     const handleSelectConversation = (conversation: Conversation) => {
         router.push({
@@ -127,6 +139,7 @@ export default function MessagesScreen() {
                 conversations={conversations}
                 loading={loading}
                 onSelectConversation={handleSelectConversation}
+                onDeleteConversation={handleDeleteConversation}
             />
         </View>
     );

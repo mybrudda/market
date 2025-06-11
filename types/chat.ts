@@ -4,7 +4,9 @@ export interface Conversation {
     creator_id: string;
     participant_id: string;
     created_at: string;
-    updated_at: string;
+    last_activity_date: string;
+    deleted_by_creator: boolean;
+    deleted_by_participant: boolean;
     post_title: string;
     post_image: string;
     post_price: number;
@@ -15,7 +17,6 @@ export interface Conversation {
     other_user_is_verified: boolean | null;
     other_user_type: 'person' | 'company';
     last_message: string | null;
-    last_message_at?: string;
     unread_count: number;
     user?: {
         id: string;
