@@ -48,4 +48,4 @@ jobs:
         run: |
           cd .github/scripts
           npx ts-node cleanupConversations.ts
-          npx ts-node cleanup.ts 
+          npx ts-node cleanupPosts.ts 
