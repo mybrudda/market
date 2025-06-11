@@ -46,7 +46,7 @@ async function deleteCloudinaryImage(imageUrl: string): Promise<boolean> {
     console.log(`Attempting to delete image with public_id: ${publicId}`);
 
     // Use Cloudinary SDK to delete the image
-    const result = await cloudinary.v2.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId);
     
     if (result.result !== 'ok') {
       throw new Error(`Failed to delete image ${publicId}: ${JSON.stringify(result)}`);
