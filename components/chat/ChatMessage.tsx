@@ -67,6 +67,16 @@ export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessagePro
                 >
                     {hasFailed ? 'Failed to send - Tap to retry' : format(new Date(message.created_at), 'h:mm a')}
                 </Text>
+                {isOwnMessage && !hasFailed && (
+                    <View style={styles.readStatusContainer}>
+                        <MaterialCommunityIcons
+                            name={message.read_at ? "check-all" : "check"}
+                            size={16}
+                            color={message.read_at ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                            style={styles.readStatusIcon}
+                        />
+                    </View>
+                )}
             </View>
         </View>
     );
@@ -113,5 +123,13 @@ const styles = StyleSheet.create({
     },
     errorIcon: {
         marginLeft: 4,
+    },
+    readStatusContainer: {
+        marginLeft: 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    readStatusIcon: {
+        marginLeft: 2,
     },
 }); 
