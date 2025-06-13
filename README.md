@@ -9,6 +9,7 @@ This document outlines the key features and management systems of the marketplac
 4. [Soft Deletion Mechanisms](#soft-deletion-mechanisms)
 5. [Database Views](#database-views)
 6. [Monitoring](#monitoring)
+7. [User Blocking System](#user-blocking-system)
 
 ## Post Management
 
@@ -116,6 +117,51 @@ We're planning to add more features like:
 - Better search options
 - Message organization tools
 - Enhanced notifications
+
+## User Blocking System
+
+### Overview
+The blocking system allows users to control their interactions by blocking other users. When a user is blocked, they cannot:
+- Send messages to the blocker
+- Start new conversations with the blocker
+
+### How Blocking Works
+
+#### Blocking a User
+1. Users can block others from:
+   - The chat room menu
+2. Blocking is immediate and takes effect right away
+3. The blocked user is not notified of being blocked
+
+#### Blocked Users Management
+- Access the blocked users list from your profile
+- View all users you've blocked
+- Unblock users at any time
+- See blocked users' basic profile information
+- Refresh the list to see updates
+
+#### Blocking Effects
+- **Messages**:
+  - Blocked users cannot send new messages
+  - Existing conversations are preserved but blocked users cannot send new messages
+  - Blocked users cannot start new conversations
+
+
+
+
+#### Database Structure
+- `blocked_users` table tracks blocking relationships
+- Each record contains:
+  - `blocker_id`: The user who blocked
+  - `blocked_id`: The user who was blocked
+  - `created_at`: When the block was created
+
+#### Security Measures
+- Blocking checks are enforced at the database level
+- Triggers prevent blocked users from sending messages
+- RLS policies ensure proper access control
+- Blocking status is checked before allowing interactions
+
 
 ## Automated Cleanup
 

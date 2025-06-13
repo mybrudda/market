@@ -151,6 +151,23 @@ export default function PostDetails() {
     }
 
     try {
+      // Check if the seller has blocked the current user
+      const { data: isBlocked, error: blockCheckError } = await supabase
+        .rpc('is_user_blocked', {
+          blocker_id: post.user.id,
+          blocked_id: user.id
+        });
+
+      if (blockCheckError) throw blockCheckError;
+
+      if (isBlocked) {
+        Alert.alert(
+          "Cannot Message",
+          "You cannot message this seller."
+        );
+        return;
+      }
+
       // The createConversation function will handle checking for existing conversations
       const conversation = await chatService.createConversation(post.id, post.user.id);
       router.push({

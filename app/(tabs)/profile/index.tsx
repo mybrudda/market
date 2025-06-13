@@ -164,6 +164,21 @@ export default function ProfileScreen() {
           <Divider />
           <Button
             mode="text"
+            onPress={() => router.push("/profile/BlockedUsers" as any)}
+            contentStyle={styles.buttonContent}
+            style={styles.navigationButton}
+          >
+            <View style={styles.buttonInner}>
+              <View style={styles.buttonLeftContent}>
+                <MaterialCommunityIcons name="account-remove" size={28} color={theme.colors.primary} />
+                <Text variant="bodyLarge" style={styles.buttonText}>Blocked Users</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+            </View>
+          </Button>
+          <Divider />
+          <Button
+            mode="text"
             onPress={() => router.push("/(tabs)/profile/contact-support" as any)}
             contentStyle={styles.buttonContent}
             style={styles.navigationButton}

@@ -12,7 +12,7 @@ import {
   Image,
   Alert,
 } from "react-native";
-import { useTheme, Text } from "react-native-paper";
+import { useTheme, Text, Menu, IconButton } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { ChatMessage } from "../components/chat/ChatMessage";
@@ -23,6 +23,8 @@ import Header from "../components/layout/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useUnreadMessagesStore } from "../store/useUnreadMessagesStore";
+import { BlockButton } from '../components/chat/BlockButton';
+import { useBlockedUsers } from '../lib/hooks/useBlockedUsers';
 
 // Add blurhash constant at the top level
 const blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4";
@@ -33,6 +35,10 @@ interface ListHeaderProps {
   theme: any;
   formatPrice: (price: number) => string;
   getCleanAvatarUrl: (url: string | null) => string | null;
+  currentUser: any;
+  onBlock: () => void;
+  onUnblock: () => void;
+  isBlocked: boolean;
 }
 
 // Memoized message component
@@ -45,7 +51,13 @@ const MemoizedListHeader = memo(
     theme,
     formatPrice,
     getCleanAvatarUrl,
+    currentUser,
+    onBlock,
+    onUnblock,
+    isBlocked,
   }: ListHeaderProps) => {
+    const [menuVisible, setMenuVisible] = useState(false);
+
     if (!conversation) return null;
 
     const isPostActive = conversation.post_status === 'active';
@@ -66,59 +78,93 @@ const MemoizedListHeader = memo(
             },
           ]}
         >
-          <View style={styles.logoContainer}>
-            {conversation.other_user_avatar ? (
-              getCleanAvatarUrl(conversation.other_user_avatar) ? (
-                <ExpoImage
-                  source={{
-                    uri: getCleanAvatarUrl(conversation.other_user_avatar)!,
-                  }}
-                  style={styles.avatar}
-                  contentFit="cover"
-                  transition={200}
-                  placeholder={blurhash}
-                  cachePolicy="memory-disk"
-                />
+          <View style={styles.headerContent}>
+            <View style={styles.logoContainer}>
+              {conversation.other_user_avatar ? (
+                getCleanAvatarUrl(conversation.other_user_avatar) ? (
+                  <ExpoImage
+                    source={{
+                      uri: getCleanAvatarUrl(conversation.other_user_avatar)!,
+                    }}
+                    style={styles.avatar}
+                    contentFit="cover"
+                    transition={200}
+                    placeholder={blurhash}
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="account-circle"
+                    size={40}
+                    color={theme.colors.primary}
+                  />
+                )
               ) : (
                 <MaterialCommunityIcons
                   name="account-circle"
                   size={40}
                   color={theme.colors.primary}
                 />
-              )
-            ) : (
-              <MaterialCommunityIcons
-                name="account-circle"
-                size={40}
-                color={theme.colors.primary}
-              />
-            )}
+              )}
 
-            <View style={styles.userInfo}>
-              <View style={styles.nameRow}>
+              <View style={styles.userInfo}>
+                <View style={styles.nameRow}>
+                  <Text
+                    variant="titleMedium"
+                    style={{ color: theme.colors.onSurface }}
+                  >
+                    {conversation.other_user_full_name ||
+                      conversation.other_user_name}
+                  </Text>
+                  {conversation.other_user_is_verified && (
+                    <MaterialCommunityIcons
+                      name="check-decagram"
+                      size={20}
+                      color={theme.colors.primary}
+                      style={styles.verifiedIcon}
+                    />
+                  )}
+                </View>
                 <Text
-                  variant="titleMedium"
-                  style={{ color: theme.colors.onSurface }}
+                  variant="bodyMedium"
+                  style={{ color: theme.colors.onSurfaceVariant }}
                 >
-                  {conversation.other_user_full_name ||
-                    conversation.other_user_name}
+                  @{conversation.other_user_name}
                 </Text>
-                {conversation.other_user_is_verified && (
-                  <MaterialCommunityIcons
-                    name="check-decagram"
-                    size={20}
-                    color={theme.colors.primary}
-                    style={styles.verifiedIcon}
-                  />
-                )}
               </View>
-              <Text
-                variant="bodyMedium"
-                style={{ color: theme.colors.onSurfaceVariant }}
-              >
-                @{conversation.other_user_name}
-              </Text>
             </View>
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <IconButton
+                  icon="dots-vertical"
+                  size={24}
+                  onPress={() => setMenuVisible(true)}
+                  iconColor={theme.colors.onSurfaceVariant}
+                />
+              }
+            >
+              {isBlocked ? (
+                <Menu.Item
+                  onPress={() => {
+                    onUnblock();
+                    setMenuVisible(false);
+                  }}
+                  title="Unblock User"
+                  leadingIcon="account-check"
+                />
+              ) : (
+                <Menu.Item
+                  onPress={() => {
+                    onBlock();
+                    setMenuVisible(false);
+                  }}
+                  title="Block User"
+                  leadingIcon="account-remove"
+                />
+              )}
+            </Menu>
           </View>
         </View>
 
@@ -188,6 +234,8 @@ export default function ChatRoom() {
   const conversationId = params.id as string;
   const [sendingMessage, setSendingMessage] = useState(false);
   const [failedMessages, setFailedMessages] = useState<Set<string>>(new Set());
+  const { isUserBlocked, canMessageUser, refreshBlockedUsers } = useBlockedUsers();
+  const [isBlocked, setIsBlocked] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -312,8 +360,33 @@ export default function ChatRoom() {
     };
   }, [conversationId, clearUnreadCount]);
 
+  useEffect(() => {
+    if (conversation) {
+      const otherUserId = conversation.creator_id === currentUser?.id 
+        ? conversation.participant_id 
+        : conversation.creator_id;
+      setIsBlocked(isUserBlocked(otherUserId));
+    }
+  }, [conversation, currentUser, isUserBlocked]);
+
   const handleSendMessage = useCallback(async () => {
-    if (!conversationId || !newMessage.trim()) return;
+    if (!conversationId || !newMessage.trim() || !conversation) return;
+
+    const otherUserId = conversation.creator_id === currentUser?.id 
+      ? conversation.participant_id 
+      : conversation.creator_id;
+
+    if (!otherUserId) return;
+
+    const canMessage = await canMessageUser(otherUserId);
+    if (!canMessage) {
+      Alert.alert(
+        'Cannot Send Message',
+        'You cannot send messages to this user.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     const messageContent = newMessage.trim();
     const tempMessageId = `temp-${Date.now()}-${Math.random()
@@ -374,7 +447,7 @@ export default function ChatRoom() {
     } finally {
       setSendingMessage(false);
     }
-  }, [conversationId, newMessage, currentUser]);
+  }, [conversationId, newMessage, conversation, currentUser, canMessageUser]);
 
   // Add retry handler
   const handleRetryMessage = useCallback(
@@ -437,7 +510,92 @@ export default function ChatRoom() {
 
   const keyExtractor = useCallback((item: Message) => item.id, []);
 
-  // Memoized header component
+  // Update handleBlock function
+  const handleBlock = async () => {
+    if (!conversation || !currentUser) return;
+
+    try {
+      const otherUserId = conversation.creator_id === currentUser.id 
+        ? conversation.participant_id 
+        : conversation.creator_id;
+
+      // First check if the user is already blocked
+      const { data: existingBlock, error: checkError } = await supabase
+        .from('blocked_users')
+        .select('id')
+        .eq('blocker_id', currentUser.id)
+        .eq('blocked_id', otherUserId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existingBlock) {
+        Alert.alert('Already Blocked', 'This user is already blocked.');
+        return;
+      }
+
+      // Insert the block
+      const { error } = await supabase
+        .from('blocked_users')
+        .insert({
+          blocker_id: currentUser.id,
+          blocked_id: otherUserId
+        });
+
+      if (error) throw error;
+
+      setIsBlocked(true);
+      await refreshBlockedUsers();
+      
+      Alert.alert(
+        'User Blocked',
+        'You will no longer receive messages from this user.'
+      );
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      Alert.alert(
+        'Error',
+        'Failed to block user. Please try again.'
+      );
+    }
+  };
+
+  // Update handleUnblock function
+  const handleUnblock = async () => {
+    if (!conversation || !currentUser) return;
+
+    try {
+      const otherUserId = conversation.creator_id === currentUser.id 
+        ? conversation.participant_id 
+        : conversation.creator_id;
+
+      const { error } = await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', currentUser.id)
+        .eq('blocked_id', otherUserId);
+
+      if (error) throw error;
+
+      setIsBlocked(false);
+      await refreshBlockedUsers();
+      
+      Alert.alert(
+        'User Unblocked',
+        'You can now receive messages from this user.'
+      );
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      Alert.alert(
+        'Error',
+        'Failed to unblock user. Please try again.'
+      );
+    }
+  };
+
+  // Update the ListHeaderComponent
   const ListHeaderComponent = useCallback(
     () => (
       <MemoizedListHeader
@@ -445,9 +603,13 @@ export default function ChatRoom() {
         theme={theme}
         formatPrice={formatPrice}
         getCleanAvatarUrl={getCleanAvatarUrl}
+        currentUser={currentUser}
+        onBlock={handleBlock}
+        onUnblock={handleUnblock}
+        isBlocked={isBlocked}
       />
     ),
-    [conversation, theme]
+    [conversation, theme, currentUser, isBlocked]
   );
 
   const formatPrice = (price: number) => {
@@ -511,53 +673,55 @@ export default function ChatRoom() {
             autoscrollToTopThreshold: 10,
           }}
         />
-        <View
-          style={[
-            styles.inputContainer,
-            {
-              backgroundColor: theme.colors.surface,
-              borderTopColor: theme.colors.surfaceVariant,
-            },
-          ]}
-        >
-          <TextInput
+        {!isBlocked && (
+          <View
             style={[
-              styles.input,
+              styles.inputContainer,
               {
-                backgroundColor: theme.colors.surfaceVariant,
-                color: theme.colors.onSurface,
+                backgroundColor: theme.colors.surface,
+                borderTopColor: theme.colors.surfaceVariant,
               },
             ]}
-            value={newMessage}
-            onChangeText={setNewMessage}
-            placeholder="Type a message..."
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            multiline
-            maxLength={1000}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              {
-                backgroundColor: newMessage.trim()
-                  ? theme.colors.primary
-                  : "transparent",
-              },
-            ]}
-            onPress={handleSendMessage}
-            disabled={!newMessage.trim()}
           >
-            <Ionicons
-              name="send"
-              size={20}
-              color={
-                newMessage.trim()
-                  ? theme.colors.onPrimary
-                  : theme.colors.onSurfaceVariant
-              }
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  color: theme.colors.onSurface,
+                },
+              ]}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              placeholder="Type a message..."
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              multiline
+              maxLength={1000}
             />
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                {
+                  backgroundColor: newMessage.trim()
+                    ? theme.colors.primary
+                    : "transparent",
+                },
+              ]}
+              onPress={handleSendMessage}
+              disabled={!newMessage.trim()}
+            >
+              <Ionicons
+                name="send"
+                size={20}
+                color={
+                  newMessage.trim()
+                    ? theme.colors.onPrimary
+                    : theme.colors.onSurfaceVariant
+                }
+              />
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </View>
   );
@@ -587,9 +751,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
   },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
   logoContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
   },
   avatar: {
     width: 40,
