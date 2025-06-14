@@ -8,72 +8,92 @@ interface UnreadMessagesState {
   incrementUnreadCount: (conversationId: string) => void;
   clearUnreadCount: (conversationId: string) => void;
   fetchUnreadCounts: () => Promise<void>;
+  isUpdating: boolean;
 }
 
 export const useUnreadMessagesStore = create<UnreadMessagesState>((set, get) => ({
   unreadCounts: {},
   totalUnread: 0,
+  isUpdating: false,
 
   setUnreadCount: async (conversationId: string, count: number) => {
-    // Check if the conversation is deleted for the current user before updating
-    const { data: currentUser } = await supabase.auth.getUser();
-    if (!currentUser.user) return;
+    // Prevent concurrent updates
+    if (get().isUpdating) return;
 
-    const { data: conversation } = await supabase
-      .from('conversations')
-      .select('creator_id, deleted_by_creator, deleted_by_participant')
-      .eq('id', conversationId)
-      .single();
+    try {
+      set({ isUpdating: true });
+      
+      // Check if the conversation is deleted for the current user before updating
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) return;
 
-    if (!conversation) return;
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('creator_id, deleted_by_creator, deleted_by_participant')
+        .eq('id', conversationId)
+        .single();
 
-    const isCreator = conversation.creator_id === currentUser.user.id;
-    const isDeleted = isCreator ? conversation.deleted_by_creator : conversation.deleted_by_participant;
+      if (!conversation) return;
 
-    // Only update count if the conversation is not deleted for this user
-    if (!isDeleted) {
-      set((state) => {
-        const newUnreadCounts = {
-          ...state.unreadCounts,
-          [conversationId]: count,
-        };
-        return {
-          unreadCounts: newUnreadCounts,
-          totalUnread: Object.values(newUnreadCounts).reduce((a, b) => a + b, 0),
-        };
-      });
+      const isCreator = conversation.creator_id === currentUser.user.id;
+      const isDeleted = isCreator ? conversation.deleted_by_creator : conversation.deleted_by_participant;
+
+      // Only update count if the conversation is not deleted for this user
+      if (!isDeleted) {
+        set((state) => {
+          const newUnreadCounts = {
+            ...state.unreadCounts,
+            [conversationId]: count,
+          };
+          return {
+            unreadCounts: newUnreadCounts,
+            totalUnread: Object.values(newUnreadCounts).reduce((a, b) => a + b, 0),
+          };
+        });
+      }
+    } finally {
+      set({ isUpdating: false });
     }
   },
 
   incrementUnreadCount: async (conversationId: string) => {
-    // Check if the conversation is deleted for the current user before incrementing
-    const { data: currentUser } = await supabase.auth.getUser();
-    if (!currentUser.user) return;
+    // Prevent concurrent updates
+    if (get().isUpdating) return;
 
-    const { data: conversation } = await supabase
-      .from('conversations')
-      .select('creator_id, deleted_by_creator, deleted_by_participant')
-      .eq('id', conversationId)
-      .single();
+    try {
+      set({ isUpdating: true });
+      
+      // Check if the conversation is deleted for the current user before incrementing
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) return;
 
-    if (!conversation) return;
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('creator_id, deleted_by_creator, deleted_by_participant')
+        .eq('id', conversationId)
+        .single();
 
-    const isCreator = conversation.creator_id === currentUser.user.id;
-    const isDeleted = isCreator ? conversation.deleted_by_creator : conversation.deleted_by_participant;
+      if (!conversation) return;
 
-    // Only increment count if the conversation is not deleted for this user
-    if (!isDeleted) {
-      set((state) => {
-        const currentCount = state.unreadCounts[conversationId] || 0;
-        const newUnreadCounts = {
-          ...state.unreadCounts,
-          [conversationId]: currentCount + 1,
-        };
-        return {
-          unreadCounts: newUnreadCounts,
-          totalUnread: Object.values(newUnreadCounts).reduce((a, b) => a + b, 0),
-        };
-      });
+      const isCreator = conversation.creator_id === currentUser.user.id;
+      const isDeleted = isCreator ? conversation.deleted_by_creator : conversation.deleted_by_participant;
+
+      // Only increment count if the conversation is not deleted for this user
+      if (!isDeleted) {
+        set((state) => {
+          const currentCount = state.unreadCounts[conversationId] || 0;
+          const newUnreadCounts = {
+            ...state.unreadCounts,
+            [conversationId]: currentCount + 1,
+          };
+          return {
+            unreadCounts: newUnreadCounts,
+            totalUnread: Object.values(newUnreadCounts).reduce((a, b) => a + b, 0),
+          };
+        });
+      }
+    } finally {
+      set({ isUpdating: false });
     }
   },
 
@@ -88,7 +108,12 @@ export const useUnreadMessagesStore = create<UnreadMessagesState>((set, get) => 
   },
 
   fetchUnreadCounts: async () => {
+    // Prevent concurrent updates
+    if (get().isUpdating) return;
+
     try {
+      set({ isUpdating: true });
+      
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) return;
 
@@ -126,6 +151,8 @@ export const useUnreadMessagesStore = create<UnreadMessagesState>((set, get) => 
       });
     } catch (error) {
       console.error('Error fetching unread counts:', error);
+    } finally {
+      set({ isUpdating: false });
     }
   },
 })); 

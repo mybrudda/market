@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { ConversationList } from '../../../components/chat/ConversationList';
@@ -19,13 +19,16 @@ export default function MessagesScreen() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const lastRefreshTime = useRef<number>(Date.now());
+    const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-    const loadConversations = useCallback(async () => {
+    const loadConversations = useCallback(async (force = false) => {
         try {
             setError(null);
             const data = await chatService.getConversations();
             setConversations(data);
             await fetchUnreadCounts();
+            lastRefreshTime.current = Date.now();
         } catch (error) {
             console.error('Error loading conversations:', error);
             setError('Failed to load conversations');
@@ -40,7 +43,7 @@ export default function MessagesScreen() {
             setConversations(prevConversations => 
                 prevConversations.filter(conv => conv.id !== conversationId)
             );
-            await fetchUnreadCounts(); // Refresh unread counts after deletion
+            await fetchUnreadCounts();
         } catch (error) {
             console.error('Error deleting conversation:', error);
             Alert.alert('Error', 'Failed to delete conversation');
@@ -55,53 +58,50 @@ export default function MessagesScreen() {
         }
 
         // Initial load
-        loadConversations();
+        loadConversations(true);
 
         // Only set up real-time subscription when screen is focused
         if (!isFocused) return;
 
-        // Set up real-time subscription for conversations and messages
-        const channel = supabase.channel('messages_realtime')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'conversations'
-                },
-                async (payload) => {
-                    // If conversation is updated/deleted, refresh conversations
-                    await loadConversations();
-                }
-            )
+        const channel = supabase
+            .channel('messages')
             .on(
                 'postgres_changes',
                 {
                     event: 'INSERT',
                     schema: 'public',
-                    table: 'messages'
+                    table: 'messages',
                 },
                 async (payload) => {
-                    if (payload.new && payload.new.sender_id !== user.id) {
-                        const conversationId = payload.new.conversation_id;
-                        
-                        // Check if the conversation is deleted for the current user
-                        const { data: conversation } = await supabase
-                            .from('conversations')
-                            .select('creator_id, deleted_by_creator, deleted_by_participant')
-                            .eq('id', conversationId)
-                            .single();
+                    const conversationId = payload.new.conversation_id;
+                    
+                    // Check if the conversation is deleted for the current user
+                    const { data: conversation } = await supabase
+                        .from('conversations')
+                        .select('creator_id, deleted_by_creator, deleted_by_participant')
+                        .eq('id', conversationId)
+                        .single();
 
-                        if (conversation) {
-                            const isCreator = conversation.creator_id === user.id;
-                            const isDeleted = isCreator ? conversation.deleted_by_creator : conversation.deleted_by_participant;
+                    if (conversation) {
+                        const isCreator = conversation.creator_id === user.id;
+                        const isDeleted = isCreator ? conversation.deleted_by_creator : conversation.deleted_by_participant;
 
-                            // Only update if the conversation is not deleted for this user
-                            if (!isDeleted) {
-                                // Update the unread count
-                                incrementUnreadCount(conversationId);
-                                // Update the conversation list in the background
-                                loadConversations();
+                        // Only update if the conversation is not deleted for this user
+                        if (!isDeleted) {
+                            // Update the unread count
+                            incrementUnreadCount(conversationId);
+                            
+                            // Debounce the conversation list update
+                            if (refreshTimeoutRef.current) {
+                                clearTimeout(refreshTimeoutRef.current);
+                            }
+                            
+                            // Only refresh if it's been more than 2 seconds since the last refresh
+                            const now = Date.now();
+                            if (now - lastRefreshTime.current > 2000) {
+                                refreshTimeoutRef.current = setTimeout(() => {
+                                    loadConversations(false);
+                                }, 1000);
                             }
                         }
                     }
@@ -120,15 +120,18 @@ export default function MessagesScreen() {
             if (isFocused) {
                 fetchUnreadCounts();
             }
-        }, 5000);
+        }, 10000); // Increased to 10 seconds to reduce server load
 
         // Cleanup when screen loses focus or unmounts
         return () => {
             console.log('Unsubscribing from real-time updates');
             channel.unsubscribe();
             clearInterval(refreshInterval);
+            if (refreshTimeoutRef.current) {
+                clearTimeout(refreshTimeoutRef.current);
+            }
         };
-    }, [isFocused, loadConversations, user, fetchUnreadCounts, incrementUnreadCount]);
+    }, [isFocused, user, loadConversations, fetchUnreadCounts, incrementUnreadCount]);
 
     const handleSelectConversation = (conversation: Conversation) => {
         router.push({
