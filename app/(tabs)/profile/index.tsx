@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Image } from "react-native";
-import { useTheme, Text, IconButton, Button, Divider } from "react-native-paper";
+import { StyleSheet, View, Image, Pressable } from "react-native";
+import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
@@ -8,6 +8,7 @@ import { useThemeStore } from "../../../store/useThemeStore";
 import LoadingScreen from "../../../components/ui/LoadingScreen";
 import { supabase } from "../../../supabaseClient";
 import RequireAuth from "../../../components/auth/RequireAuth";
+import * as ImagePicker from 'expo-image-picker';
 
 interface UserProfile {
   id: string;
@@ -25,6 +26,7 @@ export default function ProfileScreen() {
   const { isDarkMode, toggleTheme } = useThemeStore();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -66,6 +68,51 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleImagePick = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setIsUploading(true);
+        const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl) {
+          throw new Error('Supabase URL is not configured');
+        }
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/update-avatar`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            userId: user?.id,
+            base64Image: `data:image/jpeg;base64,${result.assets[0].base64}`,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Failed to update avatar: ${errorData}`);
+        }
+
+        const { avatar_url } = await response.json();
+        setUserProfile(prev => prev ? { ...prev, avatar_url } : null);
+      }
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      // You might want to show an alert to the user here
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (isLoading) {
     return <LoadingScreen />;
   }
@@ -77,41 +124,35 @@ export default function ProfileScreen() {
         <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.headerTop}>
             <View style={styles.logoContainer}>
-              {userProfile?.avatar_url ? (
-                getCleanAvatarUrl(userProfile.avatar_url) ? (
-                  <Image
-                    source={{ uri: getCleanAvatarUrl(userProfile.avatar_url)! }}
-                    style={styles.avatar}
-                  />
+              <Pressable onPress={handleImagePick} style={styles.avatarContainer}>
+                {isUploading ? (
+                  <View style={[styles.avatar, styles.uploadingContainer]}>
+                    <ActivityIndicator color={theme.colors.primary} size="large" />
+                  </View>
+                ) : userProfile?.avatar_url ? (
+                  getCleanAvatarUrl(userProfile.avatar_url) ? (
+                    <Image
+                      source={{ uri: getCleanAvatarUrl(userProfile.avatar_url)! }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <MaterialCommunityIcons
+                      name="account-circle"
+                      size={80}
+                      color={theme.colors.primary}
+                    />
+                  )
                 ) : (
                   <MaterialCommunityIcons
                     name="account-circle"
-                    size={40}
+                    size={80}
                     color={theme.colors.primary}
                   />
-                )
-              ) : (
-                <MaterialCommunityIcons
-                  name="account-circle"
-                  size={40}
-                  color={theme.colors.primary}
-                />
-              )}
+                )}
+              </Pressable>
               <Text variant="titleLarge" style={{ marginLeft: 8 }}>
                 {userProfile?.username || 'Profile'}
               </Text>
-            </View>
-            <View style={styles.headerActions}>
-              <IconButton
-                icon={isDarkMode ? "weather-sunny" : "weather-night"}
-                onPress={toggleTheme}
-                accessibilityLabel="Toggle Theme"
-              />
-              <IconButton
-                icon="logout"
-                onPress={handleSignOut}
-                accessibilityLabel="Logout"
-              />
             </View>
           </View>
         </View>
@@ -192,6 +233,41 @@ export default function ProfileScreen() {
             </View>
           </Button>
         </View>
+
+        {/* Bottom Actions */}
+        <View style={[styles.bottomActionsContainer, { backgroundColor: theme.colors.surface }]}>
+          <Button
+            mode="text"
+            onPress={toggleTheme}
+            contentStyle={styles.bottomActionButtonContent}
+            style={styles.bottomActionButton}
+          >
+            <View style={styles.bottomActionButtonInner}>
+              <MaterialCommunityIcons 
+                name={isDarkMode ? "weather-sunny" : "weather-night"} 
+                size={24} 
+                color={theme.colors.primary} 
+              />
+              <Text variant="bodyLarge" style={styles.buttonText}>
+                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              </Text>
+            </View>
+          </Button>
+          <Divider />
+          <Button
+            mode="text"
+            onPress={handleSignOut}
+            contentStyle={styles.bottomActionButtonContent}
+            style={styles.bottomActionButton}
+          >
+            <View style={styles.bottomActionButtonInner}>
+              <MaterialCommunityIcons name="logout" size={24} color={theme.colors.error} />
+              <Text variant="bodyLarge" style={[styles.buttonText, { color: theme.colors.error }]}>
+                Sign Out
+              </Text>
+            </View>
+          </Button>
+        </View>
       </View>
     </RequireAuth>
   );
@@ -209,13 +285,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 8,
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 16,
   },
-  headerActions: {
-    flexDirection: "row",
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  uploadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   profileInfo: {
     padding: 16,
@@ -231,12 +322,14 @@ const styles = StyleSheet.create({
     height: 70,
     marginHorizontal: 0,
     borderRadius: 0,
+    justifyContent: 'flex-start',
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     height: '100%',
+    justifyContent: 'flex-start',
   },
   buttonInner: {
     flexDirection: 'row',
@@ -244,24 +337,46 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flex: 1,
     paddingVertical: 8,
+    paddingRight: 8,
   },
   buttonLeftContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    justifyContent: 'flex-start',
     flex: 1,
   },
   buttonText: {
-    marginLeft: 16,
-    fontSize: 16,
-    fontWeight: '500',
+    marginLeft: 0,
+  },
+  bottomActionsContainer: {
+    marginTop: 'auto',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  bottomActionButton: {
+    height: 56,
+    marginHorizontal: 0,
+    borderRadius: 0,
+    justifyContent: 'flex-start',
+  },
+  bottomActionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: '100%',
+    justifyContent: 'flex-start',
+  },
+  bottomActionButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    justifyContent: 'flex-start',
   },
   buttonLabel: {
     fontSize: 16,
     marginLeft: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
   },
 });
