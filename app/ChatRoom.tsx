@@ -23,7 +23,6 @@ import Header from "../components/layout/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useUnreadMessagesStore } from "../store/useUnreadMessagesStore";
-import { BlockButton } from '../components/chat/BlockButton';
 import { useBlockedUsers } from '../lib/hooks/useBlockedUsers';
 
 // Add blurhash constant at the top level
@@ -133,6 +132,7 @@ const MemoizedListHeader = memo(
                 </Text>
               </View>
             </View>
+
             <Menu
               visible={menuVisible}
               onDismiss={() => setMenuVisible(false)}
@@ -165,45 +165,6 @@ const MemoizedListHeader = memo(
                 />
               )}
             </Menu>
-          </View>
-        </View>
-
-        <View style={styles.postContent}>
-          <ExpoImage
-            source={{ uri: conversation.post_image }}
-            style={[
-              styles.postImage,
-              !isPostActive && { opacity: 0.5 }
-            ]}
-            contentFit="cover"
-            transition={300}
-            placeholder={blurhash}
-            cachePolicy="memory-disk"
-          />
-          <View style={styles.postTitleContainer}>
-            <Text
-              variant="bodyMedium"
-              style={{ color: theme.colors.onSurface, marginBottom: 4 }}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {conversation.post_title}
-            </Text>
-            <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-              {formatPrice(conversation.post_price || 0)}
-            </Text>
-            {!isPostActive && (
-              <Text
-                variant="bodySmall"
-                style={{ 
-                  color: theme.colors.error,
-                  fontStyle: 'italic',
-                  marginTop: 4
-                }}
-              >
-                This post is no longer available
-              </Text>
-            )}
           </View>
         </View>
       </View>
@@ -640,14 +601,59 @@ export default function ChatRoom() {
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <Header title={"Chat"} />
+        <MemoizedListHeader
+          conversation={conversation}
+          theme={theme}
+          formatPrice={formatPrice}
+          getCleanAvatarUrl={getCleanAvatarUrl}
+          currentUser={currentUser}
+          onBlock={handleBlock}
+          onUnblock={handleUnblock}
+          isBlocked={isBlocked}
+        />
+        <View style={styles.postInfoContainer}>
+          <ExpoImage
+            source={{ uri: conversation?.post_image }}
+            style={[
+              styles.postImage,
+              conversation?.post_status !== 'active' && { opacity: 0.5 }
+            ]}
+            contentFit="cover"
+            transition={300}
+            placeholder={blurhash}
+            cachePolicy="memory-disk"
+          />
+          <View style={styles.postTitleContainer}>
+            <Text
+              variant="bodyMedium"
+              style={{ color: theme.colors.onSurface }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {conversation?.post_title}
+            </Text>
+            <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
+              {formatPrice(conversation?.post_price || 0)}
+            </Text>
+            {conversation?.post_status !== 'active' && (
+              <Text
+                variant="bodySmall"
+                style={{ 
+                  color: theme.colors.error,
+                  fontStyle: 'italic'
+                }}
+              >
+                This post is no longer available
+              </Text>
+            )}
+          </View>
+        </View>
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -667,7 +673,6 @@ export default function ChatRoom() {
             flatListRef.current?.scrollToEnd({ animated: true })
           }
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          ListHeaderComponent={ListHeaderComponent}
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,
             autoscrollToTopThreshold: 10,
@@ -743,12 +748,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   headerInfo: {
-    marginBottom: 16,
-    borderRadius: 12,
+    marginBottom: 0,
+    borderRadius: 0,
     overflow: "hidden",
   },
   userInfoContainer: {
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
   headerContent: {
@@ -763,9 +769,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     marginRight: 12,
   },
   userInfo: {
@@ -779,19 +785,23 @@ const styles = StyleSheet.create({
   verifiedIcon: {
     marginLeft: 4,
   },
-  postContent: {
+  postInfoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   postImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
+    width: 50,
+    height: 50,
+    borderRadius: 6,
   },
   postTitleContainer: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 8,
   },
   inputContainer: {
     flexDirection: "row",
