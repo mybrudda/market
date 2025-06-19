@@ -38,6 +38,7 @@ interface ListHeaderProps {
   onBlock: () => void;
   onUnblock: () => void;
   isBlocked: boolean;
+  blockingLoading: boolean;
 }
 
 // Memoized message component
@@ -54,6 +55,7 @@ const MemoizedListHeader = memo(
     onBlock,
     onUnblock,
     isBlocked,
+    blockingLoading,
   }: ListHeaderProps) => {
     const [menuVisible, setMenuVisible] = useState(false);
 
@@ -142,6 +144,7 @@ const MemoizedListHeader = memo(
                   size={24}
                   onPress={() => setMenuVisible(true)}
                   iconColor={theme.colors.onSurfaceVariant}
+                  disabled={blockingLoading}
                 />
               }
             >
@@ -153,6 +156,7 @@ const MemoizedListHeader = memo(
                   }}
                   title="Unblock User"
                   leadingIcon="account-check"
+                  disabled={blockingLoading}
                 />
               ) : (
                 <Menu.Item
@@ -162,6 +166,7 @@ const MemoizedListHeader = memo(
                   }}
                   title="Block User"
                   leadingIcon="account-remove"
+                  disabled={blockingLoading}
                 />
               )}
             </Menu>
@@ -197,6 +202,25 @@ export default function ChatRoom() {
   const [failedMessages, setFailedMessages] = useState<Set<string>>(new Set());
   const { isUserBlocked, canMessageUser, refreshBlockedUsers } = useBlockedUsers();
   const [isBlocked, setIsBlocked] = useState(false);
+  const [blockingLoading, setBlockingLoading] = useState(false);
+  const [canSendMessages, setCanSendMessages] = useState(true);
+
+  // Use refs to access current state values in subscription callbacks
+  const currentUserRef = useRef<any>(null);
+  const conversationRef = useRef<Conversation | null>(null);
+
+  // Use refs for stable function references to prevent re-renders
+  const handleBlockRef = useRef<(() => Promise<void>) | null>(null);
+  const handleUnblockRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Update refs when state changes
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  useEffect(() => {
+    conversationRef.current = conversation;
+  }, [conversation]);
 
   // Load initial data
   useEffect(() => {
@@ -233,6 +257,11 @@ export default function ChatRoom() {
         await chatService.markMessagesAsRead(conversationId);
       } catch (error) {
         console.error("Failed to load data:", error);
+        Alert.alert(
+          "Error",
+          "Failed to load conversation data. Please try again.",
+          [{ text: "OK" }]
+        );
       }
       setLoading(false);
 
@@ -250,13 +279,17 @@ export default function ChatRoom() {
           async (payload) => {
             console.log("Received realtime message:", payload);
             try {
+              // Get current values from refs
+              const currentConversationState = conversationRef.current;
+              const currentUserState = currentUserRef.current;
+
               const newMsg = {
                 ...payload.new,
                 sender:
-                  conversation &&
-                  conversation.user?.id === payload.new.sender_id
-                    ? conversation.user
-                    : currentUser,
+                  currentConversationState &&
+                  currentConversationState.user?.id === payload.new.sender_id
+                    ? currentConversationState.user
+                    : currentUserState,
               } as Message;
 
               setMessages((prev) => {
@@ -265,29 +298,25 @@ export default function ChatRoom() {
                   return prev;
                 }
 
-                // Remove any temporary versions of this message
-                const withoutTemp = prev.filter(
-                  (msg) =>
-                    !msg.id.startsWith("temp-") ||
-                    msg.content !== newMsg.content
-                );
-
-                // Add new message and sort
-                return [...withoutTemp, newMsg].sort(
-                  (a, b) =>
-                    new Date(a.created_at).getTime() -
-                    new Date(b.created_at).getTime()
-                );
+                // Remove any temporary versions of this message and add new one
+                const withoutTemp = prev.filter((msg) => msg.id !== newMsg.id);
+                return [...withoutTemp, newMsg];
               });
 
               // If message is from other user, scroll to bottom and mark as read
-              if (newMsg.sender_id !== currentUser?.id) {
+              if (newMsg.sender_id !== currentUserState?.id) {
                 flatListRef.current?.scrollToEnd({ animated: true });
-                await chatService.markMessagesAsRead(conversationId);
+                // Mark as read asynchronously to not block the UI
+                chatService.markMessagesAsRead(conversationId).catch(console.error);
                 clearUnreadCount(conversationId);
               }
             } catch (error) {
               console.error("Error handling realtime message:", error);
+              Alert.alert(
+                "Error",
+                "Failed to process new message. Please refresh the chat.",
+                [{ text: "OK" }]
+              );
             }
           }
         )
@@ -308,7 +337,16 @@ export default function ChatRoom() {
             );
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Channel subscription error');
+            Alert.alert(
+              "Connection Error",
+              "Lost connection to chat. Please refresh the page.",
+              [{ text: "OK" }]
+            );
+          }
+        });
     };
 
     init();
@@ -327,154 +365,44 @@ export default function ChatRoom() {
         ? conversation.participant_id 
         : conversation.creator_id;
       setIsBlocked(isUserBlocked(otherUserId));
-    }
-  }, [conversation, currentUser, isUserBlocked]);
-
-  const handleSendMessage = useCallback(async () => {
-    if (!conversationId || !newMessage.trim() || !conversation) return;
-
-    const otherUserId = conversation.creator_id === currentUser?.id 
-      ? conversation.participant_id 
-      : conversation.creator_id;
-
-    if (!otherUserId) return;
-
-    const canMessage = await canMessageUser(otherUserId);
-    if (!canMessage) {
-      Alert.alert(
-        'Cannot Send Message',
-        'You cannot send messages to this user.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    const messageContent = newMessage.trim();
-    const tempMessageId = `temp-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-
-    // Create temporary message for optimistic update
-    const tempMessage: Message = {
-      id: tempMessageId,
-      conversation_id: conversationId,
-      sender_id: currentUser?.id,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      read_at: null,
-      sender: currentUser,
-    };
-
-    setNewMessage(""); // Clear input first
-    setSendingMessage(true);
-
-    try {
-      // Add temporary message
-      setMessages((prev) => {
-        // Check for any duplicate content in recent messages (last 5 seconds)
-        const recentDuplicate = prev.some(
-          (msg) =>
-            msg.content === messageContent &&
-            !msg.id.startsWith("temp-") &&
-            Date.now() - new Date(msg.created_at).getTime() < 5000
-        );
-
-        if (recentDuplicate) {
-          return prev;
-        }
-
-        return [...prev, tempMessage].sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-      });
-
-      const sentMessage = await chatService.sendMessage(
-        conversationId,
-        messageContent
-      );
-
-      // Remove temporary message once real message is received
-      // (The real-time subscription will handle adding the real message)
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setFailedMessages((prev) => new Set(prev).add(tempMessageId));
-      Alert.alert(
-        "Failed to Send Message",
-        "There was a problem sending your message. Tap the message to try again.",
-        [{ text: "OK" }]
-      );
-    } finally {
-      setSendingMessage(false);
-    }
-  }, [conversationId, newMessage, conversation, currentUser, canMessageUser]);
-
-  // Add retry handler
-  const handleRetryMessage = useCallback(
-    async (failedMessage: Message) => {
-      if (!conversationId) return;
-
-      try {
-        // Remove from failed messages
-        setFailedMessages((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(failedMessage.id);
-          return newSet;
+      
+      // Check if user can send messages (only once when conversation loads)
+      if (otherUserId) {
+        canMessageUser(otherUserId).then((canMessage) => {
+          setCanSendMessages(canMessage);
+          if (!canMessage) {
+            // Don't show alert, just set the blocked state
+            // The UI will handle hiding the input section
+          }
+        }).catch((error) => {
+          console.error('Error checking message permission:', error);
+          setCanSendMessages(false);
         });
-
-        // Try to send again
-        const sentMessage = await chatService.sendMessage(
-          conversationId,
-          failedMessage.content
-        );
-
-        // Replace failed message with successful one
-        setMessages((prev) =>
-          prev.map((msg) => (msg.id === failedMessage.id ? sentMessage : msg))
-        );
-      } catch (error) {
-        console.error("Error retrying message:", error);
-
-        // Add back to failed messages
-        setFailedMessages((prev) => new Set(prev).add(failedMessage.id));
-
-        Alert.alert(
-          "Failed to Send Message",
-          "There was a problem sending your message. Please try again later.",
-          [{ text: "OK" }]
-        );
       }
-    },
-    [conversationId]
-  );
+    }
+  }, [conversation, currentUser, isUserBlocked, canMessageUser]);
 
-  const renderMessage = useCallback(
-    ({ item }: { item: Message }) => {
-      const isOwnMessage = item.sender_id === currentUser?.id;
-      const hasFailed = failedMessages.has(item.id);
-      return (
-        <TouchableOpacity
-          onPress={() => (hasFailed ? handleRetryMessage(item) : null)}
-          disabled={!hasFailed}
-        >
-          <MemoizedChatMessage
-            message={item}
-            isOwnMessage={isOwnMessage}
-            hasFailed={hasFailed}
-          />
-        </TouchableOpacity>
-      );
-    },
-    [currentUser?.id, failedMessages, handleRetryMessage]
-  );
+  // Memoized formatPrice function
+  const formatPrice = useCallback((price: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(price);
+  }, []);
 
-  const keyExtractor = useCallback((item: Message) => item.id, []);
+  // Memoized getCleanAvatarUrl function
+  const getCleanAvatarUrl = useCallback((url: string | null) => {
+    if (!url) return null;
+    // Remove the @ prefix and ::text suffix from the URL
+    return url.replace(/^@/, "").replace(/::text$/, "");
+  }, []);
 
-  // Update handleBlock function
-  const handleBlock = async () => {
-    if (!conversation || !currentUser) return;
+  // Memoized block handler
+  const handleBlock = useCallback(async () => {
+    if (!conversation || !currentUser || blockingLoading) return;
 
+    setBlockingLoading(true);
     try {
       const otherUserId = conversation.creator_id === currentUser.id 
         ? conversation.participant_id 
@@ -520,13 +448,16 @@ export default function ChatRoom() {
         'Error',
         'Failed to block user. Please try again.'
       );
+    } finally {
+      setBlockingLoading(false);
     }
-  };
+  }, [conversation, currentUser, blockingLoading, refreshBlockedUsers]);
 
-  // Update handleUnblock function
-  const handleUnblock = async () => {
-    if (!conversation || !currentUser) return;
+  // Memoized unblock handler
+  const handleUnblock = useCallback(async () => {
+    if (!conversation || !currentUser || blockingLoading) return;
 
+    setBlockingLoading(true);
     try {
       const otherUserId = conversation.creator_id === currentUser.id 
         ? conversation.participant_id 
@@ -553,10 +484,21 @@ export default function ChatRoom() {
         'Error',
         'Failed to unblock user. Please try again.'
       );
+    } finally {
+      setBlockingLoading(false);
     }
-  };
+  }, [conversation, currentUser, blockingLoading, refreshBlockedUsers]);
 
-  // Update the ListHeaderComponent
+  // Update function refs
+  useEffect(() => {
+    handleBlockRef.current = handleBlock;
+  }, [handleBlock]);
+
+  useEffect(() => {
+    handleUnblockRef.current = handleUnblock;
+  }, [handleUnblock]);
+
+  // Memoized ListHeaderComponent - optimized to prevent re-renders during message sending
   const ListHeaderComponent = useCallback(
     () => (
       <MemoizedListHeader
@@ -565,27 +507,134 @@ export default function ChatRoom() {
         formatPrice={formatPrice}
         getCleanAvatarUrl={getCleanAvatarUrl}
         currentUser={currentUser}
-        onBlock={handleBlock}
-        onUnblock={handleUnblock}
+        onBlock={() => handleBlockRef.current?.()}
+        onUnblock={() => handleUnblockRef.current?.()}
         isBlocked={isBlocked}
+        blockingLoading={blockingLoading}
       />
     ),
-    [conversation, theme, currentUser, isBlocked]
+    [conversation, theme, currentUser, isBlocked, blockingLoading, formatPrice, getCleanAvatarUrl]
   );
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  // Memoized message sending handler to prevent re-renders
+  const handleSendMessage = useCallback(async () => {
+    if (!conversationId || !newMessage.trim() || !conversation || sendingMessage) return;
 
-  const getCleanAvatarUrl = (url: string | null) => {
-    if (!url) return null;
-    // Remove the @ prefix and ::text suffix from the URL
-    return url.replace(/^@/, "").replace(/::text$/, "");
-  };
+    const messageContent = newMessage.trim();
+    const tempMessageId = `temp-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
+    // Create temporary message for optimistic update
+    const tempMessage: Message = {
+      id: tempMessageId,
+      conversation_id: conversationId,
+      sender_id: currentUser?.id,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      read_at: null,
+      sender: currentUser,
+    };
+
+    // Clear input immediately for better UX
+    setNewMessage("");
+    setSendingMessage(true);
+
+    try {
+      // Add temporary message immediately (optimistic update)
+      setMessages((prev) => [...prev, tempMessage]);
+
+      // Send the message without blocking check (already checked when conversation loads)
+      await chatService.sendMessage(conversationId, messageContent);
+
+      // Remove temporary message once real message is received
+      // (The real-time subscription will handle adding the real message)
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
+    } catch (error) {
+      console.error("Error sending message:", error);
+      
+      // Add back to failed messages
+      setFailedMessages((prev) => new Set(prev).add(tempMessageId));
+      
+      // Restore the message input if sending failed
+      setNewMessage(messageContent);
+      
+      Alert.alert(
+        "Failed to Send Message",
+        "There was a problem sending your message. Tap the message to try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setSendingMessage(false);
+    }
+  }, [conversationId, newMessage, conversation, currentUser, sendingMessage]);
+
+  // Memoized retry handler
+  const handleRetryMessage = useCallback(
+    async (failedMessage: Message) => {
+      if (!conversationId || sendingMessage) return;
+
+      try {
+        // Remove from failed messages
+        setFailedMessages((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(failedMessage.id);
+          return newSet;
+        });
+
+        setSendingMessage(true);
+
+        // Try to send again
+        const sentMessage = await chatService.sendMessage(
+          conversationId,
+          failedMessage.content
+        );
+
+        // Replace failed message with successful one
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === failedMessage.id ? sentMessage : msg))
+        );
+      } catch (error) {
+        console.error("Error retrying message:", error);
+
+        // Add back to failed messages
+        setFailedMessages((prev) => new Set(prev).add(failedMessage.id));
+
+        Alert.alert(
+          "Failed to Send Message",
+          "There was a problem sending your message. Please try again later.",
+          [{ text: "OK" }]
+        );
+      } finally {
+        setSendingMessage(false);
+      }
+    },
+    [conversationId, sendingMessage]
+  );
+
+  // Memoized render message function
+  const renderMessage = useCallback(
+    ({ item }: { item: Message }) => {
+      const isOwnMessage = item.sender_id === currentUser?.id;
+      const hasFailed = failedMessages.has(item.id);
+      return (
+        <TouchableOpacity
+          onPress={() => (hasFailed ? handleRetryMessage(item) : null)}
+          disabled={!hasFailed || sendingMessage}
+        >
+          <MemoizedChatMessage
+            message={item}
+            isOwnMessage={isOwnMessage}
+            hasFailed={hasFailed}
+          />
+        </TouchableOpacity>
+      );
+    },
+    [currentUser?.id, failedMessages, handleRetryMessage, sendingMessage]
+  );
+
+  // Memoized key extractor
+  const keyExtractor = useCallback((item: Message) => item.id, []);
 
   if (loading || !currentUser) {
     return (
@@ -607,16 +656,6 @@ export default function ChatRoom() {
         style={{ flex: 1 }}
       >
         <Header title={"Chat"} />
-        <MemoizedListHeader
-          conversation={conversation}
-          theme={theme}
-          formatPrice={formatPrice}
-          getCleanAvatarUrl={getCleanAvatarUrl}
-          currentUser={currentUser}
-          onBlock={handleBlock}
-          onUnblock={handleUnblock}
-          isBlocked={isBlocked}
-        />
         <View style={styles.postInfoContainer}>
           <ExpoImage
             source={{ uri: conversation?.post_image }}
@@ -659,6 +698,7 @@ export default function ChatRoom() {
           data={messages}
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
+          ListHeaderComponent={ListHeaderComponent}
           style={styles.messageList}
           contentContainerStyle={[
             styles.messageListContent,
@@ -678,7 +718,7 @@ export default function ChatRoom() {
             autoscrollToTopThreshold: 10,
           }}
         />
-        {!isBlocked && (
+        {!isBlocked && canSendMessages && (
           <View
             style={[
               styles.inputContainer,
@@ -713,18 +753,48 @@ export default function ChatRoom() {
                 },
               ]}
               onPress={handleSendMessage}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || sendingMessage}
             >
-              <Ionicons
-                name="send"
-                size={20}
-                color={
-                  newMessage.trim()
-                    ? theme.colors.onPrimary
-                    : theme.colors.onSurfaceVariant
-                }
-              />
+              {sendingMessage ? (
+                <ActivityIndicator size="small" color={theme.colors.onPrimary} />
+              ) : (
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={
+                    newMessage.trim()
+                      ? theme.colors.onPrimary
+                      : theme.colors.onSurfaceVariant
+                  }
+                />
+              )}
             </TouchableOpacity>
+          </View>
+        )}
+        {(isBlocked || !canSendMessages) && (
+          <View
+            style={[
+              styles.blockedMessageContainer,
+              {
+                backgroundColor: theme.colors.surface,
+                borderTopColor: theme.colors.surfaceVariant,
+              },
+            ]}
+          >
+            <Text
+              variant="bodyMedium"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                textAlign: 'center',
+                fontStyle: 'italic',
+                paddingVertical: 20,
+              }}
+            >
+              {isBlocked 
+                ? "You have blocked this user. You can view the conversation but cannot send new messages."
+                : "You cannot send messages to this user."
+              }
+            </Text>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -831,5 +901,9 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     padding: 8,
+  },
+  blockedMessageContainer: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
   },
 });
