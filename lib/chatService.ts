@@ -74,7 +74,16 @@ export const chatService = {
             .single();
 
         if (error) throw error;
-        return data;
+        
+        // Add sender information to the returned message
+        return {
+            ...data,
+            sender: {
+                id: currentUser.user.id,
+                username: currentUser.user.email || currentUser.user.id,
+                avatar_url: null
+            }
+        };
     },
 
     async createConversation(postId: string, participantId: string) {

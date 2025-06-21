@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
-import { Message } from '../types/chat';
+import { Message } from '../../types/chat';
 import { format } from 'date-fns';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -11,7 +11,7 @@ interface ChatMessageProps {
     hasFailed?: boolean;
 }
 
-export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessageProps) {
+export const ChatMessage = memo(({ message, isOwnMessage, hasFailed }: ChatMessageProps) => {
     const theme = useTheme();
 
     return (
@@ -80,7 +80,19 @@ export function ChatMessage({ message, isOwnMessage, hasFailed }: ChatMessagePro
             </View>
         </View>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison function for better memoization
+    return (
+        prevProps.message.id === nextProps.message.id &&
+        prevProps.message.content === nextProps.message.content &&
+        prevProps.message.created_at === nextProps.message.created_at &&
+        prevProps.message.read_at === nextProps.message.read_at &&
+        prevProps.isOwnMessage === nextProps.isOwnMessage &&
+        prevProps.hasFailed === nextProps.hasFailed
+    );
+});
+
+ChatMessage.displayName = 'ChatMessage';
 
 const styles = StyleSheet.create({
     container: {

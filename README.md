@@ -5,11 +5,9 @@ This document outlines the key features and management systems of the marketplac
 ## Table of Contents
 1. [Post Management](#post-management)
 2. [Chat System](#chat-system)
-3. [Automated Cleanup](#automated-cleanup)
-4. [Soft Deletion Mechanisms](#soft-deletion-mechanisms)
-5. [Database Views](#database-views)
-6. [Monitoring](#monitoring)
-7. [User Blocking System](#user-blocking-system)
+3. [User Blocking System](#user-blocking-system)
+4. [Automated Cleanup](#automated-cleanup)
+5. [Monitoring](#monitoring)
 
 ## Post Management
 
@@ -37,6 +35,65 @@ The chat system connects buyers and sellers through a seamless messaging experie
 3. Messages are delivered instantly to both users
 4. Users receive notifications when they have new messages
 5. The Messages tab shows a red badge with the total number of unread messages
+
+#### Chatroom Message Sending Logic
+
+The chatroom implements a sophisticated message sending system that ensures real-time delivery while preventing duplicates and unnecessary re-renders. Here's how the message flow works:
+
+**1. Message Composition and Sending**
+When a user types a message and hits send, the system immediately creates a temporary message with a unique temporary ID. This temporary message appears instantly in the chat (optimistic update), providing immediate visual feedback to the user. The temporary message includes all the necessary information like content, sender details, and timestamp.
+
+**2. Database Insertion**
+Simultaneously, the system sends the actual message to the database through the chat service. The database insertion returns the real message with a permanent ID and server-generated timestamp. This ensures data consistency and proper message ordering.
+
+**3. Message Replacement**
+Once the database confirms the message was saved successfully, the system replaces the temporary message with the real message. This replacement happens seamlessly without any visual flickering or disruption to the user experience. The real message maintains the same visual appearance but now has the correct permanent ID and server timestamp.
+
+**4. Real-time Subscription Handling**
+The chatroom maintains a real-time subscription to the database that listens for new messages. When a message is inserted into the database, all connected users receive the update instantly. The subscription includes sophisticated deduplication logic to prevent duplicate messages from appearing.
+
+**5. Deduplication Strategy**
+The system uses multiple layers of deduplication to prevent duplicate messages:
+- ID-based deduplication: Checks if a message with the same ID already exists
+- Content-based deduplication: For messages from the current user, checks if a message with the same content was sent recently
+- Temporary message cleanup: Removes any temporary messages that might still be present
+
+**6. Performance Optimizations**
+The chatroom implements several performance optimizations to ensure smooth operation:
+- Stable object references prevent unnecessary re-renders
+- Memoized components only re-render when their actual data changes
+- Optimized FlatList rendering with proper key extraction
+- Efficient message state management with proper cleanup
+
+**7. Error Handling and Recovery**
+If a message fails to send, the system provides comprehensive error handling:
+- Failed messages are marked with a visual indicator
+- Users can tap failed messages to retry sending
+- Temporary messages are cleaned up automatically after a timeout
+- Network errors are handled gracefully with user-friendly alerts
+
+**8. Message State Management**
+The system maintains several message states:
+- Temporary messages (optimistic updates)
+- Real messages (confirmed by database)
+- Failed messages (awaiting retry)
+- Read/unread status tracking
+
+**9. Real-time Updates for Other Users**
+When other users receive messages through the real-time subscription:
+- Messages appear instantly without page refresh
+- Unread counts update automatically
+- Chat automatically scrolls to show new messages
+- Read status is updated when messages are viewed
+
+**10. Cleanup and Maintenance**
+The system includes automatic cleanup mechanisms:
+- Temporary messages are removed after successful replacement
+- Timeout-based cleanup for orphaned temporary messages
+- Memory-efficient message storage and retrieval
+- Proper subscription cleanup when leaving the chatroom
+
+This sophisticated message handling system ensures that users experience instant, reliable messaging while maintaining data integrity and preventing common issues like duplicate messages or unnecessary re-renders.
 
 #### Conversation Features
 - **Real-Time Updates**: Messages appear instantly without needing to refresh
@@ -146,9 +203,6 @@ The blocking system allows users to control their interactions by blocking other
   - Existing conversations are preserved but blocked users cannot send new messages
   - Blocked users cannot start new conversations
 
-
-
-
 #### Database Structure
 - `blocked_users` table tracks blocking relationships
 - Each record contains:
@@ -161,7 +215,6 @@ The blocking system allows users to control their interactions by blocking other
 - Triggers prevent blocked users from sending messages
 - RLS policies ensure proper access control
 - Blocking status is checked before allowing interactions
-
 
 ## Automated Cleanup
 

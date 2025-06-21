@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, memo } from "react";
+import React, { useEffect, useState, useRef, useCallback, memo, useMemo } from "react";
 import {
   View,
   StyleSheet,
@@ -208,10 +208,31 @@ export default function ChatRoom() {
   // Use refs to access current state values in subscription callbacks
   const currentUserRef = useRef<any>(null);
   const conversationRef = useRef<Conversation | null>(null);
+  const stableCurrentUserRef = useRef<any>(null);
+  const stableOtherUserRef = useRef<any>(null);
 
   // Use refs for stable function references to prevent re-renders
   const handleBlockRef = useRef<(() => Promise<void>) | null>(null);
   const handleUnblockRef = useRef<(() => Promise<void>) | null>(null);
+
+  // Create stable sender objects to prevent re-renders
+  const stableCurrentUser = useMemo(() => {
+    if (!currentUser) return undefined;
+    return {
+      id: currentUser.id,
+      username: currentUser.username || currentUser.email,
+      avatar_url: currentUser.avatar_url
+    };
+  }, [currentUser?.id, currentUser?.username, currentUser?.email, currentUser?.avatar_url]);
+
+  const stableOtherUser = useMemo(() => {
+    if (!conversation) return undefined;
+    return {
+      id: conversation.other_user_name, // This is the user ID from the conversation
+      username: conversation.other_user_name,
+      avatar_url: conversation.other_user_avatar
+    };
+  }, [conversation?.other_user_name, conversation?.other_user_avatar]);
 
   // Update refs when state changes
   useEffect(() => {
@@ -221,6 +242,15 @@ export default function ChatRoom() {
   useEffect(() => {
     conversationRef.current = conversation;
   }, [conversation]);
+
+  // Update stable user refs when they change
+  useEffect(() => {
+    stableCurrentUserRef.current = stableCurrentUser;
+  }, [stableCurrentUser]);
+
+  useEffect(() => {
+    stableOtherUserRef.current = stableOtherUser;
+  }, [stableOtherUser]);
 
   // Load initial data
   useEffect(() => {
@@ -283,28 +313,56 @@ export default function ChatRoom() {
               const currentConversationState = conversationRef.current;
               const currentUserState = currentUserRef.current;
 
-              const newMsg = {
-                ...payload.new,
-                sender:
-                  currentConversationState &&
-                  currentConversationState.user?.id === payload.new.sender_id
-                    ? currentConversationState.user
-                    : currentUserState,
-              } as Message;
+              // Determine the correct sender object with stable reference
+              const isFromCurrentUser = payload.new.sender_id === currentUserState?.id;
+              const sender = isFromCurrentUser ? stableCurrentUserRef.current : stableOtherUserRef.current;
+
+              const newMsg: Message = {
+                id: payload.new.id,
+                conversation_id: payload.new.conversation_id,
+                sender_id: payload.new.sender_id,
+                content: payload.new.content,
+                created_at: payload.new.created_at,
+                read_at: payload.new.read_at,
+                sender,
+              };
+
+              console.log("Processing realtime message:", {
+                messageId: newMsg.id,
+                isFromCurrentUser,
+                currentMessagesCount: messages.length
+              });
 
               setMessages((prev) => {
                 // Check if message already exists by ID
                 if (prev.some((msg) => msg.id === newMsg.id)) {
+                  console.log("Message already exists by ID, skipping:", newMsg.id);
                   return prev;
                 }
 
+                // Check if this is a message we just sent (by content and sender)
+                if (isFromCurrentUser) {
+                  const recentMessage = prev.find(msg => 
+                    msg.content === newMsg.content && 
+                    msg.sender_id === newMsg.sender_id &&
+                    Math.abs(new Date(msg.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000 // Within 5 seconds
+                  );
+                  
+                  if (recentMessage) {
+                    console.log("Message from current user already exists, skipping:", newMsg.content);
+                    return prev;
+                  }
+                }
+
                 // Remove any temporary versions of this message and add new one
-                const withoutTemp = prev.filter((msg) => msg.id !== newMsg.id);
-                return [...withoutTemp, newMsg];
+                const withoutTemp = prev.filter((msg) => !msg.id.startsWith('temp-'));
+                const updatedMessages = [...withoutTemp, newMsg];
+                console.log("Updated messages count:", updatedMessages.length);
+                return updatedMessages;
               });
 
               // If message is from other user, scroll to bottom and mark as read
-              if (newMsg.sender_id !== currentUserState?.id) {
+              if (!isFromCurrentUser) {
                 flatListRef.current?.scrollToEnd({ animated: true });
                 // Mark as read asynchronously to not block the UI
                 chatService.markMessagesAsRead(conversationId).catch(console.error);
@@ -525,7 +583,7 @@ export default function ChatRoom() {
       .toString(36)
       .substr(2, 9)}`;
 
-    // Create temporary message for optimistic update
+    // Create temporary message for optimistic update with stable sender reference
     const tempMessage: Message = {
       id: tempMessageId,
       conversation_id: conversationId,
@@ -533,24 +591,59 @@ export default function ChatRoom() {
       content: messageContent,
       created_at: new Date().toISOString(),
       read_at: null,
-      sender: currentUser,
+      sender: stableCurrentUserRef.current,
     };
 
     // Clear input immediately for better UX
     setNewMessage("");
     setSendingMessage(true);
 
+    // Set a timeout to remove the temporary message if it doesn't get replaced
+    const cleanupTimeout = setTimeout(() => {
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
+      console.log("Cleaned up temporary message:", tempMessageId);
+    }, 10000); // 10 seconds timeout
+
     try {
       // Add temporary message immediately (optimistic update)
       setMessages((prev) => [...prev, tempMessage]);
+      console.log("Added temporary message:", tempMessageId);
 
       // Send the message without blocking check (already checked when conversation loads)
-      await chatService.sendMessage(conversationId, messageContent);
+      const sentMessage = await chatService.sendMessage(conversationId, messageContent);
+      console.log("Message sent successfully:", sentMessage.id);
 
-      // Remove temporary message once real message is received
-      // (The real-time subscription will handle adding the real message)
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
+      // Clear the timeout since we're replacing the message
+      clearTimeout(cleanupTimeout);
+
+      // Replace temporary message with the real message immediately
+      const realMessage: Message = {
+        ...sentMessage,
+        // Use the sender from the sent message if available, otherwise use stable reference
+        sender: sentMessage.sender || stableCurrentUserRef.current,
+      };
+
+      setMessages((prev) => {
+        // Remove temporary message and add real message
+        const withoutTemp = prev.filter((msg) => msg.id !== tempMessageId);
+        const updatedMessages = [...withoutTemp, realMessage];
+        console.log("Replaced temp message with real message:", {
+          tempId: tempMessageId,
+          realId: realMessage.id,
+          totalMessages: updatedMessages.length
+        });
+        return updatedMessages;
+      });
+
+      // Scroll to bottom to show the new message
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
     } catch (error) {
+      // Clear the timeout on error
+      clearTimeout(cleanupTimeout);
+      
       console.error("Error sending message:", error);
       
       // Add back to failed messages
@@ -590,9 +683,15 @@ export default function ChatRoom() {
           failedMessage.content
         );
 
-        // Replace failed message with successful one
+        // Replace failed message with successful one, ensuring stable sender reference
+        const updatedMessage: Message = {
+          ...sentMessage,
+          // Use the sender from the sent message if available, otherwise use stable reference
+          sender: sentMessage.sender || stableCurrentUserRef.current,
+        };
+
         setMessages((prev) =>
-          prev.map((msg) => (msg.id === failedMessage.id ? sentMessage : msg))
+          prev.map((msg) => (msg.id === failedMessage.id ? updatedMessage : msg))
         );
       } catch (error) {
         console.error("Error retrying message:", error);
@@ -617,6 +716,7 @@ export default function ChatRoom() {
     ({ item }: { item: Message }) => {
       const isOwnMessage = item.sender_id === currentUser?.id;
       const hasFailed = failedMessages.has(item.id);
+      
       return (
         <TouchableOpacity
           onPress={() => (hasFailed ? handleRetryMessage(item) : null)}
@@ -635,6 +735,34 @@ export default function ChatRoom() {
 
   // Memoized key extractor
   const keyExtractor = useCallback((item: Message) => item.id, []);
+
+  // Memoized getItemLayout for better FlatList performance
+  const getItemLayout = useCallback((data: ArrayLike<Message> | null | undefined, index: number) => ({
+    length: 80, // Approximate height of a message item
+    offset: 80 * index,
+    index,
+  }), []);
+
+  // Memoized messages array to prevent unnecessary re-renders and ensure uniqueness
+  const memoizedMessages = useMemo(() => {
+    // Remove any duplicate messages by ID
+    const uniqueMessages = messages.reduce((acc, message) => {
+      const existingIndex = acc.findIndex(msg => msg.id === message.id);
+      if (existingIndex >= 0) {
+        // If we find a duplicate, keep the one that's not a temp message
+        if (message.id.startsWith('temp-') && !acc[existingIndex].id.startsWith('temp-')) {
+          // Replace temp message with real message
+          acc[existingIndex] = message;
+        }
+        // Otherwise keep the existing message
+      } else {
+        acc.push(message);
+      }
+      return acc;
+    }, [] as Message[]);
+    
+    return uniqueMessages;
+  }, [messages]);
 
   if (loading || !currentUser) {
     return (
@@ -695,9 +823,10 @@ export default function ChatRoom() {
         </View>
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={memoizedMessages}
           renderItem={renderMessage}
           keyExtractor={keyExtractor}
+          getItemLayout={getItemLayout}
           ListHeaderComponent={ListHeaderComponent}
           style={styles.messageList}
           contentContainerStyle={[
