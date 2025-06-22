@@ -26,13 +26,20 @@ export const chatService = {
         }));
     },
 
-    async getMessages(conversationId: string) {
-        // First get messages
-        const { data: messages, error: messagesError } = await supabase
+    async getMessages(conversationId: string, limit: number = 15, beforeTimestamp?: string) {
+        let query = supabase
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        // If we have a timestamp, get messages before that timestamp
+        if (beforeTimestamp) {
+            query = query.lt('created_at', beforeTimestamp);
+        }
+
+        const { data: messages, error: messagesError } = await query;
 
         if (messagesError) throw messagesError;
         if (!messages) return [];
@@ -52,11 +59,24 @@ export const chatService = {
         // Create a map for quick user lookups
         const usersMap = new Map(users.map(u => [u.id, u]));
 
-        // Combine message data with sender info
-        return messages.map(message => ({
+        // Combine message data with sender info and reverse order for display
+        const messagesWithSenders = messages.map(message => ({
             ...message,
             sender: usersMap.get(message.sender_id)
         }));
+
+        // Return in chronological order (oldest to newest) for display
+        return messagesWithSenders.reverse();
+    },
+
+    async getMessagesCount(conversationId: string) {
+        const { count, error } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', conversationId);
+
+        if (error) throw error;
+        return count || 0;
     },
 
     async sendMessage(conversationId: string, content: string) {

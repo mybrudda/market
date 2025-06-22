@@ -2,22 +2,26 @@ import React, { useEffect, useState, useRef, useCallback, memo, useMemo } from "
 import {
   View,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   FlatList,
   SafeAreaView,
   ActivityIndicator,
-  Image,
   Alert,
+  Animated,
+  RefreshControl,
+  Easing,
 } from "react-native";
-import { useTheme, Text, Menu, IconButton } from "react-native-paper";
-import { Ionicons } from "@expo/vector-icons";
+import { useTheme, Text, Menu } from "react-native-paper";
 import { useLocalSearchParams } from "expo-router";
 import { ChatMessage } from "../components/chat/ChatMessage";
+import { ScrollToBottomButton } from "../components/chat/ScrollToBottomButton";
+import { ChatInput } from "../components/chat/ChatInput";
+import { UserInfoModal } from "../components/chat/UserInfoModal";
 import { chatService } from "../lib/chatService";
 import { Message, Conversation } from "../types/chat";
+import { GroupedMessage, groupMessages, formatDateSeparator } from "../utils/messageUtils";
 import { supabase } from "../supabaseClient";
 import Header from "../components/layout/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,154 +32,8 @@ import { useBlockedUsers } from '../lib/hooks/useBlockedUsers';
 // Add blurhash constant at the top level
 const blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4";
 
-// Types for the memoized header component
-interface ListHeaderProps {
-  conversation: Conversation | null;
-  theme: any;
-  formatPrice: (price: number) => string;
-  getCleanAvatarUrl: (url: string | null) => string | null;
-  currentUser: any;
-  onBlock: () => void;
-  onUnblock: () => void;
-  isBlocked: boolean;
-  blockingLoading: boolean;
-}
-
 // Memoized message component
 const MemoizedChatMessage = memo(ChatMessage);
-
-// Memoized header component
-const MemoizedListHeader = memo(
-  ({
-    conversation,
-    theme,
-    formatPrice,
-    getCleanAvatarUrl,
-    currentUser,
-    onBlock,
-    onUnblock,
-    isBlocked,
-    blockingLoading,
-  }: ListHeaderProps) => {
-    const [menuVisible, setMenuVisible] = useState(false);
-
-    if (!conversation) return null;
-
-    const isPostActive = conversation.post_status === 'active';
-
-    return (
-      <View
-        style={[
-          styles.headerInfo,
-          { backgroundColor: theme.colors.elevation.level1 },
-        ]}
-      >
-        <View
-          style={[
-            styles.userInfoContainer,
-            {
-              backgroundColor: theme.colors.elevation.level1,
-              borderBottomColor: theme.colors.surfaceVariant,
-            },
-          ]}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.logoContainer}>
-              {conversation.other_user_avatar ? (
-                getCleanAvatarUrl(conversation.other_user_avatar) ? (
-                  <ExpoImage
-                    source={{
-                      uri: getCleanAvatarUrl(conversation.other_user_avatar)!,
-                    }}
-                    style={styles.avatar}
-                    contentFit="cover"
-                    transition={200}
-                    placeholder={blurhash}
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <MaterialCommunityIcons
-                    name="account-circle"
-                    size={40}
-                    color={theme.colors.primary}
-                  />
-                )
-              ) : (
-                <MaterialCommunityIcons
-                  name="account-circle"
-                  size={40}
-                  color={theme.colors.primary}
-                />
-              )}
-
-              <View style={styles.userInfo}>
-                <View style={styles.nameRow}>
-                  <Text
-                    variant="titleMedium"
-                    style={{ color: theme.colors.onSurface }}
-                  >
-                    {conversation.other_user_full_name ||
-                      conversation.other_user_name}
-                  </Text>
-                  {conversation.other_user_is_verified && (
-                    <MaterialCommunityIcons
-                      name="check-decagram"
-                      size={20}
-                      color={theme.colors.primary}
-                      style={styles.verifiedIcon}
-                    />
-                  )}
-                </View>
-                <Text
-                  variant="bodyMedium"
-                  style={{ color: theme.colors.onSurfaceVariant }}
-                >
-                  @{conversation.other_user_name}
-                </Text>
-              </View>
-            </View>
-
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <IconButton
-                  icon="dots-vertical"
-                  size={24}
-                  onPress={() => setMenuVisible(true)}
-                  iconColor={theme.colors.onSurfaceVariant}
-                  disabled={blockingLoading}
-                />
-              }
-            >
-              {isBlocked ? (
-                <Menu.Item
-                  onPress={() => {
-                    onUnblock();
-                    setMenuVisible(false);
-                  }}
-                  title="Unblock User"
-                  leadingIcon="account-check"
-                  disabled={blockingLoading}
-                />
-              ) : (
-                <Menu.Item
-                  onPress={() => {
-                    onBlock();
-                    setMenuVisible(false);
-                  }}
-                  title="Block User"
-                  leadingIcon="account-remove"
-                  disabled={blockingLoading}
-                />
-              )}
-            </Menu>
-          </View>
-        </View>
-      </View>
-    );
-  }
-);
 
 export default function ChatRoom() {
   const theme = useTheme();
@@ -204,6 +62,38 @@ export default function ChatRoom() {
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockingLoading, setBlockingLoading] = useState(false);
   const [canSendMessages, setCanSendMessages] = useState(true);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [showUserInfo, setShowUserInfo] = useState(false);
+
+  // Pagination state
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
+  const INITIAL_MESSAGES_COUNT = 15;
+  const MESSAGES_PER_PAGE = 10;
+
+  // Scroll position tracking
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const scrollPositionRef = useRef(0);
+  const contentHeightRef = useRef(0);
+  const scrollViewHeightRef = useRef(0);
+
+  // Animation values
+  const scrollToBottomButtonAnimation = useRef(new Animated.Value(0)).current;
+  
+  // Custom smooth scroll function
+  const smoothScrollToBottom = useCallback(() => {
+    if (flatListRef.current) {
+      // Add a small delay for smoother animation
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    }
+  }, []);
+  
+  // Scroll tracking
+  const isUserScrollingRef = useRef(false);
+  const isAutoScrollingRef = useRef(false);
 
   // Use refs to access current state values in subscription callbacks
   const currentUserRef = useRef<any>(null);
@@ -268,9 +158,10 @@ export default function ChatRoom() {
 
       // Load conversation details and messages in parallel
       try {
-        const [conversationsResponse, messagesResponse] = await Promise.all([
+        const [conversationsResponse, messagesResponse, totalCount] = await Promise.all([
           chatService.getConversations(),
-          chatService.getMessages(conversationId),
+          chatService.getMessages(conversationId, INITIAL_MESSAGES_COUNT),
+          chatService.getMessagesCount(conversationId),
         ]);
 
         const currentConversation = conversationsResponse.find(
@@ -280,7 +171,23 @@ export default function ChatRoom() {
           console.log("Conversation data:", currentConversation);
           setConversation(currentConversation);
         }
+        
         setMessages(messagesResponse);
+        if (messagesResponse.length > 0) {
+          setOldestMessageTimestamp(String(messagesResponse[0].created_at));
+          setHasMoreMessages(totalCount > INITIAL_MESSAGES_COUNT);
+          
+          console.log('🚀 Initial messages loaded:', {
+            count: messagesResponse.length,
+            totalInConversation: totalCount,
+            oldestMessageId: messagesResponse[0].id,
+            newestMessageId: messagesResponse[messagesResponse.length - 1].id,
+            hasMore: totalCount > INITIAL_MESSAGES_COUNT
+          });
+        } else {
+          setHasMoreMessages(false);
+          console.log('📭 No messages in conversation');
+        }
         
         // Clear unread count and mark messages as read
         clearUnreadCount(conversationId);
@@ -363,7 +270,12 @@ export default function ChatRoom() {
 
               // If message is from other user, scroll to bottom and mark as read
               if (!isFromCurrentUser) {
-                flatListRef.current?.scrollToEnd({ animated: true });
+                // Check if user is near bottom before deciding to auto-scroll
+                if (isNearBottom) {
+                  // Smooth scroll to bottom
+                  smoothScrollToBottom();
+                }
+                
                 // Mark as read asynchronously to not block the UI
                 chatService.markMessagesAsRead(conversationId).catch(console.error);
                 clearUnreadCount(conversationId);
@@ -416,6 +328,72 @@ export default function ChatRoom() {
       }
     };
   }, [conversationId, clearUnreadCount]);
+
+  // Function to load older messages
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingOlderMessages || !hasMoreMessages) return;
+
+    console.log('🔄 Loading older messages...', {
+      currentMessagesCount: messages.length,
+      oldestTimestamp: oldestMessageTimestamp,
+      hasMore: hasMoreMessages,
+      fetchingCount: MESSAGES_PER_PAGE
+    });
+
+    setIsLoadingOlderMessages(true);
+
+    try {
+      const olderMessages = await chatService.getMessages(
+        conversationId,
+        MESSAGES_PER_PAGE,
+        oldestMessageTimestamp || undefined
+      );
+
+      console.log('📨 Loaded older messages:', {
+        count: olderMessages.length,
+        firstMessageId: olderMessages[0]?.id,
+        lastMessageId: olderMessages[olderMessages.length - 1]?.id
+      });
+
+      if (olderMessages.length > 0) {
+        setMessages(prev => [...olderMessages, ...prev]);
+        setOldestMessageTimestamp(String(olderMessages[0].created_at));
+        setHasMoreMessages(olderMessages.length === MESSAGES_PER_PAGE);
+        
+        console.log('✅ Updated messages state:', {
+          newTotalCount: messages.length + olderMessages.length,
+          newOldestTimestamp: olderMessages[0].created_at,
+          hasMore: olderMessages.length === MESSAGES_PER_PAGE
+        });
+      } else {
+        setHasMoreMessages(false);
+        console.log('🏁 No more messages to load');
+      }
+    } catch (error) {
+      console.error("❌ Failed to load older messages:", error);
+      Alert.alert(
+        "Error",
+        "Failed to load older messages. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  }, [conversationId, isLoadingOlderMessages, hasMoreMessages, oldestMessageTimestamp, messages.length]);
+
+  // Function to check if user is near bottom
+  const checkIfNearBottom = useCallback((contentOffsetY: number, contentHeight: number, scrollViewHeight: number) => {
+    const threshold = 100; // pixels from bottom
+    const isNear = contentOffsetY + scrollViewHeight >= contentHeight - threshold;
+    setIsNearBottom(isNear);
+    
+    // Show/hide scroll to bottom button
+    Animated.timing(scrollToBottomButtonAnimation, {
+      toValue: isNear ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   useEffect(() => {
     if (conversation) {
@@ -556,24 +534,6 @@ export default function ChatRoom() {
     handleUnblockRef.current = handleUnblock;
   }, [handleUnblock]);
 
-  // Memoized ListHeaderComponent - optimized to prevent re-renders during message sending
-  const ListHeaderComponent = useCallback(
-    () => (
-      <MemoizedListHeader
-        conversation={conversation}
-        theme={theme}
-        formatPrice={formatPrice}
-        getCleanAvatarUrl={getCleanAvatarUrl}
-        currentUser={currentUser}
-        onBlock={() => handleBlockRef.current?.()}
-        onUnblock={() => handleUnblockRef.current?.()}
-        isBlocked={isBlocked}
-        blockingLoading={blockingLoading}
-      />
-    ),
-    [conversation, theme, currentUser, isBlocked, blockingLoading, formatPrice, getCleanAvatarUrl]
-  );
-
   // Memoized message sending handler to prevent re-renders
   const handleSendMessage = useCallback(async () => {
     if (!conversationId || !newMessage.trim() || !conversation || sendingMessage) return;
@@ -637,7 +597,9 @@ export default function ChatRoom() {
 
       // Scroll to bottom to show the new message
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        if (isNearBottom) {
+          smoothScrollToBottom();
+        }
       }, 100);
 
     } catch (error) {
@@ -713,33 +675,46 @@ export default function ChatRoom() {
 
   // Memoized render message function
   const renderMessage = useCallback(
-    ({ item }: { item: Message }) => {
-      const isOwnMessage = item.sender_id === currentUser?.id;
-      const hasFailed = failedMessages.has(item.id);
+    ({ item }: { item: GroupedMessage }) => {
+      if (item.type === 'date-separator') {
+        return (
+          <View style={styles.dateSeparator}>
+            <Text variant="labelSmall" style={[styles.dateText, { color: theme.colors.onSurfaceVariant }]}>
+              {formatDateSeparator((item.data as { date: string }).date)}
+            </Text>
+          </View>
+        );
+      }
+
+      const message = item.data as Message;
+      const isOwnMessage = message.sender_id === currentUser?.id;
+      const hasFailed = failedMessages.has(message.id);
       
       return (
-        <TouchableOpacity
-          onPress={() => (hasFailed ? handleRetryMessage(item) : null)}
-          disabled={!hasFailed || sendingMessage}
-        >
-          <MemoizedChatMessage
-            message={item}
-            isOwnMessage={isOwnMessage}
-            hasFailed={hasFailed}
-          />
-        </TouchableOpacity>
+        <ChatMessage
+          message={message}
+          isOwnMessage={isOwnMessage}
+          hasFailed={hasFailed}
+          onRetry={() => hasFailed ? handleRetryMessage(message) : undefined}
+          onLongPress={() => {
+            // Handle long press for message actions
+            console.log('Long pressed message:', message.id);
+          }}
+          isFirstInGroup={item.isFirstInGroup}
+          isLastInGroup={item.isLastInGroup}
+        />
       );
     },
-    [currentUser?.id, failedMessages, handleRetryMessage, sendingMessage]
+    [currentUser?.id, failedMessages, handleRetryMessage, theme.colors.onSurfaceVariant]
   );
 
   // Memoized key extractor
-  const keyExtractor = useCallback((item: Message) => item.id, []);
+  const keyExtractor = useCallback((item: GroupedMessage) => item.id, []);
 
   // Memoized getItemLayout for better FlatList performance
-  const getItemLayout = useCallback((data: ArrayLike<Message> | null | undefined, index: number) => ({
-    length: 80, // Approximate height of a message item
-    offset: 80 * index,
+  const getItemLayout = useCallback((data: ArrayLike<GroupedMessage> | null | undefined, index: number) => ({
+    length: 100, // More accurate height estimate for message items
+    offset: 100 * index,
     index,
   }), []);
 
@@ -761,8 +736,63 @@ export default function ChatRoom() {
       return acc;
     }, [] as Message[]);
     
-    return uniqueMessages;
+    // Group messages for better UI
+    return groupMessages(uniqueMessages);
   }, [messages]);
+
+  // Memoized scroll handlers
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const currentScrollPosition = contentOffset.y;
+    
+    scrollPositionRef.current = currentScrollPosition;
+    contentHeightRef.current = contentSize.height;
+    scrollViewHeightRef.current = layoutMeasurement.height;
+    checkIfNearBottom(currentScrollPosition, contentSize.height, layoutMeasurement.height);
+  }, [checkIfNearBottom]);
+
+  const handleContentSizeChange = useCallback((width: number, height: number) => {
+    contentHeightRef.current = height;
+    // Only auto-scroll if user is near bottom
+    if (isNearBottom) {
+      isAutoScrollingRef.current = true;
+      smoothScrollToBottom();
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 500);
+    }
+  }, [isNearBottom]);
+
+  const handleLayout = useCallback((event: any) => {
+    scrollViewHeightRef.current = event.nativeEvent.layout.height;
+    // Only auto-scroll if user is near bottom
+    if (isNearBottom) {
+      isAutoScrollingRef.current = true;
+      smoothScrollToBottom();
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 500);
+    }
+  }, [isNearBottom]);
+
+  // Scroll event handlers
+  const handleScrollBeginDrag = useCallback(() => {
+    console.log('👆 User started scrolling');
+    isUserScrollingRef.current = true;
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    console.log('👆 User stopped scrolling');
+    // Keep the flag true for a bit longer to catch momentum scrolling
+    setTimeout(() => {
+      isUserScrollingRef.current = false;
+    }, 1000);
+  }, []);
+
+  const handleMomentumScrollEnd = useCallback(() => {
+    console.log('👆 Momentum scroll ended');
+    isUserScrollingRef.current = false;
+  }, []);
 
   if (loading || !currentUser) {
     return (
@@ -783,7 +813,57 @@ export default function ChatRoom() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <Header title={"Chat"} />
+        <Header 
+          title={conversation?.other_user_full_name || conversation?.other_user_name || "Chat"}
+          rightElement={
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <TouchableOpacity
+                  onPress={() => setMenuVisible(true)}
+                  style={styles.menuButton}
+                >
+                  <MaterialCommunityIcons
+                    name="dots-vertical"
+                    size={24}
+                    color={theme.colors.onSecondaryContainer}
+                  />
+                </TouchableOpacity>
+              }
+            >
+              <Menu.Item
+                onPress={() => {
+                  setMenuVisible(false);
+                  setShowUserInfo(true);
+                }}
+                title="View User Info"
+                leadingIcon="account"
+              />
+              {isBlocked ? (
+                <Menu.Item
+                  onPress={() => {
+                    handleUnblock();
+                    setMenuVisible(false);
+                  }}
+                  title="Unblock User"
+                  leadingIcon="account-check"
+                  disabled={blockingLoading}
+                />
+              ) : (
+                <Menu.Item
+                  onPress={() => {
+                    handleBlock();
+                    setMenuVisible(false);
+                  }}
+                  title="Block User"
+                  leadingIcon="account-remove"
+                  disabled={blockingLoading}
+                />
+              )}
+            </Menu>
+          }
+        />
         <View style={styles.postInfoContainer}>
           <ExpoImage
             source={{ uri: conversation?.post_image }}
@@ -821,13 +901,13 @@ export default function ChatRoom() {
             )}
           </View>
         </View>
+        
         <FlatList
           ref={flatListRef}
           data={memoizedMessages}
           renderItem={renderMessage}
-          keyExtractor={keyExtractor}
+          keyExtractor={(item: GroupedMessage) => item.id}
           getItemLayout={getItemLayout}
-          ListHeaderComponent={ListHeaderComponent}
           style={styles.messageList}
           contentContainerStyle={[
             styles.messageListContent,
@@ -838,67 +918,42 @@ export default function ChatRoom() {
           maxToRenderPerBatch={10}
           windowSize={10}
           removeClippedSubviews={true}
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: true })
-          }
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onScroll={handleScroll}
+          onContentSizeChange={handleContentSizeChange}
+          onLayout={handleLayout}
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,
             autoscrollToTopThreshold: 10,
           }}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoadingOlderMessages}
+              onRefresh={hasMoreMessages ? loadOlderMessages : undefined}
+              enabled={hasMoreMessages}
+            />
+          }
+        />
+        <ScrollToBottomButton
+          onPress={smoothScrollToBottom}
+          animatedValue={scrollToBottomButtonAnimation}
         />
         {!isBlocked && canSendMessages && (
-          <View
-            style={[
-              styles.inputContainer,
-              {
-                backgroundColor: theme.colors.surface,
-                borderTopColor: theme.colors.surfaceVariant,
-              },
-            ]}
-          >
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surfaceVariant,
-                  color: theme.colors.onSurface,
-                },
-              ]}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              placeholder="Type a message..."
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              multiline
-              maxLength={1000}
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                {
-                  backgroundColor: newMessage.trim()
-                    ? theme.colors.primary
-                    : "transparent",
-                },
-              ]}
-              onPress={handleSendMessage}
-              disabled={!newMessage.trim() || sendingMessage}
-            >
-              {sendingMessage ? (
-                <ActivityIndicator size="small" color={theme.colors.onPrimary} />
-              ) : (
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color={
-                    newMessage.trim()
-                      ? theme.colors.onPrimary
-                      : theme.colors.onSurfaceVariant
-                  }
-                />
-              )}
-            </TouchableOpacity>
-          </View>
+          <ChatInput
+            value={newMessage}
+            onChangeText={setNewMessage}
+            onSend={handleSendMessage}
+            onAttachment={() => {
+              // Handle attachment
+              console.log('Attachment pressed');
+            }}
+            isSending={sendingMessage}
+            disabled={!canSendMessages}
+            placeholder="Type a message..."
+            maxLength={1000}
+          />
         )}
         {(isBlocked || !canSendMessages) && (
           <View
@@ -927,6 +982,15 @@ export default function ChatRoom() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* User Info Modal */}
+      <UserInfoModal
+        visible={showUserInfo}
+        onClose={() => setShowUserInfo(false)}
+        conversation={conversation}
+        getCleanAvatarUrl={getCleanAvatarUrl}
+        blurhash={blurhash}
+      />
     </View>
   );
 }
@@ -939,50 +1003,13 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    position: 'relative',
   },
   messageList: {
     flex: 1,
   },
   messageListContent: {
     paddingHorizontal: 16,
-  },
-  headerInfo: {
-    marginBottom: 0,
-    borderRadius: 0,
-    overflow: "hidden",
-  },
-  userInfoContainer: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flex: 1,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginRight: 12,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  verifiedIcon: {
-    marginLeft: 4,
   },
   postInfoContainer: {
     flexDirection: "row",
@@ -1002,37 +1029,18 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
   },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingBottom: 60,
-    paddingTop: 10,
-    paddingHorizontal: 10,
-    borderTopWidth: 1,
-  },
-  input: {
-    flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    maxHeight: 100,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  failedMessage: {
-    opacity: 0.7,
-  },
-  retryButton: {
-    padding: 8,
-  },
   blockedMessageContainer: {
     borderTopWidth: 1,
     paddingHorizontal: 16,
+  },
+  dateSeparator: {
+    padding: 8,
+    alignItems: 'center',
+  },
+  dateText: {
+    fontWeight: 'bold',
+  },
+  menuButton: {
+    padding: 8,
   },
 });
