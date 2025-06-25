@@ -14,62 +14,55 @@ export const groupMessages = (messages: Message[]): GroupedMessage[] => {
 
   const grouped: GroupedMessage[] = [];
   let currentDate: string | null = null;
-  let currentSender: string | null = null;
-  let currentGroup: Message[] = [];
 
-  const addGroupToResult = (group: Message[], showDateSeparator: boolean) => {
-    if (group.length === 0) return;
-
-    // Add date separator if needed
-    if (showDateSeparator && currentDate) {
-      grouped.push({
-        id: `date-${currentDate}`,
-        type: 'date-separator',
-        data: { date: currentDate },
-      });
-    }
-
-    // Add messages in group
-    group.forEach((message, index) => {
-      grouped.push({
-        id: message.id,
-        type: 'message',
-        data: message,
-        isFirstInGroup: index === 0,
-        isLastInGroup: index === group.length - 1,
-      });
-    });
-  };
+  // Pre-calculate today's UTC date once
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
 
   messages.forEach((message, index) => {
+    // Optimize date operations by reusing Date object and avoiding string operations
     const messageDate = new Date(message.created_at);
-    const messageDateStr = format(messageDate, 'yyyy-MM-dd');
+    const utcYear = messageDate.getUTCFullYear();
+    const utcMonth = messageDate.getUTCMonth();
+    const utcDay = messageDate.getUTCDate();
+    
+    // Use template literal for better performance than String.padStart
+    const messageDateStr = `${utcYear}-${utcMonth < 9 ? '0' : ''}${utcMonth + 1}-${utcDay < 10 ? '0' : ''}${utcDay}`;
+    
+    // Check if we need a date separator
     const isNewDate = currentDate !== messageDateStr;
-    const isNewSender = currentSender !== message.sender_id;
-    const isTimeGap = index > 0 && !isSameMinute(messageDate, new Date(messages[index - 1].created_at));
-
-    // Check if we should start a new group
-    const shouldStartNewGroup = isNewSender || isTimeGap || isNewDate;
-
-    if (shouldStartNewGroup && currentGroup.length > 0) {
-      addGroupToResult(currentGroup, isNewDate);
-      currentGroup = [];
-    }
-
-    // Update current date and sender
+    
+    // Add date separator if it's a new date
     if (isNewDate) {
+      grouped.push({
+        id: `date-${messageDateStr}`,
+        type: 'date-separator',
+        data: { date: messageDateStr },
+      });
       currentDate = messageDateStr;
     }
-    currentSender = message.sender_id;
 
-    // Add message to current group
-    currentGroup.push(message);
+    // Optimize group detection by avoiding unnecessary Date object creation
+    const prevMessage = index > 0 ? messages[index - 1] : null;
+    const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+    
+    const isFirstInGroup = !prevMessage || 
+      message.sender_id !== prevMessage.sender_id ||
+      !isSameMinute(messageDate, new Date(prevMessage.created_at));
+    
+    const isLastInGroup = !nextMessage ||
+      message.sender_id !== nextMessage.sender_id ||
+      !isSameMinute(messageDate, new Date(nextMessage.created_at));
+
+    // Add the message
+    grouped.push({
+      id: message.id,
+      type: 'message',
+      data: message,
+      isFirstInGroup,
+      isLastInGroup,
+    });
   });
-
-  // Add the last group
-  if (currentGroup.length > 0) {
-    addGroupToResult(currentGroup, true);
-  }
 
   return grouped;
 };
@@ -85,14 +78,47 @@ export const formatMessageTime = (date: string): string => {
   }
 };
 
+// Cache for today's date to avoid recalculating
+let cachedTodayUtc: number | null = null;
+let cachedYesterdayUtc: number | null = null;
+let cachedTodayDate: string | null = null;
+
+const getTodayUtc = (): { todayUtc: number; yesterdayUtc: number; todayDate: string } => {
+  const today = new Date();
+  const todayDateStr = `${today.getUTCFullYear()}-${today.getUTCMonth() < 9 ? '0' : ''}${today.getUTCMonth() + 1}-${today.getUTCDate() < 10 ? '0' : ''}${today.getUTCDate()}`;
+  
+  // Only recalculate if the date has changed
+  if (cachedTodayDate !== todayDateStr) {
+    cachedTodayDate = todayDateStr;
+    cachedTodayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    cachedYesterdayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 1);
+  }
+  
+  return {
+    todayUtc: cachedTodayUtc!,
+    yesterdayUtc: cachedYesterdayUtc!,
+    todayDate: cachedTodayDate!
+  };
+};
+
 export const formatDateSeparator = (date: string): string => {
   const messageDate = new Date(date);
-  if (isToday(messageDate)) {
+  
+  // Use UTC date for consistent comparison
+  const utcYear = messageDate.getUTCFullYear();
+  const utcMonth = messageDate.getUTCMonth();
+  const utcDay = messageDate.getUTCDate();
+  
+  // Create a date object using UTC components for comparison
+  const utcDate = Date.UTC(utcYear, utcMonth, utcDay);
+  const { todayUtc, yesterdayUtc } = getTodayUtc();
+  
+  if (utcDate === todayUtc) {
     return 'Today';
-  } else if (isYesterday(messageDate)) {
+  } else if (utcDate === yesterdayUtc) {
     return 'Yesterday';
   } else {
-    return format(messageDate, 'EEEE, MMMM d, yyyy');
+    return format(messageDate, 'MMMM d, yyyy');
   }
 };
 
@@ -102,7 +128,19 @@ export const shouldShowDateSeparator = (currentMessage: Message, previousMessage
   const currentDate = new Date(currentMessage.created_at);
   const previousDate = new Date(previousMessage.created_at);
   
-  return !isSameDay(currentDate, previousDate);
+  // Use UTC dates for consistent comparison
+  const currentUtc = new Date(Date.UTC(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth(),
+    currentDate.getUTCDate()
+  ));
+  const previousUtc = new Date(Date.UTC(
+    previousDate.getUTCFullYear(),
+    previousDate.getUTCMonth(),
+    previousDate.getUTCDate()
+  ));
+  
+  return currentUtc.getTime() !== previousUtc.getTime();
 };
 
 export const isFirstInGroup = (currentMessage: Message, previousMessage?: Message): boolean => {

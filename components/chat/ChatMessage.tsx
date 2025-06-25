@@ -29,13 +29,7 @@ export const ChatMessage = memo(({
 
     const formatTime = (date: string) => {
         const messageDate = new Date(date);
-        if (isToday(messageDate)) {
-            return format(messageDate, 'h:mm a');
-        } else if (isYesterday(messageDate)) {
-            return `Yesterday, ${format(messageDate, 'h:mm a')}`;
-        } else {
-            return format(messageDate, 'MMM d, h:mm a');
-        }
+        return format(messageDate, 'h:mm a');
     };
 
     return (
@@ -143,6 +137,7 @@ const styles = StyleSheet.create({
     },
     container: {
         marginVertical: 1,
+        marginBottom: 8,
         maxWidth: '75%',
         paddingHorizontal: 8,
     },
