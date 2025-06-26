@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { Conversation, Message } from '../types/chat';
+import { pushNotificationService } from './pushNotificationService';
 
 export const chatService = {
     async getConversations() {
@@ -94,6 +95,40 @@ export const chatService = {
             .single();
 
         if (error) throw error;
+        
+        // Get conversation details to find the recipient
+        const { data: conversation, error: convError } = await supabase
+            .from('conversations')
+            .select('creator_id, participant_id')
+            .eq('id', conversationId)
+            .single();
+
+        if (!convError && conversation) {
+            // Determine the recipient (the other user in the conversation)
+            const recipientId = conversation.creator_id === currentUser.user.id 
+                ? conversation.participant_id 
+                : conversation.creator_id;
+
+            // Get sender's username for the notification
+            const { data: senderData } = await supabase
+                .from('users')
+                .select('username')
+                .eq('id', currentUser.user.id)
+                .single();
+
+            const senderName = senderData?.username || currentUser.user.email || 'Someone';
+
+            // Send push notification to recipient
+            pushNotificationService.sendMessageNotification(
+                recipientId,
+                senderName,
+                content,
+                currentUser.user.id,
+                conversationId
+            ).catch(error => {
+                console.error('Failed to send push notification:', error);
+            });
+        }
         
         // Add sender information to the returned message
         return {

@@ -232,6 +232,21 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
             </View>
           </Button>
+          <Divider />
+          <Button
+            mode="text"
+            onPress={() => router.push("/(tabs)/profile/notification-settings" as any)}
+            contentStyle={styles.buttonContent}
+            style={styles.navigationButton}
+          >
+            <View style={styles.buttonInner}>
+              <View style={styles.buttonLeftContent}>
+                <MaterialCommunityIcons name="bell" size={28} color={theme.colors.primary} />
+                <Text variant="bodyLarge" style={styles.buttonText}>Notification Settings</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+            </View>
+          </Button>
         </View>
 
         {/* Bottom Actions */}
@@ -310,16 +325,16 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     padding: 16,
-    marginTop: 16,
+    marginTop: 10,
   },
   navigationContainer: {
-    marginTop: 16,
+    marginTop: 10,
     borderRadius: 8,
     overflow: 'hidden',
     marginHorizontal: 16,
   },
   navigationButton: {
-    height: 70,
+    height: 60,
     marginHorizontal: 0,
     borderRadius: 0,
     justifyContent: 'flex-start',
@@ -336,7 +351,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingRight: 8,
   },
   buttonLeftContent: {

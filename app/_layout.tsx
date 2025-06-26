@@ -12,6 +12,8 @@ import { AuthProvider } from '../components/auth/AuthProvider';
 import { getTheme } from '../constants/theme';
 import { View, useColorScheme } from "react-native";
 import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
+import { pushNotificationService } from '../lib/pushNotificationService';
+import { useAuthStore } from '../store/useAuthStore';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -54,6 +56,7 @@ function RootLayoutNav() {
   const setTheme = useThemeStore((state) => state.setTheme);
   const systemColorScheme = useColorScheme();
   const paperTheme = getTheme(isDarkMode);
+  const user = useAuthStore((state) => state.user);
 
   // Sync with system theme on first launch
   useEffect(() => {
@@ -62,6 +65,27 @@ function RootLayoutNav() {
       setTheme(systemColorScheme === 'dark');
     }
   }, [systemColorScheme]);
+
+  // Initialize push notifications when user is authenticated
+  useEffect(() => {
+    if (user) {
+      // Register for push notifications
+      pushNotificationService.registerForPushNotifications()
+        .then(token => {
+          if (token) {
+            console.log('Push notifications initialized successfully');
+          } else {
+            console.log('Failed to initialize push notifications');
+          }
+        })
+        .catch(error => {
+          console.error('Error initializing push notifications:', error);
+        });
+    } else {
+      // Clear token when user logs out
+      pushNotificationService.clearToken();
+    }
+  }, [user]);
 
   const navigationTheme = isDarkMode ? NavigationDarkTheme : NavigationDefaultTheme;
 
