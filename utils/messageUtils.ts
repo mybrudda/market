@@ -15,25 +15,12 @@ export const groupMessages = (messages: Message[]): GroupedMessage[] => {
   const grouped: GroupedMessage[] = [];
   let currentDate: string | null = null;
 
-  // Pre-calculate today's UTC date once
-  const today = new Date();
-  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-
   messages.forEach((message, index) => {
-    // Optimize date operations by reusing Date object and avoiding string operations
     const messageDate = new Date(message.created_at);
-    const utcYear = messageDate.getUTCFullYear();
-    const utcMonth = messageDate.getUTCMonth();
-    const utcDay = messageDate.getUTCDate();
-    
-    // Use template literal for better performance than String.padStart
-    const messageDateStr = `${utcYear}-${utcMonth < 9 ? '0' : ''}${utcMonth + 1}-${utcDay < 10 ? '0' : ''}${utcDay}`;
-    
-    // Check if we need a date separator
-    const isNewDate = currentDate !== messageDateStr;
+    const messageDateStr = format(messageDate, 'yyyy-MM-dd');
     
     // Add date separator if it's a new date
-    if (isNewDate) {
+    if (currentDate !== messageDateStr) {
       grouped.push({
         id: `date-${messageDateStr}`,
         type: 'date-separator',
@@ -42,7 +29,7 @@ export const groupMessages = (messages: Message[]): GroupedMessage[] => {
       currentDate = messageDateStr;
     }
 
-    // Optimize group detection by avoiding unnecessary Date object creation
+    // Check if this message is first/last in a group
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
     
@@ -78,44 +65,12 @@ export const formatMessageTime = (date: string): string => {
   }
 };
 
-// Cache for today's date to avoid recalculating
-let cachedTodayUtc: number | null = null;
-let cachedYesterdayUtc: number | null = null;
-let cachedTodayDate: string | null = null;
-
-const getTodayUtc = (): { todayUtc: number; yesterdayUtc: number; todayDate: string } => {
-  const today = new Date();
-  const todayDateStr = `${today.getUTCFullYear()}-${today.getUTCMonth() < 9 ? '0' : ''}${today.getUTCMonth() + 1}-${today.getUTCDate() < 10 ? '0' : ''}${today.getUTCDate()}`;
-  
-  // Only recalculate if the date has changed
-  if (cachedTodayDate !== todayDateStr) {
-    cachedTodayDate = todayDateStr;
-    cachedTodayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-    cachedYesterdayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 1);
-  }
-  
-  return {
-    todayUtc: cachedTodayUtc!,
-    yesterdayUtc: cachedYesterdayUtc!,
-    todayDate: cachedTodayDate!
-  };
-};
-
 export const formatDateSeparator = (date: string): string => {
   const messageDate = new Date(date);
   
-  // Use UTC date for consistent comparison
-  const utcYear = messageDate.getUTCFullYear();
-  const utcMonth = messageDate.getUTCMonth();
-  const utcDay = messageDate.getUTCDate();
-  
-  // Create a date object using UTC components for comparison
-  const utcDate = Date.UTC(utcYear, utcMonth, utcDay);
-  const { todayUtc, yesterdayUtc } = getTodayUtc();
-  
-  if (utcDate === todayUtc) {
+  if (isToday(messageDate)) {
     return 'Today';
-  } else if (utcDate === yesterdayUtc) {
+  } else if (isYesterday(messageDate)) {
     return 'Yesterday';
   } else {
     return format(messageDate, 'MMMM d, yyyy');
@@ -128,19 +83,7 @@ export const shouldShowDateSeparator = (currentMessage: Message, previousMessage
   const currentDate = new Date(currentMessage.created_at);
   const previousDate = new Date(previousMessage.created_at);
   
-  // Use UTC dates for consistent comparison
-  const currentUtc = new Date(Date.UTC(
-    currentDate.getUTCFullYear(),
-    currentDate.getUTCMonth(),
-    currentDate.getUTCDate()
-  ));
-  const previousUtc = new Date(Date.UTC(
-    previousDate.getUTCFullYear(),
-    previousDate.getUTCMonth(),
-    previousDate.getUTCDate()
-  ));
-  
-  return currentUtc.getTime() !== previousUtc.getTime();
+  return !isSameDay(currentDate, previousDate);
 };
 
 export const isFirstInGroup = (currentMessage: Message, previousMessage?: Message): boolean => {

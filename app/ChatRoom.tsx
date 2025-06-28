@@ -9,9 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
-  Animated,
   RefreshControl,
-  Easing,
 } from "react-native";
 import { useTheme, Text, Menu } from "react-native-paper";
 import { useLocalSearchParams } from "expo-router";
@@ -72,28 +70,8 @@ export default function ChatRoom() {
   const INITIAL_MESSAGES_COUNT = 15;
   const MESSAGES_PER_PAGE = 10;
 
-  // Scroll position tracking
-  const [isNearBottom, setIsNearBottom] = useState(true);
-  const scrollPositionRef = useRef(0);
-  const contentHeightRef = useRef(0);
-  const scrollViewHeightRef = useRef(0);
-
-  // Animation values
-  const scrollToBottomButtonAnimation = useRef(new Animated.Value(0)).current;
-  
-  // Custom smooth scroll function
-  const smoothScrollToBottom = useCallback(() => {
-    if (flatListRef.current) {
-      // Add a small delay for smoother animation
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 50);
-    }
-  }, []);
-  
-  // Scroll tracking
-  const isUserScrollingRef = useRef(false);
-  const isAutoScrollingRef = useRef(false);
+  // Simplified scroll state
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   // Use refs to access current state values in subscription callbacks
   const currentUserRef = useRef<any>(null);
@@ -270,11 +248,8 @@ export default function ChatRoom() {
 
               // If message is from other user, scroll to bottom and mark as read
               if (!isFromCurrentUser) {
-                // Check if user is near bottom before deciding to auto-scroll
-                if (isNearBottom) {
-                  // Smooth scroll to bottom
-                  smoothScrollToBottom();
-                }
+                // Use delayed scroll to ensure new message is rendered
+                scrollToBottomWithDelay();
                 
                 // Mark as read asynchronously to not block the UI
                 chatService.markMessagesAsRead(conversationId).catch(console.error);
@@ -381,19 +356,33 @@ export default function ChatRoom() {
     }
   }, [conversationId, isLoadingOlderMessages, hasMoreMessages, oldestMessageTimestamp, messages.length]);
 
-  // Function to check if user is near bottom
-  const checkIfNearBottom = useCallback((contentOffsetY: number, contentHeight: number, scrollViewHeight: number) => {
-    const threshold = 100; // pixels from bottom
-    const isNear = contentOffsetY + scrollViewHeight >= contentHeight - threshold;
-    setIsNearBottom(isNear);
-    
-    // Show/hide scroll to bottom button
-    Animated.timing(scrollToBottomButtonAnimation, {
-      toValue: isNear ? 0 : 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+  // Simplified scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
   }, []);
+
+  // Enhanced scroll to bottom function with delay to ensure content is rendered
+  const scrollToBottomWithDelay = useCallback(() => {
+    // Use requestAnimationFrame for better timing with UI rendering
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  // Simplified scroll handler
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
+    setShowScrollToBottom(!isNearBottom);
+  }, []);
+
+  // Handle content size changes (when new messages are added)
+  const handleContentSizeChange = useCallback((width: number, height: number) => {
+    // If user is near bottom, scroll to show new content
+    if (!showScrollToBottom) {
+      scrollToBottomWithDelay();
+    }
+  }, [showScrollToBottom, scrollToBottomWithDelay]);
 
   useEffect(() => {
     if (conversation) {
@@ -596,11 +585,9 @@ export default function ChatRoom() {
       });
 
       // Scroll to bottom to show the new message
-      setTimeout(() => {
-        if (isNearBottom) {
-          smoothScrollToBottom();
-        }
-      }, 100);
+      requestAnimationFrame(() => {
+        scrollToBottomWithDelay();
+      });
 
     } catch (error) {
       // Clear the timeout on error
@@ -622,7 +609,7 @@ export default function ChatRoom() {
     } finally {
       setSendingMessage(false);
     }
-  }, [conversationId, newMessage, conversation, currentUser, sendingMessage]);
+  }, [conversationId, newMessage, conversation, currentUser, sendingMessage, scrollToBottomWithDelay]);
 
   // Memoized retry handler
   const handleRetryMessage = useCallback(
@@ -711,12 +698,19 @@ export default function ChatRoom() {
   // Memoized key extractor
   const keyExtractor = useCallback((item: GroupedMessage) => item.id, []);
 
-  // Memoized getItemLayout for better FlatList performance
-  const getItemLayout = useCallback((data: ArrayLike<GroupedMessage> | null | undefined, index: number) => ({
-    length: 100, // More accurate height estimate for message items
-    offset: 100 * index,
-    index,
-  }), []);
+  // Memoized getItemLayout for better FlatList performance and accurate scrolling
+  const getItemLayout = useCallback((data: ArrayLike<GroupedMessage> | null | undefined, index: number) => {
+    // Estimate height based on item type
+    const item = data?.[index];
+    if (!item) return { length: 80, offset: 80 * index, index };
+    
+    if (item.type === 'date-separator') {
+      return { length: 40, offset: 40 * index, index };
+    }
+    
+    // For messages, estimate height (adjust based on your actual message heights)
+    return { length: 80, offset: 80 * index, index };
+  }, []);
 
   // Memoized messages array to prevent unnecessary re-renders and ensure uniqueness
   const memoizedMessages = useMemo(() => {
@@ -739,60 +733,6 @@ export default function ChatRoom() {
     // Group messages for better UI
     return groupMessages(uniqueMessages);
   }, [messages]);
-
-  // Memoized scroll handlers
-  const handleScroll = useCallback((event: any) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const currentScrollPosition = contentOffset.y;
-    
-    scrollPositionRef.current = currentScrollPosition;
-    contentHeightRef.current = contentSize.height;
-    scrollViewHeightRef.current = layoutMeasurement.height;
-    checkIfNearBottom(currentScrollPosition, contentSize.height, layoutMeasurement.height);
-  }, [checkIfNearBottom]);
-
-  const handleContentSizeChange = useCallback((width: number, height: number) => {
-    contentHeightRef.current = height;
-    // Only auto-scroll if user is near bottom
-    if (isNearBottom) {
-      isAutoScrollingRef.current = true;
-      smoothScrollToBottom();
-      setTimeout(() => {
-        isAutoScrollingRef.current = false;
-      }, 500);
-    }
-  }, [isNearBottom]);
-
-  const handleLayout = useCallback((event: any) => {
-    scrollViewHeightRef.current = event.nativeEvent.layout.height;
-    // Only auto-scroll if user is near bottom
-    if (isNearBottom) {
-      isAutoScrollingRef.current = true;
-      smoothScrollToBottom();
-      setTimeout(() => {
-        isAutoScrollingRef.current = false;
-      }, 500);
-    }
-  }, [isNearBottom]);
-
-  // Scroll event handlers
-  const handleScrollBeginDrag = useCallback(() => {
-    console.log('👆 User started scrolling');
-    isUserScrollingRef.current = true;
-  }, []);
-
-  const handleScrollEndDrag = useCallback(() => {
-    console.log('👆 User stopped scrolling');
-    // Keep the flag true for a bit longer to catch momentum scrolling
-    setTimeout(() => {
-      isUserScrollingRef.current = false;
-    }, 1000);
-  }, []);
-
-  const handleMomentumScrollEnd = useCallback(() => {
-    console.log('👆 Momentum scroll ended');
-    isUserScrollingRef.current = false;
-  }, []);
 
   if (loading || !currentUser) {
     return (
@@ -906,8 +846,7 @@ export default function ChatRoom() {
           ref={flatListRef}
           data={memoizedMessages}
           renderItem={renderMessage}
-          keyExtractor={(item: GroupedMessage) => item.id}
-          getItemLayout={getItemLayout}
+          keyExtractor={keyExtractor}
           style={styles.messageList}
           contentContainerStyle={[
             styles.messageListContent,
@@ -920,14 +859,7 @@ export default function ChatRoom() {
           removeClippedSubviews={true}
           onScroll={handleScroll}
           onContentSizeChange={handleContentSizeChange}
-          onLayout={handleLayout}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 10,
-          }}
-          onScrollBeginDrag={handleScrollBeginDrag}
-          onScrollEndDrag={handleScrollEndDrag}
-          onMomentumScrollEnd={handleMomentumScrollEnd}
+          getItemLayout={getItemLayout}
           refreshControl={
             <RefreshControl
               refreshing={isLoadingOlderMessages}
@@ -936,10 +868,12 @@ export default function ChatRoom() {
             />
           }
         />
-        <ScrollToBottomButton
-          onPress={smoothScrollToBottom}
-          animatedValue={scrollToBottomButtonAnimation}
-        />
+        {showScrollToBottom && (
+          <ScrollToBottomButton
+            onPress={scrollToBottom}
+            animatedValue={null}
+          />
+        )}
         {!isBlocked && canSendMessages && (
           <ChatInput
             value={newMessage}

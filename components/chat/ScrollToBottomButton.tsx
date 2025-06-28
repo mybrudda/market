@@ -5,11 +5,35 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ScrollToBottomButtonProps {
   onPress: () => void;
-  animatedValue: Animated.Value;
+  animatedValue?: Animated.Value | null;
 }
 
 export const ScrollToBottomButton = ({ onPress, animatedValue }: ScrollToBottomButtonProps) => {
   const theme = useTheme();
+
+  // If no animated value provided, use simple opacity
+  if (!animatedValue) {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.button,
+          styles.container,
+          {
+            backgroundColor: theme.colors.surfaceVariant,
+            shadowColor: theme.colors.onSurfaceVariant,
+          },
+        ]}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons
+          name="chevron-down"
+          size={24}
+          color={theme.colors.onSurfaceVariant}
+        />
+      </TouchableOpacity>
+    );
+  }
 
   const scale = animatedValue.interpolate({
     inputRange: [0, 1],
