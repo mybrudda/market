@@ -6,7 +6,7 @@ node_modules/
 
 # secrets
 spinkor_secret.json
-google-services.json
+
 
 /android
 /ios

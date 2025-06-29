@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "market",
-    "slug": "market",
+    "name": "Spinkor",
+    "slug": "Spinkor",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,14 +14,17 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.doranai.Spinkor"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.doranai.Spinkor",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +49,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "016de2f5-5c44-4135-a852-aece030ac378"
+        "projectId": "59623349-2bf9-46a1-9d16-4101651e777d"
       },
       "router": {}
     },
