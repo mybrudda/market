@@ -33,10 +33,10 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/favicon.png",
           "color": "#ffffff",
           "sounds": [
-            "./assets/sounds/notification.wav"
+            "./assets/sounds/notification.mp3"
           ]
         }
       ]
