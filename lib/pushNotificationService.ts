@@ -9,7 +9,7 @@ import { supabase } from '../supabaseClient';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
-    shouldSetBadge: true,
+    shouldSetBadge: false,
     shouldShowBanner: true,
     shouldShowList: true,
   }),
@@ -97,6 +97,7 @@ export class PushNotificationService {
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#FF231F7C',
+          sound: 'notification.mp3',
         });
       }
 
@@ -217,7 +218,7 @@ export class PushNotificationService {
       // Prepare messages
       const messages = tokens.map((token: { expo_push_token: string }) => ({
         to: token.expo_push_token,
-        sound: 'default',
+        sound: 'notification.mp3',
         title,
         body,
         data: {
@@ -225,6 +226,9 @@ export class PushNotificationService {
           timestamp: new Date().toISOString(),
         },
       }));
+
+      console.log('Sending notifications with sound:', 'notification.mp3');
+      console.log('Messages to send:', messages);
 
       // Send notifications
       const response = await fetch('https://exp.host/--/api/v2/push/send', {
