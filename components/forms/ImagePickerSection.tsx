@@ -35,13 +35,15 @@ export default function ImagePickerSection({
         <View style={styles.imageContainer}>
           {images.map((base64Image, index) => (
             <View key={index} style={styles.imageWrapper}>
-              <Image
-                source={`data:image/jpeg;base64,${base64Image}`}
-                style={styles.image}
-                contentFit="cover"
-                transition={200}
-                placeholder={blurhash}
-              />
+              <View style={styles.imageContent}>
+                <Image
+                  source={`data:image/jpeg;base64,${base64Image}`}
+                  style={styles.image}
+                  contentFit="cover"
+                  transition={200}
+                  placeholder={blurhash}
+                />
+              </View>
               <IconButton
                 icon="close"
                 size={20}
@@ -86,8 +88,13 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 8,
-    overflow: 'hidden',
     backgroundColor: '#f0f0f0',
+  },
+  imageContent: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',

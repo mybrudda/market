@@ -172,116 +172,119 @@ export default function ProfileScreen() {
 
         {/* Navigation Options */}
         <View style={[styles.navigationContainer, { backgroundColor: theme.colors.surface }]}>
-          <Button
-            mode="text"
-            onPress={() => router.push("/(tabs)/profile/my-posts" as any)}
-            contentStyle={styles.buttonContent}
-            style={styles.navigationButton}
-            labelStyle={styles.buttonLabel}
-          >
-            <View style={styles.buttonInner}>
-              <View style={styles.buttonLeftContent}>
-                <MaterialCommunityIcons name="post" size={28} color={theme.colors.primary} />
-                <Text variant="bodyLarge" style={styles.buttonText}>My Posts</Text>
+          <View style={styles.navigationContent}>
+            <Button
+              mode="text"
+              onPress={() => router.push("/profile/my-posts" as any)}
+              contentStyle={styles.buttonContent}
+              style={styles.navigationButton}
+            >
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="post" size={28} color={theme.colors.primary} />
+                  <Text variant="bodyLarge" style={styles.buttonText}>My Posts</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
-            </View>
-          </Button>
-          <Divider />
-          <Button
-            mode="text"
-            onPress={() => router.push("/(tabs)/profile/saved-posts" as any)}
-            contentStyle={styles.buttonContent}
-            style={styles.navigationButton}
-          >
-            <View style={styles.buttonInner}>
-              <View style={styles.buttonLeftContent}>
-                <MaterialCommunityIcons name="bookmark" size={28} color={theme.colors.primary} />
-                <Text variant="bodyLarge" style={styles.buttonText}>Saved Posts</Text>
+            </Button>
+            <Divider />
+            <Button
+              mode="text"
+              onPress={() => router.push("/profile/saved-posts" as any)}
+              contentStyle={styles.buttonContent}
+              style={styles.navigationButton}
+            >
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="bookmark" size={28} color={theme.colors.primary} />
+                  <Text variant="bodyLarge" style={styles.buttonText}>Saved Posts</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
-            </View>
-          </Button>
-          <Divider />
-          <Button
-            mode="text"
-            onPress={() => router.push("/profile/BlockedUsers" as any)}
-            contentStyle={styles.buttonContent}
-            style={styles.navigationButton}
-          >
-            <View style={styles.buttonInner}>
-              <View style={styles.buttonLeftContent}>
-                <MaterialCommunityIcons name="account-remove" size={28} color={theme.colors.primary} />
-                <Text variant="bodyLarge" style={styles.buttonText}>Blocked Users</Text>
+            </Button>
+            <Divider />
+            <Button
+              mode="text"
+              onPress={() => router.push("/profile/BlockedUsers" as any)}
+              contentStyle={styles.buttonContent}
+              style={styles.navigationButton}
+            >
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="account-remove" size={28} color={theme.colors.primary} />
+                  <Text variant="bodyLarge" style={styles.buttonText}>Blocked Users</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
-            </View>
-          </Button>
-          <Divider />
-          <Button
-            mode="text"
-            onPress={() => router.push("/(tabs)/profile/contact-support" as any)}
-            contentStyle={styles.buttonContent}
-            style={styles.navigationButton}
-          >
-            <View style={styles.buttonInner}>
-              <View style={styles.buttonLeftContent}>
-                <MaterialCommunityIcons name="headset" size={28} color={theme.colors.primary} />
-                <Text variant="bodyLarge" style={styles.buttonText}>Contact Support</Text>
+            </Button>
+            <Divider />
+            <Button
+              mode="text"
+              onPress={() => router.push("/(tabs)/profile/contact-support" as any)}
+              contentStyle={styles.buttonContent}
+              style={styles.navigationButton}
+            >
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="headset" size={28} color={theme.colors.primary} />
+                  <Text variant="bodyLarge" style={styles.buttonText}>Contact Support</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
-            </View>
-          </Button>
-          <Divider />
-          <Button
-            mode="text"
-            onPress={() => router.push("/(tabs)/profile/notification-settings" as any)}
-            contentStyle={styles.buttonContent}
-            style={styles.navigationButton}
-          >
-            <View style={styles.buttonInner}>
-              <View style={styles.buttonLeftContent}>
-                <MaterialCommunityIcons name="bell" size={28} color={theme.colors.primary} />
-                <Text variant="bodyLarge" style={styles.buttonText}>Notification Settings</Text>
+            </Button>
+            <Divider />
+            <Button
+              mode="text"
+              onPress={() => router.push("/(tabs)/profile/notification-settings" as any)}
+              contentStyle={styles.buttonContent}
+              style={styles.navigationButton}
+            >
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="bell" size={28} color={theme.colors.primary} />
+                  <Text variant="bodyLarge" style={styles.buttonText}>Notification Settings</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
-            </View>
-          </Button>
+            </Button>
+          </View>
         </View>
 
         {/* Bottom Actions */}
         <View style={[styles.bottomActionsContainer, { backgroundColor: theme.colors.surface }]}>
-          <Button
-            mode="text"
-            onPress={toggleTheme}
-            contentStyle={styles.bottomActionButtonContent}
-            style={styles.bottomActionButton}
-          >
-            <View style={styles.bottomActionButtonInner}>
-              <MaterialCommunityIcons 
-                name={isDarkMode ? "weather-sunny" : "weather-night"} 
-                size={24} 
-                color={theme.colors.primary} 
-              />
-              <Text variant="bodyLarge" style={styles.buttonText}>
-                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              </Text>
-            </View>
-          </Button>
-          <Divider />
-          <Button
-            mode="text"
-            onPress={handleSignOut}
-            contentStyle={styles.bottomActionButtonContent}
-            style={styles.bottomActionButton}
-          >
-            <View style={styles.bottomActionButtonInner}>
-              <MaterialCommunityIcons name="logout" size={24} color={theme.colors.error} />
-              <Text variant="bodyLarge" style={[styles.buttonText, { color: theme.colors.error }]}>
-                Sign Out
-              </Text>
-            </View>
-          </Button>
+          <View style={styles.bottomActionsContent}>
+            <Button
+              mode="text"
+              onPress={toggleTheme}
+              contentStyle={styles.bottomActionButtonContent}
+              style={styles.bottomActionButton}
+            >
+              <View style={styles.bottomActionButtonInner}>
+                <MaterialCommunityIcons 
+                  name={isDarkMode ? "weather-sunny" : "weather-night"} 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
+                <Text variant="bodyLarge" style={styles.buttonText}>
+                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                </Text>
+              </View>
+            </Button>
+            <Divider />
+            <Button
+              mode="text"
+              onPress={handleSignOut}
+              contentStyle={styles.bottomActionButtonContent}
+              style={styles.bottomActionButton}
+            >
+              <View style={styles.bottomActionButtonInner}>
+                <MaterialCommunityIcons name="logout" size={24} color={theme.colors.error} />
+                <Text variant="bodyLarge" style={[styles.buttonText, { color: theme.colors.error }]}>
+                  Sign Out
+                </Text>
+              </View>
+            </Button>
+          </View>
         </View>
       </View>
     </RequireAuth>
@@ -330,8 +333,11 @@ const styles = StyleSheet.create({
   navigationContainer: {
     marginTop: 10,
     borderRadius: 8,
-    overflow: 'hidden',
     marginHorizontal: 16,
+  },
+  navigationContent: {
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   navigationButton: {
     height: 60,
@@ -368,6 +374,9 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     marginHorizontal: 16,
     marginBottom: 16,
+    borderRadius: 8,
+  },
+  bottomActionsContent: {
     borderRadius: 8,
     overflow: 'hidden',
   },

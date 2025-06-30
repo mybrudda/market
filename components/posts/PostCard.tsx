@@ -82,77 +82,79 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
   return (
     <View style={styles.container}>
       <Pressable onPress={() => router.push({ pathname: '/PostDetails', params: { post: JSON.stringify(post) } })}>
-        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: post.images[0] }}
-              style={styles.cardImage}
-              contentFit="cover"
-              transition={300}
-              placeholder={blurhash}
-              onError={() => setImageError(true)}
-            />
-            {imageError && (
-              <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <MaterialCommunityIcons name="image-off" size={24} color={theme.colors.onSurfaceVariant} />
-                <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
-              </View>
-            )}
-            <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
-              <Text 
-                variant="titleMedium" 
-                numberOfLines={1}
-                style={{ color: "white", fontWeight: 'bold' }}
-              >
-                {formatPrice(post.price, post.currency)}
-              </Text>
-              <Chip 
-                mode="flat" 
-                style={{ backgroundColor: theme.colors.primaryContainer }}
-                textStyle={{ color: theme.colors.primary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1 }}
-                compact
-              >
-                {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-              </Chip>
-            </View>
-          </View>
-
-          <Card.Content style={styles.cardContent}>
-            <Text 
-              variant="titleLarge" 
-              numberOfLines={1} 
-              ellipsizeMode="tail"
-              style={styles.title}
-            >
-              {post.title}
-            </Text>
-            
-            {post.post_type === 'vehicle' 
-              ? renderVehicleDetails(post.details as VehicleDetails)
-              : renderRealEstateDetails(post.details as RealEstateDetails)
-            }
-
-            <View style={styles.footerRow}>
-              <View style={styles.locationContainer}>
-                <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
+        <Card style={styles.card}>
+          <View style={styles.cardContentWrapper}>
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: post.images[0] }}
+                style={styles.cardImage}
+                contentFit="cover"
+                transition={300}
+                placeholder={blurhash}
+                onError={() => setImageError(true)}
+              />
+              {imageError && (
+                <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
+                  <MaterialCommunityIcons name="image-off" size={24} color={theme.colors.onSurfaceVariant} />
+                  <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
+                </View>
+              )}
+              <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
                 <Text 
-                  variant="bodyMedium" 
+                  variant="titleMedium" 
                   numberOfLines={1}
-                  style={styles.detailValue}
+                  style={{ color: "white", fontWeight: 'bold' }}
                 >
-                  {post.location.city}
+                  {formatPrice(post.price, post.currency)}
+                </Text>
+                <Chip 
+                  mode="flat" 
+                  style={{ backgroundColor: theme.colors.primaryContainer }}
+                  textStyle={{ color: theme.colors.primary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1 }}
+                  compact
+                >
+                  {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
+                </Chip>
+              </View>
+            </View>
+
+            <Card.Content style={styles.cardContent}>
+              <Text 
+                variant="titleLarge" 
+                numberOfLines={1} 
+                ellipsizeMode="tail"
+                style={styles.title}
+              >
+                {post.title}
+              </Text>
+              
+              {post.post_type === 'vehicle' 
+                ? renderVehicleDetails(post.details as VehicleDetails)
+                : renderRealEstateDetails(post.details as RealEstateDetails)
+              }
+
+              <View style={styles.footerRow}>
+                <View style={styles.locationContainer}>
+                  <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
+                  <Text 
+                    variant="bodyMedium" 
+                    numberOfLines={1}
+                    style={styles.detailValue}
+                  >
+                    {post.location.city}
+                  </Text>
+                </View>
+                
+                <Text 
+                  variant="bodySmall" 
+                  numberOfLines={1}
+                  style={styles.date}
+                >
+                  Posted {formatDate(post.created_at)}
                 </Text>
               </View>
-              
-              <Text 
-                variant="bodySmall" 
-                numberOfLines={1}
-                style={styles.date}
-              >
-                Posted {formatDate(post.created_at)}
-              </Text>
-            </View>
-          </Card.Content>
+            </Card.Content>
+          </View>
           
           {showMenu && (
             <View style={styles.menuContainer}>
@@ -187,6 +189,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
+  },
+  cardContentWrapper: {
     overflow: 'hidden',
   },
   imageContainer: {
@@ -197,6 +201,8 @@ const styles = StyleSheet.create({
   cardImage: {
     height: '100%',
     width: '100%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   imageOverlay: {
     position: 'absolute',

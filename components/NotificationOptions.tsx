@@ -113,28 +113,30 @@ export default function NotificationOptions() {
     <View style={styles.container}>
       {/* Options Container */}
       <View style={[styles.settingsContainer, { backgroundColor: theme.colors.surface }]}>
-        <View style={styles.settingRow}>
-          <View style={styles.settingLeftContent}>
-            <MaterialCommunityIcons name="message-text-outline" size={28} color={theme.colors.primary} />
-            <Text variant="bodyLarge" style={[styles.settingText, { color: theme.colors.onSurface }]}>
-              Message Notifications
-            </Text>
+        <View style={styles.settingsContent}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeftContent}>
+              <MaterialCommunityIcons name="message-text-outline" size={28} color={theme.colors.primary} />
+              <Text variant="bodyLarge" style={[styles.settingText, { color: theme.colors.onSurface }]}>
+                Message Notifications
+              </Text>
+            </View>
+            <Switch
+              value={settings.message_notifications}
+              onValueChange={(value) => updateSetting('message_notifications', value)}
+              disabled={saving}
+              trackColor={{ false: theme.colors.outline, true: theme.colors.primary }}
+              thumbColor={theme.colors.surface}
+            />
           </View>
-          <Switch
-            value={settings.message_notifications}
-            onValueChange={(value) => updateSetting('message_notifications', value)}
-            disabled={saving}
-            trackColor={{ false: theme.colors.outline, true: theme.colors.primary }}
-            thumbColor={theme.colors.surface}
-          />
-        </View>
-        <Divider />
-        <View style={styles.settingRow}>
-          <View style={styles.settingLeftContent}>
-            <MaterialCommunityIcons name="information-outline" size={28} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={[styles.settingDescription, { color: theme.colors.onSurfaceVariant }]}>
-              Receive notifications when someone sends you a message
-            </Text>
+          <Divider />
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeftContent}>
+              <MaterialCommunityIcons name="information-outline" size={28} color={theme.colors.onSurfaceVariant} />
+              <Text variant="bodyMedium" style={[styles.settingDescription, { color: theme.colors.onSurfaceVariant }]}>
+                Receive notifications when someone sends you a message
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -175,8 +177,11 @@ const styles = StyleSheet.create({
   settingsContainer: {
     marginTop: 10,
     borderRadius: 8,
-    overflow: 'hidden',
     marginHorizontal: 0,
+  },
+  settingsContent: {
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   settingRow: {
     flexDirection: 'row',
