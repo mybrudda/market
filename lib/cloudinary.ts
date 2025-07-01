@@ -1,4 +1,4 @@
-import { MAX_LIMITS } from '../utils/validation';
+
 
 const CLOUDINARY_CONFIG = {
   cloud_name: "dtac4dhtj",

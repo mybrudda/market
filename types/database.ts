@@ -1,3 +1,4 @@
+// Database types - data as stored in the database
 export interface User {
   id: string;
   username: string;
@@ -18,18 +19,18 @@ export interface BasePost {
   listing_type: 'rent' | 'sale';
   category: string;
   price: number;
-  currency: string ;
+  currency: string;
   location: {
     city: string;
     address?: string;
     country: string;
-  } ;
-  images: string[];
+  };
+  images: string[]; // Cloudinary URLs
   details: VehicleDetails | RealEstateDetails;
   status: 'active' | 'pending' | 'removed' | 'expired';
-  expiry_date: string ;
-  created_at: string ;
-  updated_at: string ;
+  expiry_date: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface VehicleDetails {

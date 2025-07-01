@@ -1,9 +1,8 @@
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Text, IconButton, useTheme } from 'react-native-paper';
-import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
 import { Image } from 'expo-image';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { VALIDATION_LIMITS } from '../../types/forms';
 
 interface ImagePickerSectionProps {
   images: string[];
@@ -18,7 +17,7 @@ export default function ImagePickerSection({
   images,
   onPickImage,
   onRemoveImage,
-  maxImages = 3,
+  maxImages = VALIDATION_LIMITS.IMAGES_PER_POST,
 }: ImagePickerSectionProps) {
   const theme = useTheme();
 

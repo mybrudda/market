@@ -11,7 +11,7 @@ import DropdownComponent from '../../../components/ui/Dropdown';
 import { uploadToCloudinary } from '../../../lib/cloudinary';
 import Header from '../../../components/layout/Header';
 import FeaturesSection from '../../../components/forms/FeaturesSection';
-import { RealEstateFormData, FormErrors, transformRealEstateForm } from '../../../types/forms';
+import { RealEstateFormData, FormErrors, transformRealEstateForm, validateRealEstateForm, VALIDATION_LIMITS } from '../../../types/forms';
 import { 
   YEARS, 
   REAL_ESTATE_CATEGORIES,
@@ -53,8 +53,8 @@ export default function CreateRealEstatePost() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const handlePickImage = async () => {
-    if (formState.images.length >= 5) {
-      Alert.alert('Limit Reached', 'You can only select up to 5 images.');
+    if (formState.images.length >= VALIDATION_LIMITS.IMAGES_PER_POST) {
+      Alert.alert('Limit Reached', `You can only select up to ${VALIDATION_LIMITS.IMAGES_PER_POST} images.`);
       return;
     }
 
@@ -112,21 +112,7 @@ export default function CreateRealEstatePost() {
   };
 
   const validateForm = () => {
-    const newErrors: FormErrors = {};
-
-    if (!formState.title) newErrors.title = 'Title is required';
-    if (!formState.description) newErrors.description = 'Description is required';
-    if (!formState.price) newErrors.price = 'Price is required';
-    if (!formState.location.city) newErrors['location.city'] = 'City is required';
-    if (!formState.listingType) newErrors.listingType = 'Listing type is required';
-    if (!formState.category) newErrors.category = 'Category is required';
-    if (!formState.rooms) newErrors.rooms = 'Number of rooms is required';
-    if (!formState.size.value) newErrors.size = 'Size is required';
-    if (!formState.bathrooms) newErrors.bathrooms = 'Number of bathrooms is required';
-    if (!formState.constructionYear) newErrors.constructionYear = 'Construction year is required';
-    if (!formState.condition) newErrors.condition = 'Condition is required';
-    if (formState.images.length === 0) newErrors.images = 'At least one image is required';
-
+    const newErrors = validateRealEstateForm(formState);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -274,7 +260,7 @@ export default function CreateRealEstatePost() {
           onLocationChange={handleLocationChange}
           onPickImage={handlePickImage}
           onRemoveImage={handleRemoveImage}
-          maxImages={3}
+          maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
         >
           {renderPropertyFields()}
         </BasePostForm>

@@ -9,7 +9,7 @@ import { uploadToCloudinary } from '../../../lib/cloudinary';
 import Header from '../../../components/layout/Header';
 import BasePostForm from '../../../components/forms/BasePostForm';
 import FeaturesSection from '../../../components/forms/FeaturesSection';
-import { VehicleFormData, FormErrors, transformVehicleForm } from '../../../types/forms';
+import { VehicleFormData, FormErrors, transformVehicleForm, validateVehicleForm, VALIDATION_LIMITS } from '../../../types/forms';
 import * as ImagePicker from 'expo-image-picker';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { supabase } from '../../../supabaseClient';
@@ -54,8 +54,8 @@ export default function CreateVehiclePost() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const handlePickImage = async () => {
-    if (formState.images.length >= 5) {
-      Alert.alert('Limit Reached', 'You can only select up to 5 images.');
+    if (formState.images.length >= VALIDATION_LIMITS.IMAGES_PER_POST) {
+      Alert.alert('Limit Reached', `You can only select up to ${VALIDATION_LIMITS.IMAGES_PER_POST} images.`);
       return;
     }
 
@@ -81,16 +81,16 @@ export default function CreateVehiclePost() {
   };
 
   const handleRemoveImage = (index: number) => {
-    setFormState((prev: VehicleFormData) => ({
+    setFormState(prev => ({
       ...prev,
-      images: prev.images.filter((_: string, i: number) => i !== index)
+      images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
   const handleInputChange = (field: keyof VehicleFormData, value: string | string[]) => {
-    setFormState((prev: VehicleFormData) => ({ ...prev, [field]: value }));
+    setFormState(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev: FormErrors) => {
+      setErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
@@ -113,23 +113,7 @@ export default function CreateVehiclePost() {
   };
 
   const validateForm = () => {
-    const newErrors: FormErrors = {};
-
-    if (!formState.title) newErrors.title = 'Title is required';
-    if (!formState.description) newErrors.description = 'Description is required';
-    if (!formState.price) newErrors.price = 'Price is required';
-    if (!formState.location.city) newErrors['location.city'] = 'City is required';
-    if (!formState.listingType) newErrors.listingType = 'Listing type is required';
-    if (!formState.category) newErrors.category = 'Category is required';
-    if (!formState.make) newErrors.make = 'Make is required';
-    if (!formState.model) newErrors.model = 'Model is required';
-    if (!formState.year) newErrors.year = 'Year is required';
-    if (!formState.mileage) newErrors.mileage = 'Mileage is required';
-    if (!formState.fuelType) newErrors.fuelType = 'Fuel type is required';
-    if (!formState.transmission) newErrors.transmission = 'Transmission is required';
-    if (!formState.condition) newErrors.condition = 'Condition is required';
-    if (formState.images.length === 0) newErrors.images = 'At least one image is required';
-
+    const newErrors = validateVehicleForm(formState);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -310,7 +294,7 @@ export default function CreateVehiclePost() {
           onLocationChange={handleLocationChange}
           onPickImage={handlePickImage}
           onRemoveImage={handleRemoveImage}
-          maxImages={5}
+          maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
         >
           {renderVehicleFields()}
         </BasePostForm>
