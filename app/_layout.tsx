@@ -57,6 +57,8 @@ function RootLayoutNav() {
   const systemColorScheme = useColorScheme();
   const paperTheme = getTheme(isDarkMode);
   const user = useAuthStore((state) => state.user);
+  const isAuthLoading = useAuthStore((state) => state.loading);
+  const isAuthInitialized = useAuthStore((state) => state.initialized);
 
   // Sync with system theme on first launch
   useEffect(() => {
@@ -66,26 +68,47 @@ function RootLayoutNav() {
     }
   }, [systemColorScheme]);
 
-  // Initialize push notifications when user is authenticated
+  // Initialize push notification service once when app starts
   useEffect(() => {
-    if (user) {
-      // Register for push notifications
-      pushNotificationService.registerForPushNotifications()
-        .then(token => {
-          if (token) {
-            console.log('Push notifications initialized successfully');
-          } else {
-            console.log('Failed to initialize push notifications');
-          }
-        })
-        .catch(error => {
-          console.error('Error initializing push notifications:', error);
-        });
-    } else {
-      // Clear token when user logs out
-      pushNotificationService.clearToken();
+    pushNotificationService.initialize()
+      .catch(error => {
+        console.error('Error initializing push notification service:', error);
+      });
+  }, []);
+
+  // Handle push token registration based on user authentication state
+  // Only run after auth is initialized to prevent clearing tokens during initial load
+  useEffect(() => {
+    if (!isAuthInitialized) {
+      return; // Don't do anything until auth is initialized
     }
-  }, [user]);
+
+    const handleTokenRegistration = async () => {
+      if (user) {
+        // User is logged in - check if token exists first
+        const hasToken = await pushNotificationService.hasToken();
+        
+        if (!hasToken) {
+          // No token exists - register for push notifications
+          const token = await pushNotificationService.registerForPushNotifications();
+          if (token) {
+            console.log('Push token registration completed');
+          } else {
+            console.log('Push token registration failed');
+          }
+        } else {
+          console.log('Push token already exists, skipping registration');
+        }
+      } else {
+        // User is not logged in - clear token
+        pushNotificationService.clearToken();
+      }
+    };
+
+    handleTokenRegistration().catch(error => {
+      console.error('Error during push token registration:', error);
+    });
+  }, [user, isAuthInitialized]);
 
   const navigationTheme = isDarkMode ? NavigationDarkTheme : NavigationDefaultTheme;
 

@@ -21,6 +21,7 @@ const PUSH_TOKEN_KEY = 'expo_push_token';
 export class PushNotificationService {
   private static instance: PushNotificationService;
   private expoPushToken: string | null = null;
+  private isInitialized: boolean = false;
 
   private constructor() {}
 
@@ -29,6 +30,33 @@ export class PushNotificationService {
       PushNotificationService.instance = new PushNotificationService();
     }
     return PushNotificationService.instance;
+  }
+
+  /**
+   * Initialize push notification service
+   * This should be called once when the app starts
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    try {
+      // Set up notification listeners
+      this.setupNotificationListeners();
+      
+      // Load existing token from storage
+      const storedToken = await this.getStoredToken();
+      if (storedToken) {
+        this.expoPushToken = storedToken;
+        console.log('Loaded existing push token from storage');
+      }
+
+      this.isInitialized = true;
+      console.log('Push notification service initialized');
+    } catch (error) {
+      console.error('Error initializing push notification service:', error);
+    }
   }
 
   /**
@@ -80,6 +108,7 @@ export class PushNotificationService {
 
   /**
    * Register for push notifications
+   * Follows the flow: check AsyncStorage -> if no token and user logged in -> register -> save
    */
   async registerForPushNotifications(): Promise<string | null> {
     try {
@@ -87,7 +116,14 @@ export class PushNotificationService {
       const storedToken = await this.getStoredToken();
       if (storedToken) {
         this.expoPushToken = storedToken;
+        console.log('Push token already exists, skipping registration');
         return this.expoPushToken;
+      }
+
+      // Check if device supports push notifications
+      if (!Device.isDevice) {
+        console.log('Push notifications are only supported on physical devices');
+        return null;
       }
 
       // Set up Android notification channel
@@ -99,12 +135,6 @@ export class PushNotificationService {
           lightColor: '#FF231F7C',
           sound: 'notification.mp3',
         });
-      }
-
-      // Check if device supports push notifications
-      if (!Device.isDevice) {
-        console.log('Push notifications are only supported on physical devices');
-        return null;
       }
 
       // Check and request permissions
@@ -284,6 +314,18 @@ export class PushNotificationService {
    */
   getExpoPushToken(): string | null {
     return this.expoPushToken;
+  }
+
+  /**
+   * Check if a push token exists (either in memory or storage)
+   */
+  async hasToken(): Promise<boolean> {
+    if (this.expoPushToken) {
+      return true;
+    }
+    
+    const storedToken = await this.getStoredToken();
+    return storedToken !== null;
   }
 
   /**
