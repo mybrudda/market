@@ -53,50 +53,85 @@ export const CITIES: string[] = [
   
   // Vehicle-specific constants
   export const VEHICLE_CATEGORIES = [
-    "Sedan",
-    "SUV",
+    "Car",
     "Truck",
-    "Hatchback",
-    "Coupe",
-    "Convertible",
-    "Minivan",
     "Motorcycle",
-    "Commercial",
+    "Van",
+    "Minivan",
+    "Pickup Truck",
+    "Bus",
+    "Tractor",
+    "Trailer",
+    "Boat",
+    "ATV/Quad Bike",
+    "Scooter",
+    "Bicycle",
+    "Other"
   ];
   
   export const MAKES = [
-    "Toyota",
-    "Honda",
-    "Ford",
-    "Chevrolet",
-    "BMW",
-    "Mercedes",
+    "Acura",
     "Audi",
+    "BMW",
+    "Buick",
+    "Cadillac",
+    "Chevrolet",
+    "Chrysler",
+    "Dodge",
+    "Ford",
+    "GMC",
+    "Honda",
     "Hyundai",
+    "Infiniti",
+    "Jaguar",
+    "Jeep",
     "Kia",
+    "Land Rover",
+    "Lexus",
+    "Lincoln",
+    "Mazda",
+    "Mercedes-Benz",
+    "Mitsubishi",
     "Nissan",
+    "Porsche",
+    "Ram",
+    "Subaru",
+    "Tesla",
+    "Toyota",
+    "Volkswagen",
+    "Volvo",
+    "Other"
   ];
   
-  export const VEHICLE_CONDITION = ["Operational", "Non-Operational"];
+  export const VEHICLE_CONDITION = [
+    "New",
+    "Excellent",
+    "Good",
+    "Fair",
+    "Non-Operational",
+  ];
   
-  export const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid"];
+  export const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid", "Plug-in Hybrid", "LPG/CNG", "Other"];
   
-  export const TRANSMISSIONS = ["Automatic", "Manual"];
+  export const TRANSMISSIONS = ["Automatic", "Manual", "CVT", "Semi-Automatic", "Other"];
   
   export const VEHICLE_FEATURES = [
     "Air Conditioning",
     "Airbags",
     "Bluetooth",
-    "Navigation",
+    "Navigation System",
     "Backup Camera",
+    "Heated Seats",
+    "Power Windows",
+    "ABS (Anti-lock Brakes)",
+    "Spare Tire",
     "Leather Seats",
-    "Sunroof",
   ];
   
   
   
   // Real Estate specific options:
-  export const REAL_ESTATE_CATEGORIES: string[] = ["Apartment", "House", "Land", "Office", "Restaurant", "Shop", "Warehouse", "Farm"];
+  export const REAL_ESTATE_CATEGORIES: string[] = ["Apartment", "House", "Land", "Office", "Restaurant", "Shop", "Warehouse", "Farm", "Other"];
   
   
   export const PROPERTY_FEATURES = [

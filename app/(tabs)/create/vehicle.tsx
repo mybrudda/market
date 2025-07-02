@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
@@ -48,6 +48,8 @@ const initialState: VehicleFormData = {
 export default function CreateVehiclePost() {
   const theme = useTheme();
   const [formState, setFormState] = useState<VehicleFormData>(initialState);
+  const [models, setModels] = useState<{ id: string; name: string }[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
 
   const {
     loading,
@@ -64,6 +66,44 @@ export default function CreateVehiclePost() {
     successMessage: 'Vehicle post created successfully!'
   });
 
+  // Fetch models when make changes
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (!formState.make || formState.make === 'Other') {
+        setModels([]);
+        return;
+      }
+
+      setLoadingModels(true);
+      try {
+        // Use NHTSA API to fetch vehicle models
+        const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/${encodeURIComponent(formState.make)}?format=json`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Transform the API response to match our expected format
+          const modelList = data.Results?.map((item: any) => ({
+            id: item.Model_ID?.toString() || '',
+            name: item.Model_Name || ''
+          })) || [];
+          // Sort models alphabetically by name
+          const sortedModels = modelList.sort((a: { id: string; name: string }, b: { id: string; name: string }) => a.name.localeCompare(b.name));
+          setModels(sortedModels);
+        } else {
+          console.error('Failed to fetch models:', response.status);
+          setModels([]);
+        }
+      } catch (error) {
+        console.error('Error fetching models:', error);
+        setModels([]);
+      } finally {
+        setLoadingModels(false);
+      }
+    };
+
+    fetchModels();
+  }, [formState.make]);
+
   const handleImagePick = () => {
     handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })));
   };
@@ -74,6 +114,11 @@ export default function CreateVehiclePost() {
 
   const handleFormInputChange = (field: keyof VehicleFormData, value: string | string[]) => {
     handleInputChange(field, value, formState, setFormState);
+    
+    // Clear model when make changes
+    if (field === 'make') {
+      setFormState(prev => ({ ...prev, model: '' }));
+    }
   };
 
   const handleFormLocationChange = (field: keyof VehicleFormData['location'], value: string) => {
@@ -109,12 +154,14 @@ export default function CreateVehiclePost() {
           error={errors.make}
         />
 
-        <TextInput
-          label="Model"
+        {/* Model Dropdown - disabled until make is selected */}
+        <DropdownComponent
+          data={models.map(model => ({ label: model.name, value: model.name }))}
           value={formState.model}
-          onChangeText={text => handleFormInputChange('model', text)}
-          error={!!errors.model}
-          style={formStyles.input}
+          onChange={(value: string | null) => handleFormInputChange('model', value || '')}
+          placeholder={!formState.make ? "Select make first" : loadingModels ? "Loading models..." : "Model"}
+          error={errors.model}
+          disabled={!formState.make || loadingModels}
         />
 
         <DropdownComponent
