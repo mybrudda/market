@@ -1,17 +1,12 @@
-import { View, StyleSheet, Alert, } from 'react-native';
+import { View } from 'react-native';
 import React, { useState } from 'react';
-import { Button, Text, Card, useTheme, TextInput, } from 'react-native-paper';
-import { router } from 'expo-router';
-import { supabase } from '../../../supabaseClient';
-import { useAuthStore } from '../../../store/useAuthStore';
+import { Button, Text, Card, useTheme, TextInput } from 'react-native-paper';
 import RequireAuth from '../../../components/auth/RequireAuth';
-import * as ImagePicker from 'expo-image-picker';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import DropdownComponent from '../../../components/ui/Dropdown';
-import { uploadToCloudinary } from '../../../lib/cloudinary';
 import Header from '../../../components/layout/Header';
 import FeaturesSection from '../../../components/forms/FeaturesSection';
-import { RealEstateFormData, FormErrors, transformRealEstateForm, validateRealEstateForm, VALIDATION_LIMITS } from '../../../types/forms';
+import { RealEstateFormData, transformRealEstateForm, validateRealEstateForm, VALIDATION_LIMITS } from '../../../types/forms';
 import { 
   YEARS, 
   REAL_ESTATE_CATEGORIES,
@@ -20,19 +15,23 @@ import {
   CITIES
 } from '../../../constants/FormOptions';
 import BasePostForm from '../../../components/forms/BasePostForm';
+import { usePostForm } from '../../../lib/hooks/usePostForm';
+import { formStyles } from '../../../constants/formStyles';
+
+import { DEFAULT_FORM_VALUES } from '../../../types/forms';
 
 const initialFormState: RealEstateFormData = {
   title: '',
   description: '',
   price: '',
-  currency: 'USD',
+  currency: DEFAULT_FORM_VALUES.CURRENCY,
   location: {
     city: '',
     address: null,
-    country: 'AF',
+    country: DEFAULT_FORM_VALUES.COUNTRY,
   },
   images: [],
-  listingType: 'sale',
+  listingType: DEFAULT_FORM_VALUES.LISTING_TYPE,
   category: '',
   condition: '',
   size: {
@@ -47,139 +46,52 @@ const initialFormState: RealEstateFormData = {
 
 export default function CreateRealEstatePost() {
   const theme = useTheme();
-  const { user } = useAuthStore();
-  const [loading, setLoading] = useState(false);
   const [formState, setFormState] = useState<RealEstateFormData>(initialFormState);
-  const [errors, setErrors] = useState<FormErrors>({});
 
-  const handlePickImage = async () => {
-    if (formState.images.length >= VALIDATION_LIMITS.IMAGES_PER_POST) {
-      Alert.alert('Limit Reached', `You can only select up to ${VALIDATION_LIMITS.IMAGES_PER_POST} images.`);
-      return;
-    }
+  const {
+    loading,
+    errors,
+    handlePickImage,
+    handleRemoveImage,
+    handleInputChange,
+    handleLocationChange,
+    handleSubmit
+  } = usePostForm<RealEstateFormData>({
+    postType: 'realestate',
+    transformForm: transformRealEstateForm,
+    validateForm: validateRealEstateForm,
+    successMessage: 'Real estate post created successfully!'
+  });
 
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.1,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets?.[0] && result.assets[0].base64) {
-        setFormState(prev => ({
-          ...prev,
-          images: [...prev.images, result.assets[0].base64 as string]
-        }));
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-    }
+  const handleImagePick = () => {
+    handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })));
   };
 
-  const handleRemoveImage = (index: number) => {
-    setFormState(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
+  const handleImageRemove = (index: number) => {
+    handleRemoveImage(index, formState.images, (images) => setFormState(prev => ({ ...prev, images })));
   };
 
-  const handleInputChange = (field: keyof RealEstateFormData, value: string | string[]) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
+  const handleFormInputChange = (field: keyof RealEstateFormData, value: string | string[]) => {
+    handleInputChange(field, value, formState, setFormState);
   };
 
-  const handleLocationChange = (field: keyof RealEstateFormData['location'], value: string) => {
-    setFormState(prev => ({
-      ...prev,
-      location: { ...prev.location, [field]: value }
-    }));
-    if (errors[`location.${field}`]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[`location.${field}`];
-        return newErrors;
-      });
-    }
+  const handleFormLocationChange = (field: keyof RealEstateFormData['location'], value: string) => {
+    handleLocationChange(field, value, formState, setFormState);
   };
 
-  const validateForm = () => {
-    const newErrors = validateRealEstateForm(formState);
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert('Authentication Required', 'Please login to create a post.');
-      router.push('/(auth)/login');
-      return;
-    }
-
-    if (!validateForm()) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const uploadedUrls = await Promise.all(
-        formState.images.map(base64Image => 
-          uploadToCloudinary(`data:image/jpeg;base64,${base64Image}`)
-        )
-      );
-
-      const { data, error } = await supabase
-        .from('posts')
-        .insert([{
-          user_id: user?.id,
-          post_type: 'realestate',
-          title: formState.title,
-          description: formState.description,
-          price: parseFloat(formState.price),
-          currency: formState.currency,
-          listing_type: formState.listingType,
-          category: formState.category,
-          location: formState.location,
-          images: uploadedUrls,
-          details: transformRealEstateForm(formState),
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      Alert.alert('Success', 'Real estate post created successfully!');
-      router.back();
-    } catch (error) {
-      console.error('Error creating post:', error);
-      Alert.alert('Error', 'Failed to create post. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleFormSubmit = () => {
+    handleSubmit(formState);
   };
 
   const renderPropertyFields = () => (
-    <Card style={styles.card}>
-      <Card.Content style={styles.formContainer}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>Property Details</Text>
+    <Card style={formStyles.card}>
+      <Card.Content style={formStyles.formContainer}>
+        <Text variant="titleMedium" style={formStyles.sectionTitle}>Property Details</Text>
         
         <DropdownComponent
           data={REAL_ESTATE_CATEGORIES.map(category => ({ label: category, value: category }))}
           value={formState.category}
-          onChange={(value: string | null) => handleInputChange('category', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('category', value || '')}
           placeholder="Property Type"
           error={errors.category}
         />
@@ -187,19 +99,19 @@ export default function CreateRealEstatePost() {
         <TextInput
           label="Number of Rooms"
           value={formState.rooms}
-          onChangeText={text => handleInputChange('rooms', text)}
+          onChangeText={text => handleFormInputChange('rooms', text)}
           keyboardType="numeric"
           error={!!errors.rooms}
-          style={styles.input}
+          style={formStyles.input}
         />
 
         <TextInput
           label="Number of Bathrooms"
           value={formState.bathrooms}
-          onChangeText={text => handleInputChange('bathrooms', text)}
+          onChangeText={text => handleFormInputChange('bathrooms', text)}
           keyboardType="numeric"
           error={!!errors.bathrooms}
-          style={styles.input}
+          style={formStyles.input}
         />
 
         <TextInput
@@ -211,13 +123,13 @@ export default function CreateRealEstatePost() {
           }))}
           keyboardType="numeric"
           error={!!errors.size}
-          style={styles.input}
+          style={formStyles.input}
         />
 
         <DropdownComponent
           data={YEARS.map(year => ({ label: year, value: year }))}
           value={formState.constructionYear}
-          onChange={(value: string | null) => handleInputChange('constructionYear', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('constructionYear', value || '')}
           placeholder="Construction Year"
           error={errors.constructionYear}
         />
@@ -225,7 +137,7 @@ export default function CreateRealEstatePost() {
         <DropdownComponent
           data={REAL_ESTATE_CONDITION.map(cond => ({ label: cond, value: cond }))}
           value={formState.condition}
-          onChange={(value: string | null) => handleInputChange('condition', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('condition', value || '')}
           placeholder="Condition"
           error={errors.condition}
         />
@@ -237,7 +149,7 @@ export default function CreateRealEstatePost() {
             const newFeatures = formState.features.includes(feature)
               ? formState.features.filter(f => f !== feature)
               : [...formState.features, feature];
-            handleInputChange('features', newFeatures);
+            handleFormInputChange('features', newFeatures);
           }}
         />
       </Card.Content>
@@ -250,56 +162,28 @@ export default function CreateRealEstatePost() {
 
   return (
     <RequireAuth message="You need to be logged in to create a real estate listing.">
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
         <Header title="Create Real Estate Post" />
         <BasePostForm<RealEstateFormData>
           title="Create Real Estate Post"
           formState={formState}
           errors={errors}
-          onInputChange={handleInputChange}
-          onLocationChange={handleLocationChange}
-          onPickImage={handlePickImage}
-          onRemoveImage={handleRemoveImage}
+          onInputChange={handleFormInputChange}
+          onLocationChange={handleFormLocationChange}
+          onPickImage={handleImagePick}
+          onRemoveImage={handleImageRemove}
           maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
         >
           {renderPropertyFields()}
         </BasePostForm>
         <Button
           mode="contained"
-          onPress={handleSubmit}
-          style={styles.submitButton}
+          onPress={handleFormSubmit}
+          style={formStyles.submitButton}
         >
           Create Post
         </Button>
       </View>
     </RequireAuth>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  card: {
-    marginBottom: 16,
-  },
-  formContainer: {
-    gap: 8,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-  },
-  input: {
-    marginBottom: 4,
-  },
-  submitButton: {
-    margin: 16,
-    height: 50,
-    justifyContent: 'center',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-}); 
+} 

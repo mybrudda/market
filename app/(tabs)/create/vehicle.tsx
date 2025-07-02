@@ -1,18 +1,15 @@
-import { View, StyleSheet, Alert } from 'react-native';
+import { View } from 'react-native';
 import React, { useState } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
-import { router } from 'expo-router';
-import { useAuthStore } from '../../../store/useAuthStore';
 import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
-import { uploadToCloudinary } from '../../../lib/cloudinary';
 import Header from '../../../components/layout/Header';
 import BasePostForm from '../../../components/forms/BasePostForm';
 import FeaturesSection from '../../../components/forms/FeaturesSection';
-import { VehicleFormData, FormErrors, transformVehicleForm, validateVehicleForm, VALIDATION_LIMITS } from '../../../types/forms';
-import * as ImagePicker from 'expo-image-picker';
+import { VehicleFormData, transformVehicleForm, validateVehicleForm, VALIDATION_LIMITS } from '../../../types/forms';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
-import { supabase } from '../../../supabaseClient';
+import { usePostForm } from '../../../lib/hooks/usePostForm';
+import { formStyles } from '../../../constants/formStyles';
 import {
   MAKES,
   YEARS,
@@ -23,18 +20,20 @@ import {
   VEHICLE_CATEGORIES,
 } from '../../../constants/FormOptions';
 
+import { DEFAULT_FORM_VALUES } from '../../../types/forms';
+
 const initialState: VehicleFormData = {
   title: '',
   description: '',
   price: '',
-  currency: 'USD',
+  currency: DEFAULT_FORM_VALUES.CURRENCY,
   images: [],
-  listingType: 'sale',
+  listingType: DEFAULT_FORM_VALUES.LISTING_TYPE,
   category: '',
   location: {
     city: '',
     address: null,
-    country: 'AF'
+    country: DEFAULT_FORM_VALUES.COUNTRY
   },
   make: '',
   model: '',
@@ -48,150 +47,41 @@ const initialState: VehicleFormData = {
 
 export default function CreateVehiclePost() {
   const theme = useTheme();
-  const { user } = useAuthStore();
-  const [loading, setLoading] = useState(false);
   const [formState, setFormState] = useState<VehicleFormData>(initialState);
-  const [errors, setErrors] = useState<FormErrors>({});
 
-  const handlePickImage = async () => {
-    if (formState.images.length >= VALIDATION_LIMITS.IMAGES_PER_POST) {
-      Alert.alert('Limit Reached', `You can only select up to ${VALIDATION_LIMITS.IMAGES_PER_POST} images.`);
-      return;
-    }
+  const {
+    loading,
+    errors,
+    handlePickImage,
+    handleRemoveImage,
+    handleInputChange,
+    handleLocationChange,
+    handleSubmit
+  } = usePostForm<VehicleFormData>({
+    postType: 'vehicle',
+    transformForm: transformVehicleForm,
+    validateForm: validateVehicleForm,
+    successMessage: 'Vehicle post created successfully!'
+  });
 
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.1,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets?.[0] && result.assets[0].base64) {
-        setFormState(prev => ({
-          ...prev,
-          images: [...prev.images, result.assets[0].base64 as string]
-        }));
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-    }
+  const handleImagePick = () => {
+    handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })));
   };
 
-  const handleRemoveImage = (index: number) => {
-    setFormState(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
+  const handleImageRemove = (index: number) => {
+    handleRemoveImage(index, formState.images, (images) => setFormState(prev => ({ ...prev, images })));
   };
 
-  const handleInputChange = (field: keyof VehicleFormData, value: string | string[]) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
+  const handleFormInputChange = (field: keyof VehicleFormData, value: string | string[]) => {
+    handleInputChange(field, value, formState, setFormState);
   };
 
-  const handleLocationChange = (field: keyof VehicleFormData['location'], value: string) => {
-    setFormState(prev => ({
-      ...prev,
-      location: { ...prev.location, [field]: value }
-    }));
-    if (errors[`location.${field}`]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[`location.${field}`];
-        return newErrors;
-      });
-    }
+  const handleFormLocationChange = (field: keyof VehicleFormData['location'], value: string) => {
+    handleLocationChange(field, value, formState, setFormState);
   };
 
-  const validateForm = () => {
-    const newErrors = validateVehicleForm(formState);
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert('Authentication Required', 'Please login to create a post.');
-      router.push('/(auth)/login');
-      return;
-    }
-
-    if (!validateForm()) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // First test if we can connect to Supabase
-      const testQuery = await supabase.from('posts').select('id').limit(1);
-      if (testQuery.error) {
-        throw new Error(`Supabase connection test failed: ${testQuery.error.message}`);
-      }
-
-      const uploadedUrls = await Promise.all(
-        formState.images.map(base64Image => 
-          uploadToCloudinary(`data:image/jpeg;base64,${base64Image}`)
-        )
-      );
-
-      // Log the data we're about to send
-      const postData = {
-        user_id: user?.id,
-        post_type: 'vehicle',
-        title: formState.title,
-        description: formState.description,
-        price: parseFloat(formState.price),
-        currency: formState.currency,
-        listing_type: formState.listingType,
-        category: formState.category,
-        location: {
-          city: formState.location.city,
-          address: formState.location.address || undefined,
-          country: formState.location.country || 'AF'
-        },
-        images: uploadedUrls,
-        details: transformVehicleForm(formState),
-        status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      };
-
-      console.log('Attempting to create post with data:', JSON.stringify(postData, null, 2));
-
-      const { data, error } = await supabase
-        .from('posts')
-        .insert([postData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-      
-      Alert.alert('Success', 'Vehicle post created successfully!');
-      router.back();
-    } catch (error) {
-      console.error('Error creating post:', error);
-      // More detailed error message
-      Alert.alert(
-        'Error', 
-        `Failed to create post. ${error instanceof Error ? error.message : 'Please check your network connection and try again.'}`
-      );
-    } finally {
-      setLoading(false);
-    }
+  const handleFormSubmit = () => {
+    handleSubmit(formState);
   };
 
   if (loading) {
@@ -199,14 +89,14 @@ export default function CreateVehiclePost() {
   }
 
   const renderVehicleFields = () => (
-    <Card style={styles.card}>
-      <Card.Content style={styles.formContainer}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>Vehicle Details</Text>
+    <Card style={formStyles.card}>
+      <Card.Content style={formStyles.formContainer}>
+        <Text variant="titleMedium" style={formStyles.sectionTitle}>Vehicle Details</Text>
         
         <DropdownComponent
           data={VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }))}
           value={formState.category}
-          onChange={(value: string | null) => handleInputChange('category', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('category', value || '')}
           placeholder="Vehicle Category"
           error={errors.category}
         />
@@ -214,7 +104,7 @@ export default function CreateVehiclePost() {
         <DropdownComponent
           data={MAKES.map(make => ({ label: make, value: make }))}
           value={formState.make}
-          onChange={(value: string | null) => handleInputChange('make', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('make', value || '')}
           placeholder="Make"
           error={errors.make}
         />
@@ -222,15 +112,15 @@ export default function CreateVehiclePost() {
         <TextInput
           label="Model"
           value={formState.model}
-          onChangeText={text => handleInputChange('model', text)}
+          onChangeText={text => handleFormInputChange('model', text)}
           error={!!errors.model}
-          style={styles.input}
+          style={formStyles.input}
         />
 
         <DropdownComponent
           data={YEARS.map(year => ({ label: year, value: year }))}
           value={formState.year}
-          onChange={(value: string | null) => handleInputChange('year', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('year', value || '')}
           placeholder="Year"
           error={errors.year}
         />
@@ -238,16 +128,16 @@ export default function CreateVehiclePost() {
         <TextInput
           label="Mileage (km)"
           value={formState.mileage}
-          onChangeText={text => handleInputChange('mileage', text)}
+          onChangeText={text => handleFormInputChange('mileage', text)}
           keyboardType="numeric"
           error={!!errors.mileage}
-          style={styles.input}
+          style={formStyles.input}
         />
 
         <DropdownComponent
           data={FUEL_TYPES.map(type => ({ label: type, value: type }))}
           value={formState.fuelType}
-          onChange={(value: string | null) => handleInputChange('fuelType', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('fuelType', value || '')}
           placeholder="Fuel Type"
           error={errors.fuelType}
         />
@@ -255,7 +145,7 @@ export default function CreateVehiclePost() {
         <DropdownComponent
           data={TRANSMISSIONS.map(trans => ({ label: trans, value: trans }))}
           value={formState.transmission}
-          onChange={(value: string | null) => handleInputChange('transmission', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('transmission', value || '')}
           placeholder="Transmission"
           error={errors.transmission}
         />
@@ -263,7 +153,7 @@ export default function CreateVehiclePost() {
         <DropdownComponent
           data={VEHICLE_CONDITION.map(cond => ({ label: cond, value: cond }))}
           value={formState.condition}
-          onChange={(value: string | null) => handleInputChange('condition', value || '')}
+          onChange={(value: string | null) => handleFormInputChange('condition', value || '')}
           placeholder="Condition"
           error={errors.condition}
         />
@@ -275,7 +165,7 @@ export default function CreateVehiclePost() {
             const newFeatures = formState.features.includes(feature)
               ? formState.features.filter(f => f !== feature)
               : [...formState.features, feature];
-            handleInputChange('features', newFeatures);
+            handleFormInputChange('features', newFeatures);
           }}
         />
       </Card.Content>
@@ -284,53 +174,28 @@ export default function CreateVehiclePost() {
 
   return (
     <RequireAuth message="You need to be logged in to create a vehicle listing.">
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
         <Header title="Create Vehicle Post" />
         <BasePostForm<VehicleFormData>
           title="Create Vehicle Post"
           formState={formState}
           errors={errors}
-          onInputChange={handleInputChange}
-          onLocationChange={handleLocationChange}
-          onPickImage={handlePickImage}
-          onRemoveImage={handleRemoveImage}
+          onInputChange={handleFormInputChange}
+          onLocationChange={handleFormLocationChange}
+          onPickImage={handleImagePick}
+          onRemoveImage={handleImageRemove}
           maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
         >
           {renderVehicleFields()}
         </BasePostForm>
         <Button
           mode="contained"
-          onPress={handleSubmit}
-          style={styles.submitButton}
+          onPress={handleFormSubmit}
+          style={formStyles.submitButton}
         >
           Create Post
         </Button>
       </View>
     </RequireAuth>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 16,
-  },
-  card: {
-    marginBottom: 16,
-  },
-  formContainer: {
-    gap: 8,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-  },
-  input: {
-    marginBottom: 4,
-  },
-  submitButton: {
-    margin: 16,
-    height: 50,
-    justifyContent: 'center',
-  },
-}); 
+} 

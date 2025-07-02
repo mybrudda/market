@@ -32,6 +32,18 @@ export default function ImagePickerSection({
         style={styles.scrollView}
       >
         <View style={styles.imageContainer}>
+          {images.length < maxImages && (
+            <TouchableOpacity 
+              style={[
+                styles.addButton,
+                { backgroundColor: theme.colors.surfaceVariant }
+              ]} 
+              onPress={onPickImage}
+            >
+              <Text>Add Image</Text>
+            </TouchableOpacity>
+          )}
+          
           {images.map((base64Image, index) => (
             <View key={index} style={styles.imageWrapper}>
               <View style={styles.imageContent}>
@@ -51,17 +63,6 @@ export default function ImagePickerSection({
               />
             </View>
           ))}
-          {images.length < maxImages && (
-            <TouchableOpacity 
-              style={[
-                styles.addButton,
-                { backgroundColor: theme.colors.surfaceVariant }
-              ]} 
-              onPress={onPickImage}
-            >
-              <Text>Add Image</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </ScrollView>
     </View>
