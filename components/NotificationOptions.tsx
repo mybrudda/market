@@ -88,7 +88,7 @@ export default function NotificationOptions() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodyMedium" style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
           Loading notification options...
         </Text>
       </View>
@@ -99,7 +99,7 @@ export default function NotificationOptions() {
     return (
       <View style={styles.errorContainer}>
         <MaterialCommunityIcons name="alert-circle-outline" size={48} color={theme.colors.onSurfaceVariant} />
-        <Text style={[styles.errorText, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodyMedium" style={[styles.errorText, { color: theme.colors.onSurfaceVariant }]}>
           Failed to load notification options
         </Text>
         <Button onPress={loadSettings} mode="contained" style={styles.retryButton}>
@@ -116,8 +116,8 @@ export default function NotificationOptions() {
         <View style={styles.settingsContent}>
           <View style={styles.settingRow}>
             <View style={styles.settingLeftContent}>
-              <MaterialCommunityIcons name="message-text-outline" size={28} color={theme.colors.primary} />
-              <Text variant="bodyLarge" style={[styles.settingText, { color: theme.colors.onSurface }]}>
+              <MaterialCommunityIcons name="message-text-outline" size={20} color={theme.colors.primary} />
+              <Text variant="bodyMedium" style={[styles.settingText, { color: theme.colors.onSurface }]}>
                 Message Notifications
               </Text>
             </View>
@@ -132,8 +132,8 @@ export default function NotificationOptions() {
           <Divider />
           <View style={styles.settingRow}>
             <View style={styles.settingLeftContent}>
-              <MaterialCommunityIcons name="information-outline" size={28} color={theme.colors.onSurfaceVariant} />
-              <Text variant="bodyMedium" style={[styles.settingDescription, { color: theme.colors.onSurfaceVariant }]}>
+              <MaterialCommunityIcons name="information-outline" size={20} color={theme.colors.onSurfaceVariant} />
+              <Text variant="bodySmall" style={[styles.settingDescription, { color: theme.colors.onSurfaceVariant }]}>
                 Receive notifications when someone sends you a message
               </Text>
             </View>
@@ -157,7 +157,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
   },
   errorContainer: {
     flex: 1,
@@ -168,7 +167,6 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 12,
     marginBottom: 20,
-    fontSize: 16,
     textAlign: 'center',
   },
   retryButton: {
@@ -188,7 +186,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   settingLeftContent: {
     flexDirection: 'row',

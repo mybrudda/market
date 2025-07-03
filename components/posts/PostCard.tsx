@@ -37,20 +37,20 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
     <View style={styles.detailsContainer}>
       <View style={styles.detailRow}>
         <MaterialCommunityIcons name="car" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodyMedium" style={styles.detailValue}>
+        <Text variant="bodySmall" style={styles.detailValue}>
           {details.make} {details.model} ({details.year})
         </Text>
       </View>
       <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="speedometer" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodyMedium" style={styles.detailValue}>
-          {details.mileage.value.toLocaleString()} {details.mileage.unit}
+        <MaterialCommunityIcons name="gas-station" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodySmall" style={styles.detailValue}>
+          {details.fuel_type}
         </Text>
       </View>
       <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="gas-station" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodyMedium" style={styles.detailValue}>
-          {details.fuel_type}
+        <MaterialCommunityIcons name="speedometer" size={16} color={theme.colors.onSurfaceVariant} />
+        <Text variant="bodySmall" style={styles.detailValue}>
+          {details.mileage.value.toLocaleString()} {details.mileage.unit}
         </Text>
       </View>
     </View>
@@ -60,19 +60,19 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
     <View style={styles.detailsContainer}>
       <View style={styles.detailRow}>
         <MaterialCommunityIcons name="home" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodyMedium" style={styles.detailValue}>
+        <Text variant="bodySmall" style={styles.detailValue}>
           {post.category}
         </Text>
       </View>
       <View style={styles.detailRow}>
         <MaterialCommunityIcons name="bed" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodyMedium" style={styles.detailValue}>
+        <Text variant="bodySmall" style={styles.detailValue}>
           {details.rooms} rooms, {details.bathrooms} baths
         </Text>
       </View>
       <View style={styles.detailRow}>
         <MaterialCommunityIcons name="ruler-square" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodyMedium" style={styles.detailValue}>
+        <Text variant="bodySmall" style={styles.detailValue}>
           {details.size.value} {details.size.unit}
         </Text>
       </View>
@@ -116,11 +116,25 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
                   {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
                 </Chip>
               </View>
+              
+              {/* Heart Icon for Favorites */}
+              <View style={styles.heartIconContainer}>
+                <IconButton
+                  icon="heart-outline"
+                  size={20}
+                  iconColor={theme.colors.primary}
+                  style={[styles.heartIcon, { backgroundColor: theme.colors.primaryContainer }]}
+                  onPress={() => {
+                    // TODO: Implement save/favorite functionality
+                    console.log('Save post:', post.id);
+                  }}
+                />
+              </View>
             </View>
 
             <Card.Content style={styles.cardContent}>
               <Text 
-                variant="titleLarge" 
+                variant="titleMedium" 
                 numberOfLines={1} 
                 ellipsizeMode="tail"
                 style={styles.title}
@@ -137,7 +151,7 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
                 <View style={styles.locationContainer}>
                   <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
                   <Text 
-                    variant="bodyMedium" 
+                    variant="bodySmall" 
                     numberOfLines={1}
                     style={styles.detailValue}
                   >
@@ -162,12 +176,12 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
                 visible={menuVisible}
                 onDismiss={closeMenu}
                 anchor={
-                  <IconButton
-                    icon="dots-vertical"
-                    onPress={openMenu}
-                    style={[styles.menuButton, { backgroundColor: theme.colors.surfaceVariant }]}
-                    iconColor={theme.colors.onSurfaceVariant}
-                  />
+                                  <IconButton
+                  icon="dots-vertical"
+                  onPress={openMenu}
+                  style={[styles.menuButton, { backgroundColor: theme.colors.primaryContainer }]}
+                  iconColor={theme.colors.primary}
+                />
                 }
               >
                 <Menu.Item 
@@ -262,5 +276,15 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     margin: 4,
+  },
+  heartIconContainer: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 3,
+  },
+  heartIcon: {
+    borderRadius: 20,
+    margin: 0,
   },
 });

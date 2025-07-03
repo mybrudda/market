@@ -13,7 +13,7 @@ export default function CreateScreen() {
       
       
       <View style={styles.content}>
-        <Text variant="headlineMedium" style={[
+        <Text variant="titleLarge" style={[
           styles.title,
           { color: theme.colors.onSecondaryContainer }
         ]}>
@@ -30,14 +30,14 @@ export default function CreateScreen() {
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
                 <MaterialCommunityIcons 
                   name="car" 
-                  size={32} 
+                  size={24} 
                   color={theme.colors.primary}
                 />
               </View>
-              <Text variant="titleLarge" style={styles.cardTitle}>
+              <Text variant="titleMedium" style={styles.cardTitle}>
                 Vehicle
               </Text>
-              <Text variant="bodyMedium" style={[styles.cardDescription, { color: theme.colors.onSurfaceVariant }]}>
+              <Text variant="bodySmall" style={[styles.cardDescription, { color: theme.colors.onSurfaceVariant }]}>
                 Post cars, motorcycles, and other vehicles for sale or rent
               </Text>
             </Card.Content>
@@ -52,14 +52,14 @@ export default function CreateScreen() {
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
                 <MaterialCommunityIcons 
                   name="home" 
-                  size={32} 
+                  size={24} 
                   color={theme.colors.primary}
                 />
               </View>
-              <Text variant="titleLarge" style={styles.cardTitle}>
+              <Text variant="titleMedium" style={styles.cardTitle}>
                 Real Estate
               </Text>
-              <Text variant="bodyMedium" style={[styles.cardDescription, { color: theme.colors.onSurfaceVariant }]}>
+              <Text variant="bodySmall" style={[styles.cardDescription, { color: theme.colors.onSurfaceVariant }]}>
                 List properties for sale or rent, including houses and apartments
               </Text>
             </Card.Content>
@@ -95,19 +95,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardContent: {
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   cardTitle: {
-    marginBottom: 8,
+    marginBottom: 6,
     fontWeight: '500',
   },
   cardDescription: {

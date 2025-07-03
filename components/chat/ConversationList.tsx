@@ -64,7 +64,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     if (conversations.length === 0) {
         return (
             <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
-                <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
                     No conversations yet
                 </Text>
             </View>
@@ -106,12 +106,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     />
                     <View style={styles.conversationInfo}>
                         <View style={styles.headerRow}>
-                            <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                            <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: 'bold' }}>
                                 {item.other_user_full_name || item.other_user_name}
                                 {item.other_user_is_verified && (
                                     <MaterialCommunityIcons
                                         name="check-decagram"
-                                        size={16}
+                                        size={14}
                                         color={theme.colors.primary}
                                         style={styles.verifiedIcon}
                                     />
@@ -122,7 +122,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                             </Text>
                         </View>
                         <Text
-                            variant="bodyMedium"
+                            variant="bodySmall"
                             style={{ 
                                 color: isPostActive ? theme.colors.onSurfaceVariant : theme.colors.error,
                                 fontStyle: isPostActive ? 'normal' : 'italic'
@@ -133,7 +133,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         </Text>
                         <View style={styles.messageContainer}>
                             <Text
-                                variant="bodyMedium"
+                                variant="bodySmall"
                                 numberOfLines={1}
                                 style={[
                                     styles.lastMessage,
@@ -149,15 +149,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                             </Text>
                             {!isDeleted && unreadCount > 0 && (
                                 <Badge
-                                    size={24}
+                                    size={20}
                                     style={[
                                         styles.badge,
                                         { 
                                             backgroundColor: '#EF4444',
                                             color: '#FFFFFF',
-                                            fontSize: 14,
-                                            
-                                          
                                         }
                                     ]}
                                 >
@@ -183,7 +180,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         size={24}
                         color={theme.colors.onError}
                     />
-                    <Text style={[styles.backTextWhite, { color: theme.colors.onError }]}>
+                    <Text variant="bodySmall" style={[styles.backTextWhite, { color: theme.colors.onError }]}>
                         Delete
                     </Text>
                 </View>
@@ -227,27 +224,29 @@ const styles = StyleSheet.create({
     },
     conversationItem: {
         marginBottom: 1,
-        minHeight: 100,
+        minHeight: 90,
     },
     touchableContent: {
         flexDirection: 'row',
-        padding: 15,
+        padding: 12,
     },
     postImage: {
-        width: 60,
-        height: 60,
+        width: 65,
+        height: 65,
         borderRadius: 8,
-        marginRight: 12,
+        marginRight: 10,
         backgroundColor: '#f0f0f0',
     },
     conversationInfo: {
         flex: 1,
+        height: 65,
+        justifyContent: 'space-between',
     },
     headerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 3,
     },
     verifiedIcon: {
         marginLeft: 4,
@@ -256,20 +255,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 4,
+        marginTop: 3,
     },
     lastMessage: {
         flex: 1,
-        marginRight: 8,
+        marginRight: 6,
     },
     rowBack: {
         alignItems: 'center',
         flex: 1,
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        paddingLeft: 15,
+        paddingLeft: 12,
         marginBottom: 1,
-        minHeight: 100,
+        minHeight: 90,
     },
     backRightBtn: {
         alignItems: 'center',
@@ -285,11 +284,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     backTextWhite: {
-        fontSize: 12,
         fontWeight: '500',
         marginTop: 4,
     },
     badge: {
-        marginLeft: 8,
+        marginLeft: 6,
     },
 }); 

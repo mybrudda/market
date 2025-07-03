@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Image, Pressable } from "react-native";
+import { StyleSheet, View, Image, Pressable, TouchableOpacity } from "react-native";
 import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -173,117 +173,114 @@ export default function ProfileScreen() {
         {/* Navigation Options */}
         <View style={[styles.navigationContainer, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.navigationContent}>
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={() => router.push("/profile/my-posts" as any)}
-              contentStyle={styles.buttonContent}
               style={styles.navigationButton}
+              activeOpacity={0.7}
             >
               <View style={styles.buttonInner}>
                 <View style={styles.buttonLeftContent}>
-                  <MaterialCommunityIcons name="post" size={28} color={theme.colors.primary} />
-                  <Text variant="bodyLarge" style={styles.buttonText}>My Posts</Text>
+                  <MaterialCommunityIcons name="post" size={20} color={theme.colors.primary} />
+                  <Text variant="bodyMedium" style={styles.buttonText}>My Posts</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
               </View>
-            </Button>
+            </TouchableOpacity>
             <Divider />
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={() => router.push("/profile/saved-posts" as any)}
-              contentStyle={styles.buttonContent}
               style={styles.navigationButton}
+              activeOpacity={0.7}
             >
               <View style={styles.buttonInner}>
                 <View style={styles.buttonLeftContent}>
-                  <MaterialCommunityIcons name="bookmark" size={28} color={theme.colors.primary} />
-                  <Text variant="bodyLarge" style={styles.buttonText}>Saved Posts</Text>
+                  <MaterialCommunityIcons name="bookmark" size={20} color={theme.colors.primary} />
+                  <Text variant="bodyMedium" style={styles.buttonText}>Saved Posts</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
               </View>
-            </Button>
+            </TouchableOpacity>
             <Divider />
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={() => router.push("/profile/BlockedUsers" as any)}
-              contentStyle={styles.buttonContent}
               style={styles.navigationButton}
+              activeOpacity={0.7}
             >
               <View style={styles.buttonInner}>
                 <View style={styles.buttonLeftContent}>
-                  <MaterialCommunityIcons name="account-remove" size={28} color={theme.colors.primary} />
-                  <Text variant="bodyLarge" style={styles.buttonText}>Blocked Users</Text>
+                  <MaterialCommunityIcons name="account-remove" size={20} color={theme.colors.primary} />
+                  <Text variant="bodyMedium" style={styles.buttonText}>Blocked Users</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
               </View>
-            </Button>
+            </TouchableOpacity>
             <Divider />
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={() => router.push("/(tabs)/profile/contact-support" as any)}
-              contentStyle={styles.buttonContent}
               style={styles.navigationButton}
+              activeOpacity={0.7}
             >
               <View style={styles.buttonInner}>
                 <View style={styles.buttonLeftContent}>
-                  <MaterialCommunityIcons name="headset" size={28} color={theme.colors.primary} />
-                  <Text variant="bodyLarge" style={styles.buttonText}>Contact Support</Text>
+                  <MaterialCommunityIcons name="headset" size={20} color={theme.colors.primary} />
+                  <Text variant="bodyMedium" style={styles.buttonText}>Contact Support</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
               </View>
-            </Button>
+            </TouchableOpacity>
             <Divider />
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={() => router.push("/(tabs)/profile/notification-settings" as any)}
-              contentStyle={styles.buttonContent}
               style={styles.navigationButton}
+              activeOpacity={0.7}
             >
               <View style={styles.buttonInner}>
                 <View style={styles.buttonLeftContent}>
-                  <MaterialCommunityIcons name="bell" size={28} color={theme.colors.primary} />
-                  <Text variant="bodyLarge" style={styles.buttonText}>Notification Settings</Text>
+                  <MaterialCommunityIcons name="bell" size={20} color={theme.colors.primary} />
+                  <Text variant="bodyMedium" style={styles.buttonText}>Notification Settings</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
               </View>
-            </Button>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Bottom Actions */}
         <View style={[styles.bottomActionsContainer, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.bottomActionsContent}>
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={toggleTheme}
-              contentStyle={styles.bottomActionButtonContent}
               style={styles.bottomActionButton}
+              activeOpacity={0.7}
             >
-              <View style={styles.bottomActionButtonInner}>
-                <MaterialCommunityIcons 
-                  name={isDarkMode ? "weather-sunny" : "weather-night"} 
-                  size={24} 
-                  color={theme.colors.primary} 
-                />
-                <Text variant="bodyLarge" style={styles.buttonText}>
-                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-                </Text>
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons 
+                    name={isDarkMode ? "weather-sunny" : "weather-night"} 
+                    size={20} 
+                    color={theme.colors.primary} 
+                  />
+                  <Text variant="bodyMedium" style={styles.buttonText}>
+                    {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                  </Text>
+                </View>
               </View>
-            </Button>
+            </TouchableOpacity>
             <Divider />
-            <Button
-              mode="text"
+            <TouchableOpacity
               onPress={handleSignOut}
-              contentStyle={styles.bottomActionButtonContent}
               style={styles.bottomActionButton}
+              activeOpacity={0.7}
             >
-              <View style={styles.bottomActionButtonInner}>
-                <MaterialCommunityIcons name="logout" size={24} color={theme.colors.error} />
-                <Text variant="bodyLarge" style={[styles.buttonText, { color: theme.colors.error }]}>
-                  Sign Out
-                </Text>
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="logout" size={20} color={theme.colors.error} />
+                  <Text variant="bodyMedium" style={[styles.buttonText, { color: theme.colors.error }]}>
+                    Sign Out
+                  </Text>
+                </View>
               </View>
-            </Button>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -340,17 +337,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   navigationButton: {
-    height: 60,
+    height: 50,
     marginHorizontal: 0,
     borderRadius: 0,
     justifyContent: 'flex-start',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    height: '100%',
-    justifyContent: 'flex-start',
   },
   buttonInner: {
     flexDirection: 'row',
@@ -381,23 +372,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   bottomActionButton: {
-    height: 56,
+    height: 48,
     marginHorizontal: 0,
     borderRadius: 0,
     justifyContent: 'flex-start',
-  },
-  bottomActionButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    height: '100%',
-    justifyContent: 'flex-start',
-  },
-  bottomActionButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    justifyContent: 'flex-start',
   },
   buttonLabel: {
     fontSize: 16,

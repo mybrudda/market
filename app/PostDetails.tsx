@@ -253,11 +253,11 @@ export default function PostDetails() {
           <View style={styles.content}>
             {/* Header Section */}
             <View style={styles.header}>
-              <Text variant="headlineMedium" style={styles.title}>
-                {post.title}
-              </Text>
+                          <Text variant="titleLarge" style={styles.title}>
+              {post.title}
+            </Text>
               <View style={styles.priceContainer}>
-                <Text variant="headlineLarge" style={{ color: theme.colors.primary }}>
+                <Text variant="titleLarge" style={{ color: theme.colors.primary }}>
                   {formatPrice(post.price, post.currency)}
                 </Text>
                 <Chip 
@@ -278,12 +278,12 @@ export default function PostDetails() {
                   size={20} 
                   color={theme.colors.onSurfaceVariant} 
                 />
-                <Text variant="bodyLarge" style={styles.metadataText}>
+                <Text variant="bodyMedium" style={styles.metadataText}>
                   {post.location.city}
                   {post.location.address && `, ${post.location.address}`}
                 </Text>
               </View>
-              <Text variant="bodyMedium" style={styles.date}>
+              <Text variant="bodySmall" style={styles.date}>
                 Posted on {formatDate(post.created_at)}
               </Text>
             </View>
@@ -293,7 +293,7 @@ export default function PostDetails() {
             {/* Dynamic Details Section */}
             {post.post_type === 'vehicle' ? (
               <View style={styles.detailsSection}>
-                <Text variant="titleLarge" style={styles.sectionTitle}>
+                <Text variant="titleMedium" style={styles.sectionTitle}>
                   Vehicle Details
                 </Text>
                 <View style={styles.detailsGrid}>
@@ -349,7 +349,7 @@ export default function PostDetails() {
               </View>
             ) : (
               <View style={styles.detailsSection}>
-                <Text variant="titleLarge" style={styles.sectionTitle}>
+                <Text variant="titleMedium" style={styles.sectionTitle}>
                   Property Details
                 </Text>
                 <View style={styles.detailsGrid}>
@@ -409,10 +409,10 @@ export default function PostDetails() {
 
             {/* Description */}
             <View style={styles.descriptionSection}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Description
-              </Text>
-              <Text variant="bodyLarge" style={styles.description}>
+                              <Text variant="titleMedium" style={styles.sectionTitle}>
+                  Description
+                </Text>
+              <Text variant="bodyMedium" style={styles.description}>
                 {post.description}
               </Text>
             </View>
@@ -434,7 +434,7 @@ export default function PostDetails() {
                     )}
                     <View>
                       <View style={styles.sellerNameRow}>
-                        <Text variant="titleMedium">
+                        <Text variant="titleSmall">
                           {post.user.full_name || post.user.username}
                         </Text>
                         {post.user.is_verified && (
@@ -446,7 +446,7 @@ export default function PostDetails() {
                           />
                         )}
                       </View>
-                      <Text variant="bodyMedium" style={styles.userType}>
+                      <Text variant="bodySmall" style={styles.userType}>
                         {post.user.user_type.charAt(0).toUpperCase() + post.user.user_type.slice(1)}
                       </Text>
                     </View>
@@ -492,9 +492,9 @@ const DetailItem = ({ icon, label, value }: { icon: IconName; label: string; val
     <View style={styles.detailItem}>
       <View style={styles.detailHeader}>
         <MaterialCommunityIcons name={icon} size={20} color={theme.colors.primary} />
-        <Text variant="bodyMedium" style={styles.detailLabel}>{label}</Text>
+        <Text variant="bodySmall" style={styles.detailLabel}>{label}</Text>
       </View>
-      <Text variant="bodyLarge" style={styles.detailValue}>{value}</Text>
+      <Text variant="bodyMedium" style={styles.detailValue}>{value}</Text>
     </View>
   );
 };
