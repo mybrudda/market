@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuthStore } from '../../store/useAuthStore';
 import { uploadToCloudinary } from '../cloudinary';
 import { supabase } from '../../supabaseClient';
@@ -25,6 +26,29 @@ const ERROR_MESSAGES = {
   POST_CREATION_FAILED: 'Failed to create post. Please check your network connection and try again.',
   SUPABASE_CONNECTION_FAILED: (error: string) => `Database connection failed: ${error}`,
 } as const;
+
+const resizeImage = async (base64Image: string): Promise<string> => {
+  try {
+    const manipResult = await ImageManipulator.manipulateAsync(
+      `data:image/jpeg;base64,${base64Image}`,
+      [{ resize: { width: 800 } }], // Only specify width, height will be calculated automatically
+      {
+        compress: 0.5,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      }
+    );
+
+    if (manipResult.base64) {
+      return manipResult.base64;
+    } else {
+      throw new Error('Failed to get base64 from manipulated image');
+    }
+  } catch (error) {
+    console.error('Error resizing image:', error);
+    throw new Error('Failed to resize image');
+  }
+};
 
 export function usePostForm<T extends BaseFormData>({
   postType,
@@ -55,7 +79,9 @@ export function usePostForm<T extends BaseFormData>({
       });
 
       if (!result.canceled && result.assets?.[0] && result.assets[0].base64) {
-        const newImages = [...images, result.assets[0].base64 as string];
+        // Resize the image to 800x600 before adding it to the form
+        const resizedBase64 = await resizeImage(result.assets[0].base64 as string);
+        const newImages = [...images, resizedBase64];
         setImages(newImages);
         
         // Clear image error if images are now valid
@@ -68,7 +94,7 @@ export function usePostForm<T extends BaseFormData>({
         }
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('Error picking or resizing image:', error);
       Alert.alert('Error', ERROR_MESSAGES.IMAGE_PICK_FAILED);
     }
   };

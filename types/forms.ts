@@ -25,7 +25,7 @@ export const DEFAULT_FORM_VALUES = {
   CURRENCY: 'USD',
   LISTING_TYPE: 'sale' as const,
   COUNTRY: 'AF',
-  IMAGE_QUALITY: 0.1,
+  IMAGE_QUALITY: 1,
   IMAGE_ASPECT: [4, 3] as const,
   POST_EXPIRY_DAYS: 30,
 } as const;
