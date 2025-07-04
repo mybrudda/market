@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Pressable, Alert } from 'react-native';
 import { Card, Text, Chip, useTheme, Menu, IconButton, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import { Post, VehicleDetails, RealEstateDetails } from '../../types/database';
 import { formatPrice } from '../../utils/format';
 import { router } from 'expo-router';
+import { savedPostsService } from '../../lib/savedPostsService';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -14,12 +16,16 @@ interface PostCardProps {
   post: Post;
   showMenu?: boolean;
   onDelete?: (postId: string) => void;
+  onUnsave?: (postId: string) => void;
 }
 
-export default function PostCard({ post, showMenu = false, onDelete }: PostCardProps) {
+export default function PostCard({ post, showMenu = false, onDelete, onUnsave }: PostCardProps) {
   const theme = useTheme();
+  const { user } = useAuthStore();
   const [imageError, setImageError] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
@@ -27,6 +33,61 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
   const handleDelete = () => {
     closeMenu();
     onDelete?.(post.id);
+  };
+
+  // Check if post is saved when component mounts
+  useEffect(() => {
+    if (user) {
+      checkSavedStatus();
+    }
+  }, [user, post.id]);
+
+  const checkSavedStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const saved = await savedPostsService.isPostSaved(post.id, user.id);
+      setIsSaved(saved);
+    } catch (error) {
+      console.error('Error checking saved status:', error);
+    }
+  };
+
+  const handleSavePost = async () => {
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to save posts');
+      return;
+    }
+
+    // Prevent users from saving their own posts
+    if (user.id === post.user_id) {
+      Alert.alert('Cannot Save', 'You cannot save your own posts');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (isSaved) {
+        await savedPostsService.unsavePost(post.id, user.id);
+        setIsSaved(false);
+        // Call onUnsave callback if provided
+        onUnsave?.(post.id);
+        // Show success message for unsave (only if not in saved posts screen)
+        if (!onUnsave) {
+          Alert.alert('Success', 'Post removed from saved posts');
+        }
+      } else {
+        await savedPostsService.savePost(post.id, user.id);
+        setIsSaved(true);
+        // Show success message for save
+        Alert.alert('Success', 'Post added to saved posts');
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving post:', error);
+      Alert.alert('Error', 'Failed to save post. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -120,14 +181,13 @@ export default function PostCard({ post, showMenu = false, onDelete }: PostCardP
               {/* Heart Icon for Favorites */}
               <View style={styles.heartIconContainer}>
                 <IconButton
-                  icon="heart-outline"
+                  icon={isSaved ? "heart" : "heart-outline"}
                   size={20}
-                  iconColor={theme.colors.primary}
+                  iconColor={isSaved ? "rgb(168, 96, 146)" : theme.colors.primary}
                   style={[styles.heartIcon, { backgroundColor: theme.colors.primaryContainer }]}
-                  onPress={() => {
-                    // TODO: Implement save/favorite functionality
-                    console.log('Save post:', post.id);
-                  }}
+                  onPress={handleSavePost}
+                  disabled={saving || user?.id === post.user_id}
+                  loading={saving}
                 />
               </View>
             </View>

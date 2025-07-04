@@ -1,6 +1,6 @@
 import { View, StyleSheet, ScrollView, Dimensions, Linking, Image, Alert } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip, Portal, Dialog } from 'react-native-paper';
+import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip, Portal, Dialog, IconButton } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../supabaseClient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import Header from '../components/layout/Header';
 import { chatService } from '../lib/chatService';
 import { useAuthStore } from '../store/useAuthStore';
 import { Image as ExpoImage } from 'expo-image';
+import { savedPostsService } from '../lib/savedPostsService';
 
 interface VehicleDetails {
   make: string;
@@ -91,6 +92,8 @@ export default function PostDetails() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const width = Dimensions.get('window').width;
   const { user } = useAuthStore();
 
@@ -108,6 +111,55 @@ export default function PostDetails() {
       setLoading(false);
     }
   }, [params.post]);
+
+  // Check if post is saved when component mounts
+  useEffect(() => {
+    if (user && post) {
+      checkSavedStatus();
+    }
+  }, [user, post]);
+
+  const checkSavedStatus = async () => {
+    if (!user || !post) return;
+    
+    try {
+      const saved = await savedPostsService.isPostSaved(post.id, user.id);
+      setIsSaved(saved);
+    } catch (error) {
+      console.error('Error checking saved status:', error);
+    }
+  };
+
+  const handleSavePost = async () => {
+    if (!user) {
+      setShowAuthDialog(true);
+      return;
+    }
+
+    if (!post) return;
+
+    // Prevent users from saving their own posts
+    if (user.id === post.user_id) {
+      Alert.alert('Cannot Save', 'You cannot save your own posts');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (isSaved) {
+        await savedPostsService.unsavePost(post.id, user.id);
+        setIsSaved(false);
+      } else {
+        await savedPostsService.savePost(post.id, user.id);
+        setIsSaved(true);
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving post:', error);
+      Alert.alert('Error', 'Failed to save post. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -251,24 +303,34 @@ export default function PostDetails() {
           </View>
 
           <View style={styles.content}>
-            {/* Header Section */}
-            <View style={styles.header}>
-                          <Text variant="titleLarge" style={styles.title}>
-              {post.title}
-            </Text>
-              <View style={styles.priceContainer}>
-                <Text variant="titleLarge" style={{ color: theme.colors.primary }}>
-                  {formatPrice(post.price, post.currency)}
-                </Text>
-                <Chip 
-                  icon={post.post_type === 'vehicle' ? 'car' : 'home'}
-                  mode="flat"
-                  style={{ backgroundColor: theme.colors.primaryContainer }}
-                >
-                  {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-                </Chip>
-              </View>
+                      {/* Header Section */}
+          <View style={styles.header}>
+            <View style={styles.titleRow}>
+              <Text variant="titleLarge" style={styles.title}>
+                {post.title}
+              </Text>
+              <IconButton
+                icon={isSaved ? "heart" : "heart-outline"}
+                size={24}
+                iconColor={isSaved ? theme.colors.error : theme.colors.primary}
+                onPress={handleSavePost}
+                disabled={saving || user?.id === post.user_id}
+                loading={saving}
+              />
             </View>
+            <View style={styles.priceContainer}>
+              <Text variant="titleLarge" style={{ color: theme.colors.primary }}>
+                {formatPrice(post.price, post.currency)}
+              </Text>
+              <Chip 
+                icon={post.post_type === 'vehicle' ? 'car' : 'home'}
+                mode="flat"
+                style={{ backgroundColor: theme.colors.primaryContainer }}
+              >
+                {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
+              </Chip>
+            </View>
+          </View>
 
             {/* Location and Date */}
             <View style={styles.metadata}>
@@ -536,8 +598,15 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
   },
-  title: {
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
+  },
+  title: {
+    flex: 1,
+    marginRight: 8,
   },
   metadata: {
     marginBottom: 16,
