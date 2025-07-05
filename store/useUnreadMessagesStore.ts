@@ -7,6 +7,7 @@ interface UnreadMessagesState {
   setUnreadCount: (conversationId: string, count: number) => void;
   incrementUnreadCount: (conversationId: string) => void;
   clearUnreadCount: (conversationId: string) => void;
+  clearAllUnreadCounts: () => void;
   fetchUnreadCounts: () => Promise<void>;
   isUpdating: boolean;
 }
@@ -104,6 +105,13 @@ export const useUnreadMessagesStore = create<UnreadMessagesState>((set, get) => 
         unreadCounts: newUnreadCounts,
         totalUnread: Object.values(newUnreadCounts).reduce((a, b) => a + b, 0),
       };
+    });
+  },
+
+  clearAllUnreadCounts: () => {
+    set({
+      unreadCounts: {},
+      totalUnread: 0,
     });
   },
 

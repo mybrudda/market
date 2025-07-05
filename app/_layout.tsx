@@ -14,6 +14,7 @@ import { View, useColorScheme } from "react-native";
 import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { pushNotificationService } from '../lib/pushNotificationService';
 import { useAuthStore } from '../store/useAuthStore';
+import { useUnreadMessagesStore } from '../store/useUnreadMessagesStore';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -21,8 +22,7 @@ export {
 } from "expo-router";
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: "(tabs)",
+  initialRouteName: "(tabs)", // Default route when app loads
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -59,8 +59,9 @@ function RootLayoutNav() {
   const user = useAuthStore((state) => state.user);
   const isAuthLoading = useAuthStore((state) => state.loading);
   const isAuthInitialized = useAuthStore((state) => state.initialized);
+  const { fetchUnreadCounts } = useUnreadMessagesStore();
 
-  // Sync with system theme on first launch
+  // Sync theme with system preference on first launch
   useEffect(() => {
     const userHasSetTheme = useThemeStore.getState().isDarkMode !== undefined;
     if (!userHasSetTheme && systemColorScheme) {
@@ -68,28 +69,44 @@ function RootLayoutNav() {
     }
   }, [systemColorScheme]);
 
-  // Initialize push notification service once when app starts
   useEffect(() => {
-    pushNotificationService.initialize()
-      .catch(error => {
+    const initializePushNotifications = async () => {
+      try {
+        await pushNotificationService.initialize();
+      } catch (error) {
         console.error('Error initializing push notification service:', error);
-      });
+      }
+    };
+
+    initializePushNotifications();
   }, []);
 
-  // Handle push token registration based on user authentication state
-  // Only run after auth is initialized to prevent clearing tokens during initial load
+  // Fetch and refresh unread message counts
   useEffect(() => {
-    if (!isAuthInitialized) {
-      return; // Don't do anything until auth is initialized
-    }
+    if (!isAuthInitialized || !user) return;
+
+    const fetchCounts = async () => {
+      try {
+        await fetchUnreadCounts();
+      } catch (error) {
+        console.error('Error fetching unread counts:', error);
+      }
+    };
+
+    fetchCounts();
+    const refreshInterval = setInterval(fetchCounts, 30000);
+
+    return () => clearInterval(refreshInterval);
+  }, [isAuthInitialized, user, fetchUnreadCounts]);
+
+  useEffect(() => {
+    if (!isAuthInitialized) return;
 
     const handleTokenRegistration = async () => {
       if (user) {
-        // User is logged in - check if token exists first
         const hasToken = await pushNotificationService.hasToken();
         
         if (!hasToken) {
-          // No token exists - register for push notifications
           const token = await pushNotificationService.registerForPushNotifications();
           if (token) {
             console.log('Push token registration completed');
@@ -100,7 +117,6 @@ function RootLayoutNav() {
           console.log('Push token already exists, skipping registration');
         }
       } else {
-        // User is not logged in - clear token
         pushNotificationService.clearToken();
       }
     };

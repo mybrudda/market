@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../supabaseClient'
 import { Session, User } from '@supabase/supabase-js'
+import { useUnreadMessagesStore } from './useUnreadMessagesStore'
 
 interface AuthState {
   session: Session | null
@@ -103,6 +104,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: true })
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      
+      // Clear unread counts when user logs out
+      useUnreadMessagesStore.getState().clearAllUnreadCounts()
       
       set({ session: null, user: null })
     } catch (error) {
