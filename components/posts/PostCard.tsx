@@ -9,6 +9,7 @@ import { formatPrice } from '../../utils/format';
 import { router } from 'expo-router';
 import { savedPostsService } from '../../lib/savedPostsService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSavePost } from '../../lib/hooks/useSavePost';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -24,8 +25,14 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
   const { user } = useAuthStore();
   const [imageError, setImageError] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
+
+  // Use shared save post hook
+  const { isSaved, saving, handleSavePost } = useSavePost({
+    postId: post.id,
+    userId: post.user_id,
+    onUnsave,
+    showSuccessAlerts: true
+  });
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
@@ -35,60 +42,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
     onDelete?.(post.id);
   };
 
-  // Check if post is saved when component mounts
-  useEffect(() => {
-    if (user) {
-      checkSavedStatus();
-    }
-  }, [user, post.id]);
 
-  const checkSavedStatus = async () => {
-    if (!user) return;
-    
-    try {
-      const saved = await savedPostsService.isPostSaved(post.id, user.id);
-      setIsSaved(saved);
-    } catch (error) {
-      console.error('Error checking saved status:', error);
-    }
-  };
-
-  const handleSavePost = async () => {
-    if (!user) {
-      Alert.alert('Login Required', 'Please login to save posts');
-      return;
-    }
-
-    // Prevent users from saving their own posts
-    if (user.id === post.user_id) {
-      Alert.alert('Cannot Save', 'You cannot save your own posts');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (isSaved) {
-        await savedPostsService.unsavePost(post.id, user.id);
-        setIsSaved(false);
-        // Call onUnsave callback if provided
-        onUnsave?.(post.id);
-        // Show success message for unsave (only if not in saved posts screen)
-        if (!onUnsave) {
-          Alert.alert('Success', 'Post removed from saved posts');
-        }
-      } else {
-        await savedPostsService.savePost(post.id, user.id);
-        setIsSaved(true);
-        // Show success message for save
-        Alert.alert('Success', 'Post added to saved posts');
-      }
-    } catch (error) {
-      console.error('Error saving/unsaving post:', error);
-      Alert.alert('Error', 'Failed to save post. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMM d, yyyy');

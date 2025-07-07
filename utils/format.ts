@@ -5,3 +5,11 @@ export const formatPrice = (price: number, currency: string) => {
     maximumFractionDigits: 0,
   }).format(price);
 };
+
+export const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};

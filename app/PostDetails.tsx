@@ -10,79 +10,9 @@ import { chatService } from '../lib/chatService';
 import { useAuthStore } from '../store/useAuthStore';
 import { Image as ExpoImage } from 'expo-image';
 import { savedPostsService } from '../lib/savedPostsService';
-
-interface VehicleDetails {
-  make: string;
-  model: string;
-  year: string;
-  mileage: {
-    value: number;
-    unit: string;
-  };
-  condition: string;
-  fuel_type: string;
-  transmission: string;
-  features: string[];
-}
-
-interface RealEstateDetails {
-  category: string;
-  rooms: number;
-  bathrooms: number;
-  year: string;
-  condition: string;
-  features: string[];
-  size: {
-    value: number;
-    unit: string;
-  };
-}
-
-interface Post {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  currency: string;
-  images: string[];
-  created_at: string;
-  post_type: 'vehicle' | 'realestate';
-  listing_type: 'rent' | 'sale';
-  user_id: string;
-  user: {
-    id: string;
-    username: string;
-    full_name: string | null;
-    avatar_url: string | null;
-    email: string;
-    user_type: 'person' | 'company';
-    is_verified: boolean | null;
-  };
-  details: VehicleDetails | RealEstateDetails;
-  location: {
-    city: string;
-    address?: string;
-    country: string;
-  };
-  category?: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  email: string;
-  user_type: 'person' | 'company';
-  is_verified: boolean | null;
-}
-
-interface CarouselRenderItemInfo {
-  item: string;
-  index: number;
-}
-
-type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
+import { formatPrice, formatDate } from '../utils/format';
+import { Post, VehicleDetails, RealEstateDetails, CarouselRenderItemInfo, IconName } from '../types/database';
+import { useSavePost } from '../lib/hooks/useSavePost';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -92,10 +22,16 @@ export default function PostDetails() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const width = Dimensions.get('window').width;
   const { user } = useAuthStore();
+
+  // Use shared save post hook
+  const { isSaved, saving, handleSavePost } = useSavePost({
+    postId: post?.id || '',
+    userId: post?.user_id || '',
+    showAuthDialog: () => setShowAuthDialog(true),
+    showSuccessAlerts: false
+  });
 
   useEffect(() => {
     if (params.post) {
@@ -112,81 +48,9 @@ export default function PostDetails() {
     }
   }, [params.post]);
 
-  // Check if post is saved when component mounts
-  useEffect(() => {
-    if (user && post) {
-      checkSavedStatus();
-    }
-  }, [user, post]);
 
-  const checkSavedStatus = async () => {
-    if (!user || !post) return;
-    
-    try {
-      const saved = await savedPostsService.isPostSaved(post.id, user.id);
-      setIsSaved(saved);
-    } catch (error) {
-      console.error('Error checking saved status:', error);
-    }
-  };
 
-  const handleSavePost = async () => {
-    if (!user) {
-      setShowAuthDialog(true);
-      return;
-    }
 
-    if (!post) return;
-
-    // Prevent users from saving their own posts
-    if (user.id === post.user_id) {
-      Alert.alert('Cannot Save', 'You cannot save your own posts');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (isSaved) {
-        await savedPostsService.unsavePost(post.id, user.id);
-        setIsSaved(false);
-      } else {
-        await savedPostsService.savePost(post.id, user.id);
-        setIsSaved(true);
-      }
-    } catch (error) {
-      console.error('Error saving/unsaving post:', error);
-      Alert.alert('Error', 'Failed to save post. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const handleContact = async () => {
-    if (!post?.user?.email) return;
-    
-    if (!user) {
-      setShowAuthDialog(true);
-      return;
-    }
-
-    await Linking.openURL(`mailto:${post.user.email}`);
-  };
 
   const handleMessageSeller = async () => {
     if (!post?.user?.id) return;

@@ -48,15 +48,16 @@ export interface VehicleDetails {
 }
 
 export interface RealEstateDetails {
+  category: string;
+  rooms: number;
+  bathrooms: number;
+  year: string;
+  condition: string;
+  features: string[];
   size: {
     value: number;
     unit: string;
   };
-  rooms: number | null;
-  bathrooms: number | null;
-  year: string | null;
-  condition: string | null;
-  features: string[] | null;
 }
 
 export interface VehiclePost extends BasePost {
@@ -71,4 +72,12 @@ export interface RealEstatePost extends BasePost {
   user: User;
 }
 
-export type Post = VehiclePost | RealEstatePost; 
+export type Post = VehiclePost | RealEstatePost;
+
+// UI Component types
+export interface CarouselRenderItemInfo {
+  item: string;
+  index: number;
+}
+
+export type IconName = keyof typeof import('@expo/vector-icons').MaterialCommunityIcons.glyphMap; 
