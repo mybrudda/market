@@ -84,15 +84,23 @@ export default function PostDetails() {
         return;
       }
 
-      // The createConversation function will handle checking for existing conversations
-      const conversation = await chatService.createConversation(post.id, post.user.id);
+      // Navigate to ChatRoom with post and seller info for conversation creation
       router.push({
         pathname: "/ChatRoom",
-        params: { id: conversation.id }
+        params: { 
+          postId: post.id,
+          sellerId: post.user.id,
+          sellerName: post.user.full_name || post.user.username,
+          sellerAvatar: post.user.avatar_url || '',
+          postTitle: post.title,
+          postImage: post.images?.[0] || '',
+          postPrice: post.price.toString(),
+          postCurrency: post.currency
+        }
       });
     } catch (error) {
-      console.error('Error starting conversation:', error);
-      Alert.alert("Error", "Failed to start conversation. Please try again.");
+      console.error('Error preparing to message seller:', error);
+      Alert.alert("Error", "Failed to open chat. Please try again.");
     }
   };
 

@@ -12,7 +12,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { useTheme, Text, Menu } from "react-native-paper";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { ChatMessage } from "../components/chat/ChatMessage";
 import { ScrollToBottomButton } from "../components/chat/ScrollToBottomButton";
 import { ChatInput } from "../components/chat/ChatInput";
@@ -26,404 +26,300 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useUnreadMessagesStore } from "../store/useUnreadMessagesStore";
 import { useBlockedUsers } from '../lib/hooks/useBlockedUsers';
+import { formatPrice } from '../utils/format';
 
-// Add blurhash constant at the top level
 const blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4";
-
-// Memoized message component
 const MemoizedChatMessage = memo(ChatMessage);
 
 export default function ChatRoom() {
   const theme = useTheme();
   const params = useLocalSearchParams();
+  
+  // Navigation params
+  const conversationId = params.id as string;
+  const conversationParam = params.conversation as string;
+  const postId = params.postId as string;
+  const sellerId = params.sellerId as string;
+  const sellerName = params.sellerName as string;
+  const sellerAvatar = params.sellerAvatar as string;
+  const postTitle = params.postTitle as string;
+  const postImage = params.postImage as string;
+  const postPrice = params.postPrice as string;
+  const postCurrency = params.postCurrency as string;
+
+  // State
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const { clearUnreadCount } = useUnreadMessagesStore();
-  const [conversation, setConversation] = useState<Conversation | null>(() => {
-    // Initialize from params if available
-    if (params.conversation) {
-      try {
-        return JSON.parse(params.conversation as string);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  });
-  const flatListRef = useRef<FlatList>(null);
-  const conversationId = params.id as string;
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [failedMessages, setFailedMessages] = useState<Set<string>>(new Set());
-  const { isUserBlocked, canMessageUser, refreshBlockedUsers } = useBlockedUsers();
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockingLoading, setBlockingLoading] = useState(false);
   const [canSendMessages, setCanSendMessages] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
-
-  // Pagination state
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
+
+  // Refs
+  const flatListRef = useRef<FlatList>(null);
+  const { clearUnreadCount } = useUnreadMessagesStore();
+  const { isUserBlocked, canMessageUser, refreshBlockedUsers } = useBlockedUsers();
+
+  // Constants
   const INITIAL_MESSAGES_COUNT = 15;
   const MESSAGES_PER_PAGE = 10;
 
-  // Simplified scroll state
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  // Determine if this is a new conversation (from PostDetails) or existing (from messages)
+  const isNewConversation = useMemo(() => {
+    return !conversationId && postId && sellerId;
+  }, [conversationId, postId, sellerId]);
 
-  // Use refs to access current state values in subscription callbacks
-  const currentUserRef = useRef<any>(null);
-  const conversationRef = useRef<Conversation | null>(null);
-  const stableCurrentUserRef = useRef<any>(null);
-  const stableOtherUserRef = useRef<any>(null);
-
-  // Use refs for stable function references to prevent re-renders
-  const handleBlockRef = useRef<(() => Promise<void>) | null>(null);
-  const handleUnblockRef = useRef<(() => Promise<void>) | null>(null);
-
-  // Create stable sender objects to prevent re-renders
-  const stableCurrentUser = useMemo(() => {
-    if (!currentUser) return undefined;
-    return {
-      id: currentUser.id,
-      username: currentUser.username || currentUser.email,
-      avatar_url: currentUser.avatar_url
-    };
-  }, [currentUser?.id, currentUser?.username, currentUser?.email, currentUser?.avatar_url]);
-
-  const stableOtherUser = useMemo(() => {
-    if (!conversation) return undefined;
-    return {
-      id: conversation.other_user_name, // This is the user ID from the conversation
-      username: conversation.other_user_name,
-      avatar_url: conversation.other_user_avatar
-    };
-  }, [conversation?.other_user_name, conversation?.other_user_avatar]);
-
-  // Update refs when state changes
+  // Initialize conversation based on navigation source
   useEffect(() => {
-    currentUserRef.current = currentUser;
-  }, [currentUser]);
-
-  useEffect(() => {
-    conversationRef.current = conversation;
-  }, [conversation]);
-
-  // Update stable user refs when they change
-  useEffect(() => {
-    stableCurrentUserRef.current = stableCurrentUser;
-  }, [stableCurrentUser]);
-
-  useEffect(() => {
-    stableOtherUserRef.current = stableOtherUser;
-  }, [stableOtherUser]);
-
-  // Load initial data
-  useEffect(() => {
-    let messageChannel: any;
-
-    const init = async () => {
-      // Load current user first
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.warn("User not logged in");
-        setLoading(false);
-        return;
-      }
-      setCurrentUser(user);
-
-      // Load conversation details and messages in parallel
+    if (isNewConversation) {
+      // New conversation from PostDetails
+      const tempConversation: Conversation = {
+        id: 'temp-' + Date.now(),
+        creator_id: '',
+        participant_id: sellerId,
+        post_id: postId,
+        created_at: new Date().toISOString(),
+        last_activity_date: new Date().toISOString(),
+        deleted_by_creator: false,
+        deleted_by_participant: false,
+        post_title: postTitle,
+        post_image: postImage,
+        post_price: parseFloat(postPrice) || 0,
+        post_status: 'active',
+        other_user_name: sellerName,
+        other_user_full_name: sellerName,
+        other_user_avatar: sellerAvatar,
+        other_user_is_verified: false,
+        other_user_type: 'person',
+        last_message: null,
+        unread_count: 0
+      };
+      setConversation(tempConversation);
+    } else if (conversationParam) {
+      // Existing conversation from messages list
       try {
-        const [conversationsResponse, messagesResponse, totalCount] = await Promise.all([
-          chatService.getConversations(),
-          chatService.getMessages(conversationId, INITIAL_MESSAGES_COUNT),
-          chatService.getMessagesCount(conversationId),
-        ]);
-
-        const currentConversation = conversationsResponse.find(
-          (c) => c.id === conversationId
-        );
-        if (currentConversation) {
-          console.log("Conversation data:", currentConversation);
-          setConversation(currentConversation);
-        }
-        
-        setMessages(messagesResponse);
-        if (messagesResponse.length > 0) {
-          setOldestMessageTimestamp(String(messagesResponse[0].created_at));
-          setHasMoreMessages(totalCount > INITIAL_MESSAGES_COUNT);
-          
-          console.log('🚀 Initial messages loaded:', {
-            count: messagesResponse.length,
-            totalInConversation: totalCount,
-            oldestMessageId: messagesResponse[0].id,
-            newestMessageId: messagesResponse[messagesResponse.length - 1].id,
-            hasMore: totalCount > INITIAL_MESSAGES_COUNT
-          });
-        } else {
-          setHasMoreMessages(false);
-          console.log('📭 No messages in conversation');
-        }
-        
-        // Clear unread count and mark messages as read
-        clearUnreadCount(conversationId);
-        await chatService.markMessagesAsRead(conversationId);
+        const existingConversation = JSON.parse(conversationParam);
+        setConversation(existingConversation);
       } catch (error) {
-        console.error("Failed to load data:", error);
-        Alert.alert(
-          "Error",
-          "Failed to load conversation data. Please try again.",
-          [{ text: "OK" }]
-        );
+        console.error('Error parsing conversation:', error);
+        Alert.alert('Error', 'Invalid conversation data');
       }
-      setLoading(false);
+    }
+  }, [isNewConversation, conversationParam, postId, sellerId, sellerName, sellerAvatar, postTitle, postImage, postPrice]);
 
-      // Setup realtime subscription
-      messageChannel = supabase
-        .channel(`messages:conversation:${conversationId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          async (payload) => {
-            console.log("Received realtime message:", payload);
-            try {
-              // Get current values from refs
-              const currentConversationState = conversationRef.current;
-              const currentUserState = currentUserRef.current;
+  // Load current user and initial data
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          Alert.alert('Error', 'Please sign in to continue');
+          return;
+        }
+        setCurrentUser(user);
 
-              // Determine the correct sender object with stable reference
-              const isFromCurrentUser = payload.new.sender_id === currentUserState?.id;
-              const sender = isFromCurrentUser ? stableCurrentUserRef.current : stableOtherUserRef.current;
-
-              const newMsg: Message = {
-                id: payload.new.id,
-                conversation_id: payload.new.conversation_id,
-                sender_id: payload.new.sender_id,
-                content: payload.new.content,
-                created_at: payload.new.created_at,
-                read_at: payload.new.read_at,
-                sender,
-              };
-
-              console.log("Processing realtime message:", {
-                messageId: newMsg.id,
-                isFromCurrentUser,
-                currentMessagesCount: messages.length
-              });
-
-              setMessages((prev) => {
-                // Check if message already exists by ID
-                if (prev.some((msg) => msg.id === newMsg.id)) {
-                  console.log("Message already exists by ID, skipping:", newMsg.id);
-                  return prev;
-                }
-
-                // Check if this is a message we just sent (by content and sender)
-                if (isFromCurrentUser) {
-                  const recentMessage = prev.find(msg => 
-                    msg.content === newMsg.content && 
-                    msg.sender_id === newMsg.sender_id &&
-                    Math.abs(new Date(msg.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000 // Within 5 seconds
-                  );
-                  
-                  if (recentMessage) {
-                    console.log("Message from current user already exists, skipping:", newMsg.content);
-                    return prev;
-                  }
-                }
-
-                // Remove any temporary versions of this message and add new one
-                const withoutTemp = prev.filter((msg) => !msg.id.startsWith('temp-'));
-                const updatedMessages = [...withoutTemp, newMsg];
-                console.log("Updated messages count:", updatedMessages.length);
-                return updatedMessages;
-              });
-
-              // If message is from other user, scroll to bottom and mark as read
-              if (!isFromCurrentUser) {
-                // Use delayed scroll to ensure new message is rendered
-                scrollToBottomWithDelay();
-                
-                // Mark as read asynchronously to not block the UI
-                chatService.markMessagesAsRead(conversationId).catch(console.error);
-                clearUnreadCount(conversationId);
-              }
-            } catch (error) {
-              console.error("Error handling realtime message:", error);
-              Alert.alert(
-                "Error",
-                "Failed to process new message. Please refresh the chat.",
-                [{ text: "OK" }]
-              );
-            }
-          }
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "messages",
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload) => {
-            console.log("Message updated:", payload);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
-              )
-            );
-          }
-        )
-        .subscribe((status) => {
-          if (status === 'CHANNEL_ERROR') {
-            console.error('Channel subscription error');
-            Alert.alert(
-              "Connection Error",
-              "Lost connection to chat. Please refresh the page.",
-              [{ text: "OK" }]
-            );
-          }
-        });
-    };
-
-    init();
-
-    return () => {
-      if (messageChannel) {
-        console.log("Cleaning up message subscription");
-        supabase.removeChannel(messageChannel);
+        if (isNewConversation) {
+          // For new conversations, just set loading to false
+          setLoading(false);
+          setHasMoreMessages(false);
+        } else if (conversation) {
+          // For existing conversations, load messages and check permissions
+          await loadMessages(conversation.id);
+          await checkUserPermissions(user.id, conversation);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+        setLoading(false);
       }
     };
-  }, [conversationId, clearUnreadCount]);
 
-  // Function to load older messages
-  const loadOlderMessages = useCallback(async () => {
-    if (isLoadingOlderMessages || !hasMoreMessages) return;
+    if (conversation) {
+      initializeChat();
+    }
+  }, [conversation, isNewConversation]);
 
-    console.log('🔄 Loading older messages...', {
-      currentMessagesCount: messages.length,
-      oldestTimestamp: oldestMessageTimestamp,
-      hasMore: hasMoreMessages,
-      fetchingCount: MESSAGES_PER_PAGE
-    });
+  // Load messages for existing conversation
+  const loadMessages = async (convId: string) => {
+    try {
+      const messagesData = await chatService.getMessages(convId, INITIAL_MESSAGES_COUNT);
+      setMessages(messagesData);
+      
+      if (messagesData.length > 0) {
+        setOldestMessageTimestamp(messagesData[0].created_at);
+        setHasMoreMessages(messagesData.length === INITIAL_MESSAGES_COUNT);
+      }
+      
+      // Mark messages as read when entering the chat
+      await chatService.markMessagesAsRead(convId);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  // Check user permissions (blocking, etc.)
+  const checkUserPermissions = async (userId: string, conv: Conversation) => {
+    try {
+      const otherUserId = conv.creator_id === userId ? conv.participant_id : conv.creator_id;
+      
+      // Check if user is blocked
+      const blocked = await isUserBlocked(otherUserId);
+      setIsBlocked(blocked);
+      
+      // Check if user can message
+      const canMessage = await canMessageUser(otherUserId);
+      setCanSendMessages(canMessage);
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+    }
+  };
+
+  // Load older messages for pagination
+  const loadOlderMessages = async () => {
+    if (!conversation || isLoadingOlderMessages || !hasMoreMessages || !oldestMessageTimestamp) return;
 
     setIsLoadingOlderMessages(true);
-
     try {
       const olderMessages = await chatService.getMessages(
-        conversationId,
+        conversation.id,
         MESSAGES_PER_PAGE,
-        oldestMessageTimestamp || undefined
+        oldestMessageTimestamp
       );
-
-      console.log('📨 Loaded older messages:', {
-        count: olderMessages.length,
-        firstMessageId: olderMessages[0]?.id,
-        lastMessageId: olderMessages[olderMessages.length - 1]?.id
-      });
 
       if (olderMessages.length > 0) {
         setMessages(prev => [...olderMessages, ...prev]);
-        setOldestMessageTimestamp(String(olderMessages[0].created_at));
+        setOldestMessageTimestamp(olderMessages[0].created_at);
         setHasMoreMessages(olderMessages.length === MESSAGES_PER_PAGE);
-        
-        console.log('✅ Updated messages state:', {
-          newTotalCount: messages.length + olderMessages.length,
-          newOldestTimestamp: olderMessages[0].created_at,
-          hasMore: olderMessages.length === MESSAGES_PER_PAGE
-        });
       } else {
         setHasMoreMessages(false);
-        console.log('🏁 No more messages to load');
       }
     } catch (error) {
-      console.error("❌ Failed to load older messages:", error);
-      Alert.alert(
-        "Error",
-        "Failed to load older messages. Please try again.",
-        [{ text: "OK" }]
-      );
+      console.error('Error loading older messages:', error);
     } finally {
       setIsLoadingOlderMessages(false);
     }
-  }, [conversationId, isLoadingOlderMessages, hasMoreMessages, oldestMessageTimestamp, messages.length]);
+  };
 
-  // Simplified scroll to bottom function
-  const scrollToBottom = useCallback(() => {
-    flatListRef.current?.scrollToEnd({ animated: true });
-  }, []);
+  // Send message
+  const handleSendMessage = useCallback(async () => {
+    if (!newMessage.trim() || !conversation || sendingMessage) return;
 
-  // Enhanced scroll to bottom function with delay to ensure content is rendered
-  const scrollToBottomWithDelay = useCallback(() => {
-    // Use requestAnimationFrame for better timing with UI rendering
-    requestAnimationFrame(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    });
-  }, []);
+    const messageContent = newMessage.trim();
+    let actualConversationId = conversation.id;
 
-  // Simplified scroll handler
-  const handleScroll = useCallback((event: any) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
-    setShowScrollToBottom(!isNearBottom);
-  }, []);
-
-  // Handle content size changes (when new messages are added)
-  const handleContentSizeChange = useCallback((width: number, height: number) => {
-    // If user is near bottom, scroll to show new content
-    if (!showScrollToBottom) {
-      scrollToBottomWithDelay();
-    }
-  }, [showScrollToBottom, scrollToBottomWithDelay]);
-
-  useEffect(() => {
-    if (conversation) {
-      const otherUserId = conversation.creator_id === currentUser?.id 
-        ? conversation.participant_id 
-        : conversation.creator_id;
-      setIsBlocked(isUserBlocked(otherUserId));
-      
-      // Check if user can send messages (only once when conversation loads)
-      if (otherUserId) {
-        canMessageUser(otherUserId).then((canMessage) => {
-          setCanSendMessages(canMessage);
-          if (!canMessage) {
-            // Don't show alert, just set the blocked state
-            // The UI will handle hiding the input section
-          }
-        }).catch((error) => {
-          console.error('Error checking message permission:', error);
-          setCanSendMessages(false);
-        });
+    // Create conversation if this is a new conversation
+    if (isNewConversation && conversation.id.startsWith('temp-')) {
+      try {
+        const newConversation = await chatService.createConversation(postId, sellerId);
+        actualConversationId = newConversation.id;
+        
+        // Update conversation state with real data
+        const updatedConversation: Conversation = {
+          ...conversation,
+          id: newConversation.id,
+          creator_id: currentUser?.id || '',
+          created_at: newConversation.created_at,
+          last_activity_date: newConversation.updated_at || newConversation.created_at,
+        };
+        setConversation(updatedConversation);
+      } catch (error) {
+        console.error('Failed to create conversation:', error);
+        Alert.alert('Error', 'Failed to create conversation. Please try again.');
+        return;
       }
     }
-  }, [conversation, currentUser, isUserBlocked, canMessageUser]);
 
-  // Memoized formatPrice function
-  const formatPrice = useCallback((price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(price);
-  }, []);
+    // Create temporary message for optimistic update
+    const tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const tempMessage: Message = {
+      id: tempMessageId,
+      conversation_id: actualConversationId,
+      sender_id: currentUser?.id,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      read_at: null,
+      sender: {
+        id: currentUser?.id,
+        username: currentUser?.username || currentUser?.email,
+        avatar_url: currentUser?.avatar_url
+      },
+    };
 
-  // Memoized getCleanAvatarUrl function
-  const getCleanAvatarUrl = useCallback((url: string | null) => {
-    if (!url) return null;
-    // Remove the @ prefix and ::text suffix from the URL
-    return url.replace(/^@/, "").replace(/::text$/, "");
-  }, []);
+    // Clear input and add temporary message
+    setNewMessage("");
+    setSendingMessage(true);
+    setMessages(prev => [...prev, tempMessage]);
 
-  // Memoized block handler
+    // Cleanup timeout for temporary message
+    const cleanupTimeout = setTimeout(() => {
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
+    }, 10000);
+
+    try {
+      // Send the actual message
+      const sentMessage = await chatService.sendMessage(actualConversationId, messageContent);
+      
+      // Clear timeout and replace temporary message
+      clearTimeout(cleanupTimeout);
+      setMessages(prev => {
+        const withoutTemp = prev.filter(msg => msg.id !== tempMessageId);
+        return [...withoutTemp, sentMessage];
+      });
+
+      // Scroll to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
+    } catch (error) {
+      clearTimeout(cleanupTimeout);
+      console.error('Error sending message:', error);
+      setFailedMessages(prev => new Set(prev).add(tempMessageId));
+      setNewMessage(messageContent);
+      Alert.alert('Error', 'Failed to send message. Tap the message to retry.');
+    } finally {
+      setSendingMessage(false);
+    }
+  }, [newMessage, conversation, currentUser, sendingMessage, isNewConversation, postId, sellerId]);
+
+  // Retry failed message
+  const handleRetryMessage = useCallback(async (failedMessage: Message) => {
+    if (!conversation || sendingMessage) return;
+
+    try {
+      setFailedMessages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(failedMessage.id);
+        return newSet;
+      });
+
+      setSendingMessage(true);
+      const sentMessage = await chatService.sendMessage(conversation.id, failedMessage.content);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === failedMessage.id ? sentMessage : msg
+      ));
+    } catch (error) {
+      console.error('Error retrying message:', error);
+      setFailedMessages(prev => new Set(prev).add(failedMessage.id));
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(false);
+    }
+  }, [conversation, sendingMessage]);
+
+  // Block/Unblock user
   const handleBlock = useCallback(async () => {
     if (!conversation || !currentUser || blockingLoading) return;
 
@@ -433,52 +329,24 @@ export default function ChatRoom() {
         ? conversation.participant_id 
         : conversation.creator_id;
 
-      // First check if the user is already blocked
-      const { data: existingBlock, error: checkError } = await supabase
-        .from('blocked_users')
-        .select('id')
-        .eq('blocker_id', currentUser.id)
-        .eq('blocked_id', otherUserId)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-
-      if (existingBlock) {
-        Alert.alert('Already Blocked', 'This user is already blocked.');
-        return;
-      }
-
-      // Insert the block
-      const { error } = await supabase
+      await supabase
         .from('blocked_users')
         .insert({
           blocker_id: currentUser.id,
           blocked_id: otherUserId
         });
 
-      if (error) throw error;
-
       setIsBlocked(true);
       await refreshBlockedUsers();
-      
-      Alert.alert(
-        'User Blocked',
-        'You will no longer receive messages from this user.'
-      );
+      Alert.alert('User Blocked', 'You will no longer receive messages from this user.');
     } catch (error) {
       console.error('Error blocking user:', error);
-      Alert.alert(
-        'Error',
-        'Failed to block user. Please try again.'
-      );
+      Alert.alert('Error', 'Failed to block user. Please try again.');
     } finally {
       setBlockingLoading(false);
     }
   }, [conversation, currentUser, blockingLoading, refreshBlockedUsers]);
 
-  // Memoized unblock handler
   const handleUnblock = useCallback(async () => {
     if (!conversation || !currentUser || blockingLoading) return;
 
@@ -488,359 +356,310 @@ export default function ChatRoom() {
         ? conversation.participant_id 
         : conversation.creator_id;
 
-      const { error } = await supabase
+      await supabase
         .from('blocked_users')
         .delete()
         .eq('blocker_id', currentUser.id)
         .eq('blocked_id', otherUserId);
 
-      if (error) throw error;
-
       setIsBlocked(false);
       await refreshBlockedUsers();
-      
-      Alert.alert(
-        'User Unblocked',
-        'You can now receive messages from this user.'
-      );
+      Alert.alert('User Unblocked', 'You can now receive messages from this user.');
     } catch (error) {
       console.error('Error unblocking user:', error);
-      Alert.alert(
-        'Error',
-        'Failed to unblock user. Please try again.'
-      );
+      Alert.alert('Error', 'Failed to unblock user. Please try again.');
     } finally {
       setBlockingLoading(false);
     }
   }, [conversation, currentUser, blockingLoading, refreshBlockedUsers]);
 
-  // Update function refs
-  useEffect(() => {
-    handleBlockRef.current = handleBlock;
-  }, [handleBlock]);
-
-  useEffect(() => {
-    handleUnblockRef.current = handleUnblock;
-  }, [handleUnblock]);
-
-  // Memoized message sending handler to prevent re-renders
-  const handleSendMessage = useCallback(async () => {
-    if (!conversationId || !newMessage.trim() || !conversation || sendingMessage) return;
-
-    const messageContent = newMessage.trim();
-    const tempMessageId = `temp-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-
-    // Create temporary message for optimistic update with stable sender reference
-    const tempMessage: Message = {
-      id: tempMessageId,
-      conversation_id: conversationId,
-      sender_id: currentUser?.id,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      read_at: null,
-      sender: stableCurrentUserRef.current,
-    };
-
-    // Clear input immediately for better UX
-    setNewMessage("");
-    setSendingMessage(true);
-
-    // Set a timeout to remove the temporary message if it doesn't get replaced
-    const cleanupTimeout = setTimeout(() => {
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
-      console.log("Cleaned up temporary message:", tempMessageId);
-    }, 10000); // 10 seconds timeout
-
-    try {
-      // Add temporary message immediately (optimistic update)
-      setMessages((prev) => [...prev, tempMessage]);
-      console.log("Added temporary message:", tempMessageId);
-
-      // Send the message without blocking check (already checked when conversation loads)
-      const sentMessage = await chatService.sendMessage(conversationId, messageContent);
-      console.log("Message sent successfully:", sentMessage.id);
-
-      // Clear the timeout since we're replacing the message
-      clearTimeout(cleanupTimeout);
-
-      // Replace temporary message with the real message immediately
-      const realMessage: Message = {
-        ...sentMessage,
-        // Use the sender from the sent message if available, otherwise use stable reference
-        sender: sentMessage.sender || stableCurrentUserRef.current,
-      };
-
-      setMessages((prev) => {
-        // Remove temporary message and add real message
-        const withoutTemp = prev.filter((msg) => msg.id !== tempMessageId);
-        const updatedMessages = [...withoutTemp, realMessage];
-        console.log("Replaced temp message with real message:", {
-          tempId: tempMessageId,
-          realId: realMessage.id,
-          totalMessages: updatedMessages.length
-        });
-        return updatedMessages;
-      });
-
-      // Scroll to bottom to show the new message
-      requestAnimationFrame(() => {
-        scrollToBottomWithDelay();
-      });
-
-    } catch (error) {
-      // Clear the timeout on error
-      clearTimeout(cleanupTimeout);
-      
-      console.error("Error sending message:", error);
-      
-      // Add back to failed messages
-      setFailedMessages((prev) => new Set(prev).add(tempMessageId));
-      
-      // Restore the message input if sending failed
-      setNewMessage(messageContent);
-      
-      Alert.alert(
-        "Failed to Send Message",
-        "There was a problem sending your message. Tap the message to try again.",
-        [{ text: "OK" }]
-      );
-    } finally {
-      setSendingMessage(false);
-    }
-  }, [conversationId, newMessage, conversation, currentUser, sendingMessage, scrollToBottomWithDelay]);
-
-  // Memoized retry handler
-  const handleRetryMessage = useCallback(
-    async (failedMessage: Message) => {
-      if (!conversationId || sendingMessage) return;
-
-      try {
-        // Remove from failed messages
-        setFailedMessages((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(failedMessage.id);
-          return newSet;
-        });
-
-        setSendingMessage(true);
-
-        // Try to send again
-        const sentMessage = await chatService.sendMessage(
-          conversationId,
-          failedMessage.content
-        );
-
-        // Replace failed message with successful one, ensuring stable sender reference
-        const updatedMessage: Message = {
-          ...sentMessage,
-          // Use the sender from the sent message if available, otherwise use stable reference
-          sender: sentMessage.sender || stableCurrentUserRef.current,
-        };
-
-        setMessages((prev) =>
-          prev.map((msg) => (msg.id === failedMessage.id ? updatedMessage : msg))
-        );
-      } catch (error) {
-        console.error("Error retrying message:", error);
-
-        // Add back to failed messages
-        setFailedMessages((prev) => new Set(prev).add(failedMessage.id));
-
-        Alert.alert(
-          "Failed to Send Message",
-          "There was a problem sending your message. Please try again later.",
-          [{ text: "OK" }]
-        );
-      } finally {
-        setSendingMessage(false);
-      }
-    },
-    [conversationId, sendingMessage]
-  );
-
-  // Memoized render message function
-  const renderMessage = useCallback(
-    ({ item }: { item: GroupedMessage }) => {
-      if (item.type === 'date-separator') {
-        return (
-          <View style={styles.dateSeparator}>
-            <Text variant="labelSmall" style={[styles.dateText, { color: theme.colors.onSurfaceVariant }]}>
-              {formatDateSeparator((item.data as { date: string }).date)}
-            </Text>
-          </View>
-        );
-      }
-
-      const message = item.data as Message;
-      const isOwnMessage = message.sender_id === currentUser?.id;
-      const hasFailed = failedMessages.has(message.id);
-      
-      return (
-        <ChatMessage
-          message={message}
-          isOwnMessage={isOwnMessage}
-          hasFailed={hasFailed}
-          onRetry={() => hasFailed ? handleRetryMessage(message) : undefined}
-          onLongPress={() => {
-            // Handle long press for message actions
-            console.log('Long pressed message:', message.id);
-          }}
-          isFirstInGroup={item.isFirstInGroup}
-          isLastInGroup={item.isLastInGroup}
-        />
-      );
-    },
-    [currentUser?.id, failedMessages, handleRetryMessage, theme.colors.onSurfaceVariant]
-  );
-
-  // Memoized key extractor
-  const keyExtractor = useCallback((item: GroupedMessage) => item.id, []);
-
-  // Memoized getItemLayout for better FlatList performance and accurate scrolling
-  const getItemLayout = useCallback((data: ArrayLike<GroupedMessage> | null | undefined, index: number) => {
-    // Estimate height based on item type
-    const item = data?.[index];
-    if (!item) return { length: 80, offset: 80 * index, index };
+  // Scroll handlers
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const showButton = contentOffset.y < -100;
+    setShowScrollToBottom(showButton);
     
-    if (item.type === 'date-separator') {
-      return { length: 40, offset: 40 * index, index };
+    // Check if user is near bottom (actively reading messages)
+    const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
+    if (isNearBottom && conversation && !conversation.id.startsWith('temp-')) {
+      // Mark messages as read when user is actively viewing them
+      chatService.markMessagesAsRead(conversation.id).catch(console.error);
     }
-    
-    // For messages, estimate height (adjust based on your actual message heights)
-    return { length: 80, offset: 80 * index, index };
-  }, []);
+  }, [conversation]);
 
-  // Memoized messages array to prevent unnecessary re-renders and ensure uniqueness
-  const memoizedMessages = useMemo(() => {
-    // Remove any duplicate messages by ID
-    const uniqueMessages = messages.reduce((acc, message) => {
-      const existingIndex = acc.findIndex(msg => msg.id === message.id);
-      if (existingIndex >= 0) {
-        // If we find a duplicate, keep the one that's not a temp message
-        if (message.id.startsWith('temp-') && !acc[existingIndex].id.startsWith('temp-')) {
-          // Replace temp message with real message
-          acc[existingIndex] = message;
+  const handleContentSizeChange = useCallback(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  // Mark messages as read when user scrolls to bottom
+  const handleScrollToBottom = useCallback(() => {
+    if (conversation && !conversation.id.startsWith('temp-')) {
+      chatService.markMessagesAsRead(conversation.id).catch(console.error);
+    }
+  }, [conversation]);
+
+  const scrollToBottom = useCallback(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+    // Mark messages as read when user manually scrolls to bottom
+    handleScrollToBottom();
+  }, [handleScrollToBottom]);
+
+  // Realtime subscription for messages
+  useEffect(() => {
+    if (!conversation || conversation.id.startsWith('temp-')) return;
+
+    const channel = supabase
+      .channel(`messages:${conversation.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          
+          // Don't add if it's our own message (already added optimistically)
+          if (newMessage.sender_id !== currentUser?.id) {
+            setMessages(prev => [...prev, newMessage]);
+            
+            // Mark the new message as read immediately if user is viewing the chat
+            chatService.markMessagesAsRead(conversation.id).catch(console.error);
+            
+            // Scroll to bottom for new messages
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }
         }
-        // Otherwise keep the existing message
-      } else {
-        acc.push(message);
-      }
-      return acc;
-    }, [] as Message[]);
-    
-    // Group messages for better UI
-    return groupMessages(uniqueMessages);
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        (payload) => {
+          const updatedMessage = payload.new as Message;
+          
+          // Update the message in our state (for read status changes)
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === updatedMessage.id 
+                ? { ...msg, ...updatedMessage }
+                : msg
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [conversation?.id, currentUser?.id]);
+
+  // Clear unread count when entering chat and set up periodic read status updates
+  useEffect(() => {
+    if (conversation && !conversation.id.startsWith('temp-')) {
+      clearUnreadCount(conversation.id);
+      
+      // Mark messages as read periodically while user is viewing the chat
+      const interval = setInterval(() => {
+        chatService.markMessagesAsRead(conversation.id).catch(console.error);
+      }, 5000); // Every 5 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [conversation?.id, clearUnreadCount]);
+
+  // Memoized data
+  const memoizedMessages = useMemo(() => {
+    return groupMessages(messages);
   }, [messages]);
 
-  if (loading || !currentUser) {
+  const renderMessage = useCallback(({ item }: { item: GroupedMessage }) => {
+    if (item.type === 'date-separator') {
+      return (
+        <View style={styles.dateSeparator}>
+          <Text variant="labelSmall" style={[styles.dateText, { color: theme.colors.onSurfaceVariant }]}>
+            {formatDateSeparator((item.data as { date: string }).date)}
+          </Text>
+        </View>
+      );
+    }
+
+    const message = item.data as Message;
+    const isOwnMessage = message.sender_id === currentUser?.id;
+    const hasFailed = failedMessages.has(message.id);
+    
     return (
-      <SafeAreaView
-        style={[
-          styles.loadingContainer,
-          { backgroundColor: theme.colors.background },
-        ]}
-      >
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </SafeAreaView>
+      <ChatMessage
+        message={message}
+        isOwnMessage={isOwnMessage}
+        hasFailed={hasFailed}
+        onRetry={() => hasFailed ? handleRetryMessage(message) : undefined}
+        onLongPress={() => console.log('Long pressed message:', message.id)}
+        isFirstInGroup={item.isFirstInGroup}
+        isLastInGroup={item.isLastInGroup}
+      />
+    );
+  }, [currentUser?.id, failedMessages, handleRetryMessage, theme.colors.onSurfaceVariant]);
+
+  const keyExtractor = useCallback((item: GroupedMessage) => {
+    if (item.type === 'date-separator') {
+      return `date-${(item.data as { date: string }).date}`;
+    }
+    return (item.data as Message).id;
+  }, []);
+
+  const getItemLayout = useCallback((data: any, index: number) => ({
+    length: 60,
+    offset: 60 * index,
+    index,
+  }), []);
+
+  // Utility function for cleaning avatar URLs
+  const getCleanAvatarUrl = (url: string | null) => {
+    if (!url) return null;
+    return url.startsWith('http') ? url : `https://${url}`;
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <Header title="Chat" />
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text 
+            variant="bodyMedium" 
+            style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Loading conversation...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!conversation) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <Header title="Chat" />
+        <Text>Conversation not found</Text>
+      </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+         behavior={Platform.OS === "ios" ? "padding" : "height"}
+         style={{ flex: 1 }}
       >
-        <Header 
-          title={conversation?.other_user_full_name || conversation?.other_user_name || "Chat"}
+        <Header
+          title={conversation.other_user_name || "Chat"}
           rightElement={
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <TouchableOpacity
-                  onPress={() => setMenuVisible(true)}
-                  style={styles.menuButton}
-                >
-                  <MaterialCommunityIcons
-                    name="dots-vertical"
-                    size={24}
-                    color={theme.colors.onSecondaryContainer}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => setShowUserInfo(true)}
+              >
+                <MaterialCommunityIcons
+                  name="account-circle"
+                  size={24}
+                  color={theme.colors.onSurface}
+                />
+              </TouchableOpacity>
+              <Menu
+                visible={menuVisible}
+                onDismiss={() => setMenuVisible(false)}
+                anchor={
+                  <TouchableOpacity
+                    style={styles.menuButton}
+                    onPress={() => setMenuVisible(true)}
+                  >
+                    <MaterialCommunityIcons
+                      name="dots-vertical"
+                      size={24}
+                      color={theme.colors.onSurface}
+                    />
+                  </TouchableOpacity>
+                }
+              >
+                {isBlocked ? (
+                  <Menu.Item
+                    onPress={() => {
+                      handleUnblock();
+                      setMenuVisible(false);
+                    }}
+                    title="Unblock User"
+                    leadingIcon="account-check"
+                    disabled={blockingLoading}
                   />
-                </TouchableOpacity>
-              }
-            >
-              <Menu.Item
-                onPress={() => {
-                  setMenuVisible(false);
-                  setShowUserInfo(true);
-                }}
-                title="View User Info"
-                leadingIcon="account"
-              />
-              {isBlocked ? (
-                <Menu.Item
-                  onPress={() => {
-                    handleUnblock();
-                    setMenuVisible(false);
-                  }}
-                  title="Unblock User"
-                  leadingIcon="account-check"
-                  disabled={blockingLoading}
-                />
-              ) : (
-                <Menu.Item
-                  onPress={() => {
-                    handleBlock();
-                    setMenuVisible(false);
-                  }}
-                  title="Block User"
-                  leadingIcon="account-remove"
-                  disabled={blockingLoading}
-                />
-              )}
-            </Menu>
+                ) : (
+                  <Menu.Item
+                    onPress={() => {
+                      handleBlock();
+                      setMenuVisible(false);
+                    }}
+                    title="Block User"
+                    leadingIcon="account-remove"
+                    disabled={blockingLoading}
+                  />
+                )}
+              </Menu>
+            </View>
           }
         />
-        <View style={styles.postInfoContainer}>
-          <ExpoImage
-            source={{ uri: conversation?.post_image }}
-            style={[
-              styles.postImage,
-              conversation?.post_status !== 'active' && { opacity: 0.5 }
-            ]}
-            contentFit="cover"
-            transition={300}
-            placeholder={blurhash}
-            cachePolicy="memory-disk"
-          />
-          <View style={styles.postTitleContainer}>
-            <Text
-              variant="bodyMedium"
-              style={{ color: theme.colors.onSurface }}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {conversation?.post_title}
-            </Text>
-            <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-              {formatPrice(conversation?.post_price || 0)}
-            </Text>
-            {conversation?.post_status !== 'active' && (
+        
+        {conversation?.post_title && (
+          <View style={styles.postInfoContainer}>
+            <ExpoImage
+              source={{ uri: getCleanAvatarUrl(conversation?.post_image || null) || conversation?.post_image }}
+              style={[
+                styles.postImage,
+                conversation?.post_status !== 'active' && { opacity: 0.5 }
+              ]}
+              contentFit="cover"
+              transition={300}
+              placeholder={blurhash}
+              cachePolicy="memory-disk"
+            />
+            <View style={styles.postTitleContainer}>
               <Text
-                variant="bodySmall"
-                style={{ 
-                  color: theme.colors.error,
-                  fontStyle: 'italic'
-                }}
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurface }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                This post is no longer available
+                {conversation?.post_title}
               </Text>
-            )}
+              <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
+                {formatPrice(conversation?.post_price || 0, postCurrency || 'USD')}
+              </Text>
+              {conversation?.post_status !== 'active' && (
+                <Text
+                  variant="bodySmall"
+                  style={{ 
+                    color: theme.colors.error,
+                    fontStyle: 'italic'
+                  }}
+                >
+                  This post is no longer available
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
         
         <FlatList
           ref={flatListRef}
@@ -868,27 +687,27 @@ export default function ChatRoom() {
             />
           }
         />
+        
         {showScrollToBottom && (
           <ScrollToBottomButton
             onPress={scrollToBottom}
             animatedValue={null}
           />
         )}
+        
         {!isBlocked && canSendMessages && (
           <ChatInput
             value={newMessage}
             onChangeText={setNewMessage}
             onSend={handleSendMessage}
-            onAttachment={() => {
-              // Handle attachment
-              console.log('Attachment pressed');
-            }}
+            onAttachment={() => console.log('Attachment pressed')}
             isSending={sendingMessage}
             disabled={!canSendMessages}
             placeholder="Type a message..."
             maxLength={1000}
           />
         )}
+        
         {(isBlocked || !canSendMessages) && (
           <View
             style={[
@@ -917,7 +736,6 @@ export default function ChatRoom() {
         )}
       </KeyboardAvoidingView>
 
-      {/* User Info Modal */}
       <UserInfoModal
         visible={showUserInfo}
         onClose={() => setShowUserInfo(false)}
@@ -932,8 +750,16 @@ export default function ChatRoom() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 60, // Space above the header
+  },
+  loadingText: {
+    marginTop: 16,
+    textAlign: "center",
   },
   container: {
     flex: 1,

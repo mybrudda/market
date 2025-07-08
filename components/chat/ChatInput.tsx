@@ -166,7 +166,7 @@ export const ChatInput = ({
 const styles = StyleSheet.create({
   container: {
     borderTopWidth: 1,
-    paddingBottom: Platform.OS === 'android' ? 35 : 50,
+    height: Platform.OS === 'ios' ? 110 : 100,
   },
   topBorder: {
     height: 0.5,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 12,
     gap: 8,
   },
   actionButton: {
