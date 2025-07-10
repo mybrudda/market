@@ -132,13 +132,13 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
                 </Chip>
               </View>
               
-              {/* Heart Icon for Favorites */}
-              <View style={styles.heartIconContainer}>
+              {/* Bookmark Icon for Saved Posts */}
+              <View style={styles.bookmarkIconContainer}>
                 <IconButton
-                  icon={isSaved ? "heart" : "heart-outline"}
+                  icon={isSaved ? "bookmark" : "bookmark-outline"}
                   size={20}
                   iconColor={isSaved ? "rgb(168, 96, 146)" : theme.colors.primary}
-                  style={[styles.heartIcon, { backgroundColor: theme.colors.primaryContainer }]}
+                  style={[styles.bookmarkIcon, { backgroundColor: theme.colors.primaryContainer }]}
                   onPress={handleSavePost}
                   disabled={saving || user?.id === post.user_id}
                   loading={saving}
@@ -291,13 +291,13 @@ const styles = StyleSheet.create({
   menuButton: {
     margin: 4,
   },
-  heartIconContainer: {
+  bookmarkIconContainer: {
     position: 'absolute',
     top: 8,
     right: 8,
     zIndex: 3,
   },
-  heartIcon: {
+  bookmarkIcon: {
     borderRadius: 20,
     margin: 0,
   },

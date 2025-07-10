@@ -113,7 +113,7 @@ export default function SavedPostsScreen() {
             variant="bodyLarge"
             style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}
           >
-            Start saving posts by tapping the heart icon on any post.
+            Start saving posts by tapping the bookmark icon on any post.
           </Text>
         </View>
       ) : (

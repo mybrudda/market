@@ -182,7 +182,7 @@ export default function PostDetails() {
                 {post.title}
               </Text>
               <IconButton
-                icon={isSaved ? "heart" : "heart-outline"}
+                icon={isSaved ? "bookmark" : "bookmark-outline"}
                 size={24}
                 iconColor={isSaved ? theme.colors.error : theme.colors.primary}
                 onPress={handleSavePost}
