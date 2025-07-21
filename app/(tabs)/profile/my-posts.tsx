@@ -143,19 +143,30 @@ export default function MyPostsScreen() {
     return <LoadingScreen />;
   }
 
+  // Pad userPosts to ensure consistent two-column layout
+  const numColumns = 2;
+  const paddedUserPosts = userPosts.length % numColumns === 0 ? userPosts : [...userPosts, ...Array(numColumns - (userPosts.length % numColumns)).fill(null)];
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="My Posts" />
       <FlatList
-        data={userPosts}
+        data={paddedUserPosts}
         renderItem={({ item }) => (
-          <PostCard 
-            post={item} 
-            showMenu={true}
-            onDelete={handleDelete}
-          />
+          item ? (
+            <View style={styles.postCardWrapper}>
+              <PostCard 
+                post={item} 
+                showMenu={true}
+                onDelete={handleDelete}
+                cardStyle={styles.postCard}
+              />
+            </View>
+          ) : (
+            <View style={[styles.postCardWrapper, { backgroundColor: 'transparent' }]} />
+          )
         )}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item ? item.id : `empty-${index}`}
         contentContainerStyle={styles.listContainer}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
@@ -170,6 +181,8 @@ export default function MyPostsScreen() {
         }
         refreshing={refreshing}
         onRefresh={handleRefresh}
+        numColumns={numColumns}
+        columnWrapperStyle={styles.columnWrapper}
       />
     </View>
   );
@@ -180,7 +193,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContainer: {
-    padding: 16,
+    paddingHorizontal: 8,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   emptyContainer: {
     flex: 1,
@@ -198,5 +213,17 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     marginTop: 8,
+  },
+  columnWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  postCardWrapper: {
+    flex: 1,
+    marginHorizontal: 4,
+    marginBottom: 4,
+  },
+  postCard: {
+    width: '100%',
   },
 }); 

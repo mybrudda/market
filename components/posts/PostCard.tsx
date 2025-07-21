@@ -18,9 +18,10 @@ interface PostCardProps {
   showMenu?: boolean;
   onDelete?: (postId: string) => void;
   onUnsave?: (postId: string) => void;
+  cardStyle?: object;
 }
 
-export default function PostCard({ post, showMenu = false, onDelete, onUnsave }: PostCardProps) {
+export default function PostCard({ post, showMenu = false, onDelete, onUnsave, cardStyle }: PostCardProps) {
   const theme = useTheme();
   const { user } = useAuthStore();
   const [imageError, setImageError] = useState(false);
@@ -52,7 +53,12 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
     <View style={styles.detailsContainer}>
       <View style={styles.detailRow}>
         <MaterialCommunityIcons name="car" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodySmall" style={styles.detailValue}>
+        <Text
+          variant="bodySmall"
+          style={styles.detailValue}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {details.make} {details.model} ({details.year})
         </Text>
       </View>
@@ -97,7 +103,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
   return (
     <View style={styles.container}>
       <Pressable onPress={() => router.push({ pathname: '/PostDetails', params: { post: JSON.stringify(post) } })}>
-        <Card style={styles.card}>
+        <Card style={[styles.card, cardStyle]}>
           <View style={styles.cardContentWrapper}>
             <View style={styles.imageContainer}>
               <Image
@@ -116,9 +122,8 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
               )}
               <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
                 <Text 
-                  variant="titleMedium" 
                   numberOfLines={1}
-                  style={{ color: "white", fontWeight: 'bold' }}
+                  style={{ color: "white", fontWeight: 'bold', fontSize: 14 }}
                 >
                   {formatPrice(post.price, post.currency)}
                 </Text>
@@ -132,17 +137,39 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
                 </Chip>
               </View>
               
-              {/* Bookmark Icon for Saved Posts */}
-              <View style={styles.bookmarkIconContainer}>
-                <IconButton
-                  icon={isSaved ? "bookmark" : "bookmark-outline"}
-                  size={20}
-                  iconColor={isSaved ? "rgb(168, 96, 146)" : theme.colors.primary}
-                  style={[styles.bookmarkIcon, { backgroundColor: theme.colors.primaryContainer }]}
-                  onPress={handleSavePost}
-                  disabled={saving || user?.id === post.user_id}
-                  loading={saving}
-                />
+              {/* Top-right Icon: Save or Menu, same position and style */}
+              <View style={styles.actionIconContainer}>
+                {showMenu ? (
+                  <Menu
+                    visible={menuVisible}
+                    onDismiss={closeMenu}
+                    anchor={
+                      <IconButton
+                        icon="dots-vertical"
+                        size={14}
+                        onPress={openMenu}
+                        style={[styles.actionIcon, { backgroundColor: theme.colors.primaryContainer }]}
+                        iconColor={theme.colors.primary}
+                      />
+                    }
+                  >
+                    <Menu.Item 
+                      onPress={handleDelete} 
+                      title="Delete"
+                      leadingIcon="delete"
+                    />
+                  </Menu>
+                ) : (
+                  <IconButton
+                    icon={isSaved ? "bookmark" : "bookmark-outline"}
+                    size={14}
+                    iconColor={isSaved ? "rgb(168, 96, 146)" : theme.colors.primary}
+                    style={[styles.actionIcon, { backgroundColor: theme.colors.primaryContainer }]}
+                    onPress={handleSavePost}
+                    disabled={saving || user?.id === post.user_id}
+                    loading={saving}
+                  />
+                )}
               </View>
             </View>
 
@@ -162,50 +189,30 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave }:
               }
 
               <View style={styles.footerRow}>
-                <View style={styles.locationContainer}>
-                  <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.locationContainer}>
+                    <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.onSurfaceVariant} />
+                    <Text 
+                      variant="bodySmall" 
+                      numberOfLines={1}
+                      style={styles.detailValue}
+                    >
+                      {post.location.city}
+                    </Text>
+                  </View>
                   <Text 
                     variant="bodySmall" 
                     numberOfLines={1}
-                    style={styles.detailValue}
+                    style={styles.date}
                   >
-                    {post.location.city}
+                    Posted {formatDate(post.created_at)}
                   </Text>
                 </View>
-                
-                <Text 
-                  variant="bodySmall" 
-                  numberOfLines={1}
-                  style={styles.date}
-                >
-                  Posted {formatDate(post.created_at)}
-                </Text>
               </View>
             </Card.Content>
           </View>
           
-          {showMenu && (
-            <View style={styles.menuContainer}>
-              <Menu
-                visible={menuVisible}
-                onDismiss={closeMenu}
-                anchor={
-                                  <IconButton
-                  icon="dots-vertical"
-                  onPress={openMenu}
-                  style={[styles.menuButton, { backgroundColor: theme.colors.primaryContainer }]}
-                  iconColor={theme.colors.primary}
-                />
-                }
-              >
-                <Menu.Item 
-                  onPress={handleDelete} 
-                  title="Delete"
-                  leadingIcon="delete"
-                />
-              </Menu>
-            </View>
-          )}
+          {/* Menu is now handled inline above */}
         </Card>
       </Pressable>
     </View>
@@ -223,8 +230,8 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    height: 200,
     width: '100%',
+    aspectRatio: 4 / 3,
   },
   cardImage: {
     height: '100%',
@@ -288,16 +295,14 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 2,
   },
-  menuButton: {
-    margin: 4,
-  },
-  bookmarkIconContainer: {
+  // menuButton style removed; use bookmarkIcon for both
+  actionIconContainer: {
     position: 'absolute',
     top: 8,
     right: 8,
     zIndex: 3,
   },
-  bookmarkIcon: {
+  actionIcon: {
     borderRadius: 20,
     margin: 0,
   },

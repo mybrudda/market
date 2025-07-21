@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, Dimensions, Linking, Image, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, Linking, Image, Alert, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip, Portal, Dialog, IconButton } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -6,13 +6,12 @@ import { supabase } from '../supabaseClient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Carousel from 'react-native-reanimated-carousel';
 import Header from '../components/layout/Header';
-import { chatService } from '../lib/chatService';
 import { useAuthStore } from '../store/useAuthStore';
 import { Image as ExpoImage } from 'expo-image';
-import { savedPostsService } from '../lib/savedPostsService';
 import { formatPrice, formatDate } from '../utils/format';
 import { Post, VehicleDetails, RealEstateDetails, CarouselRenderItemInfo, IconName } from '../types/database';
 import { useSavePost } from '../lib/hooks/useSavePost';
+import { Platform } from 'react-native';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -21,15 +20,18 @@ export default function PostDetails() {
   const params = useLocalSearchParams();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [featuresExpanded, setFeaturesExpanded] = useState(false);
   const width = Dimensions.get('window').width;
   const { user } = useAuthStore();
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   // Use shared save post hook
   const { isSaved, saving, handleSavePost } = useSavePost({
     postId: post?.id || '',
     userId: post?.user_id || '',
-    showAuthDialog: () => setShowAuthDialog(true),
+    showAuthDialog: () => setShowSaveDialog(true),
     showSuccessAlerts: false
   });
 
@@ -56,7 +58,7 @@ export default function PostDetails() {
     if (!post?.user?.id) return;
 
     if (!user) {
-      setShowAuthDialog(true);
+      setShowContactDialog(true);
       return;
     }
 
@@ -105,12 +107,14 @@ export default function PostDetails() {
   };
 
   const handleLogin = () => {
-    setShowAuthDialog(false);
+    setShowContactDialog(false);
+    setShowSaveDialog(false);
     router.push('/(auth)/login');
   };
 
   const handleContinueAsGuest = () => {
-    setShowAuthDialog(false);
+    setShowContactDialog(false);
+    setShowSaveDialog(false);
   };
 
   const renderCarouselItem = ({ item }: CarouselRenderItemInfo) => (
@@ -125,6 +129,17 @@ export default function PostDetails() {
       />
     </View>
   );
+
+  const openInMaps = () => {
+    if (!post) return;
+    const address = encodeURIComponent(`${post.location.address || ''} ${post.location.city || ''}`.trim());
+    const url = Platform.select({
+      ios: `maps:0,0?q=${address}`,
+      android: `geo:0,0?q=${address}`,
+      default: `https://www.google.com/maps/search/?api=1&query=${address}`
+    });
+    if (url) Linking.openURL(url);
+  };
 
   if (loading) {
     return (
@@ -156,13 +171,21 @@ export default function PostDetails() {
     );
   }
 
+  const expandChipStyle = {
+    backgroundColor: theme.colors.primaryContainer,
+    borderColor: theme.colors.primary,
+  };
+  const expandChipTextStyle = {
+    color: theme.colors.primary,
+  };
+
   return (
     <>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <Header title="Details" />
-        <ScrollView>
+        <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
           {/* Image Carousel */}
-          <View style={styles.carouselContainer}>
+          <View style={[styles.carouselContainer, { backgroundColor: theme.colors.surface }]}>
             <Carousel
               loop
               width={width}
@@ -171,14 +194,22 @@ export default function PostDetails() {
               scrollAnimationDuration={1000}
               renderItem={renderCarouselItem}
               defaultIndex={0}
+              onSnapToItem={setCarouselIndex}
             />
+            {/* Image count indicator */}
+            {Array.isArray(post.images) && post.images.length > 1 && (
+              <View style={styles.imageCountContainer}>
+                <Text style={styles.imageCountText}>
+                  {carouselIndex + 1}/{post.images.length}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.content}>
-                      {/* Header Section */}
-          <View style={styles.header}>
+            {/* Title and Save Button */}
             <View style={styles.titleRow}>
-              <Text variant="titleLarge" style={styles.title}>
+              <Text variant="titleLarge" style={[styles.title, { color: theme.colors.onSurface, fontSize: 20 }]} numberOfLines={2} ellipsizeMode="tail">
                 {post.title}
               </Text>
               <IconButton
@@ -190,85 +221,77 @@ export default function PostDetails() {
                 loading={saving}
               />
             </View>
-            <View style={styles.priceContainer}>
-              <Text variant="titleLarge" style={{ color: theme.colors.primary }}>
+            {/* Price and Listing Type */}
+            <View style={styles.priceRow}>
+              <Text style={[styles.priceText, { color: theme.colors.onSurface, fontSize: 18 }]}>
                 {formatPrice(post.price, post.currency)}
               </Text>
               <Chip 
                 icon={post.post_type === 'vehicle' ? 'car' : 'home'}
                 mode="flat"
-                style={{ backgroundColor: theme.colors.primaryContainer }}
+                style={[styles.listingTypeChip, { backgroundColor: theme.colors.primaryContainer }]}
               >
                 {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
               </Chip>
             </View>
-          </View>
-
             {/* Location and Date */}
-            <View style={styles.metadata}>
-              <View style={styles.metadataItem}>
+            <View style={styles.metadataRow}>
+              <TouchableOpacity style={styles.metadataItem} onPress={openInMaps}>
                 <MaterialCommunityIcons 
                   name="map-marker" 
                   size={20} 
                   color={theme.colors.onSurfaceVariant} 
                 />
-                <Text variant="bodyMedium" style={styles.metadataText}>
+                <Text variant="bodyMedium" style={[styles.metadataText, { color: theme.colors.onSurface, fontSize: 13 }]} numberOfLines={1}>
                   {post.location.city}
                   {post.location.address && `, ${post.location.address}`}
                 </Text>
-              </View>
-              <Text variant="bodySmall" style={styles.date}>
-                Posted on {formatDate(post.created_at)}
-              </Text>
+              </TouchableOpacity>
             </View>
-
-            <Divider style={styles.divider} />
-
-            {/* Dynamic Details Section */}
-            {post.post_type === 'vehicle' ? (
-              <View style={styles.detailsSection}>
-                <Text variant="titleMedium" style={styles.sectionTitle}>
-                  Vehicle Details
-                </Text>
-                <View style={styles.detailsGrid}>
-                  <DetailItem 
-                    icon="car" 
-                    label="Make & Model" 
-                    value={`${(post.details as VehicleDetails).make} ${(post.details as VehicleDetails).model}`} 
-                  />
-                  <DetailItem 
-                    icon="calendar" 
-                    label="Year" 
-                    value={(post.details as VehicleDetails).year} 
-                  />
-                  <DetailItem 
-                    icon="speedometer" 
-                    label="Mileage" 
-                    value={`${(post.details as VehicleDetails).mileage.value.toLocaleString()} ${(post.details as VehicleDetails).mileage.unit}`} 
-                  />
-                  <DetailItem 
-                    icon="car-cog" 
-                    label="Condition" 
-                    value={(post.details as VehicleDetails).condition} 
-                  />
-                  <DetailItem 
-                    icon="gas-station" 
-                    label="Fuel Type" 
-                    value={(post.details as VehicleDetails).fuel_type} 
-                  />
-                  <DetailItem 
-                    icon="car-shift-pattern" 
-                    label="Transmission" 
-                    value={(post.details as VehicleDetails).transmission} 
-                  />
-                </View>
-                {(post.details as VehicleDetails).features && (post.details as VehicleDetails).features.length > 0 && (
-                  <>
-                    <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 16 }]}>
-                      Features
-                    </Text>
-                    <View style={styles.featuresContainer}>
-                      {(post.details as VehicleDetails).features.map((feature, index) => (
+            <Text variant="bodySmall" style={[styles.date, { color: theme.colors.onSurfaceVariant, fontSize: 12 }]}>
+              Posted on {formatDate(post.created_at)}
+            </Text>
+            <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+            {/* Details Section */}
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface, fontSize: 16 }]}>
+              {post.post_type === 'vehicle' ? 'Vehicle Details' : 'Property Details'}
+            </Text>
+            <View style={styles.detailsGrid}>
+              {post.post_type === 'vehicle' ? (
+                <>
+                  <DetailItem icon="car" label="Make & Model" value={`${(post.details as VehicleDetails).make} ${(post.details as VehicleDetails).model}`} />
+                  <DetailItem icon="calendar" label="Year" value={(post.details as VehicleDetails).year} />
+                  <DetailItem icon="speedometer" label="Mileage" value={`${(post.details as VehicleDetails).mileage.value.toLocaleString()} ${(post.details as VehicleDetails).mileage.unit}`} />
+                  <DetailItem icon="car-cog" label="Condition" value={(post.details as VehicleDetails).condition} />
+                  <DetailItem icon="gas-station" label="Fuel Type" value={(post.details as VehicleDetails).fuel_type} />
+                  <DetailItem icon="car-shift-pattern" label="Transmission" value={(post.details as VehicleDetails).transmission} />
+                </>
+              ) : (
+                <>
+                  <DetailItem icon="home" label="Property Type" value={post.category || 'Not specified'} />
+                  <DetailItem icon="bed" label="Rooms" value={(post.details as RealEstateDetails).rooms.toString()} />
+                  <DetailItem icon="shower" label="Bathrooms" value={(post.details as RealEstateDetails).bathrooms.toString()} />
+                  <DetailItem icon="calendar" label="Year Built" value={(post.details as RealEstateDetails).year} />
+                  <DetailItem icon="ruler-square" label="Size" value={`${(post.details as RealEstateDetails).size.value} ${(post.details as RealEstateDetails).size.unit}`} />
+                  <DetailItem icon="home-variant" label="Condition" value={(post.details as RealEstateDetails).condition} />
+                </>
+              )}
+            </View>
+            {/* Features Chips */}
+            {(post.details as any).features && (post.details as any).features.length > 0 && (
+              <View style={styles.featuresContainer}>
+                {featuresExpanded
+                  ? (post.details as any).features.map((feature: string, index: number) => (
+                      <Chip
+                        key={index}
+                        mode="outlined"
+                        style={styles.featureChip}
+                      >
+                        {feature}
+                      </Chip>
+                    ))
+                  : [
+                      ...((post.details as any).features.slice(0, 3).map((feature: string, index: number) => (
                         <Chip
                           key={index}
                           mode="outlined"
@@ -276,84 +299,41 @@ export default function PostDetails() {
                         >
                           {feature}
                         </Chip>
-                      ))}
-                    </View>
-                  </>
-                )}
-              </View>
-            ) : (
-              <View style={styles.detailsSection}>
-                <Text variant="titleMedium" style={styles.sectionTitle}>
-                  Property Details
-                </Text>
-                <View style={styles.detailsGrid}>
-                  <DetailItem 
-                    icon="home" 
-                    label="Property Type" 
-                    value={post.category || 'Not specified'} 
-                  />
-                  <DetailItem 
-                    icon="bed" 
-                    label="Rooms" 
-                    value={(post.details as RealEstateDetails).rooms.toString()} 
-                  />
-                  <DetailItem 
-                    icon="shower" 
-                    label="Bathrooms" 
-                    value={(post.details as RealEstateDetails).bathrooms.toString()} 
-                  />
-                  <DetailItem 
-                    icon="calendar" 
-                    label="Year Built" 
-                    value={(post.details as RealEstateDetails).year} 
-                  />
-                  <DetailItem 
-                    icon="ruler-square" 
-                    label="Size" 
-                    value={`${(post.details as RealEstateDetails).size.value} ${(post.details as RealEstateDetails).size.unit}`} 
-                  />
-                  <DetailItem 
-                    icon="home-variant" 
-                    label="Condition" 
-                    value={(post.details as RealEstateDetails).condition} 
-                  />
-                </View>
-                {(post.details as RealEstateDetails).features && (post.details as RealEstateDetails).features.length > 0 && (
-                  <>
-                    <Text variant="titleMedium" style={[styles.sectionTitle, { marginTop: 16 }]}>
-                      Features
-                    </Text>
-                    <View style={styles.featuresContainer}>
-                      {(post.details as RealEstateDetails).features.map((feature, index) => (
+                      ))),
+                      (post.details as any).features.length > 3 && (
                         <Chip
-                          key={index}
+                          key="expand"
                           mode="outlined"
-                          style={styles.featureChip}
+                          style={[styles.featureChip, expandChipStyle]}
+                          textStyle={expandChipTextStyle}
+                          onPress={() => setFeaturesExpanded(true)}
                         >
-                          {feature}
+                          +{(post.details as any).features.length - 3} more
                         </Chip>
-                      ))}
-                    </View>
-                  </>
+                      )
+                    ]
+                }
+                {featuresExpanded && (post.details as any).features.length > 3 && (
+                  <Chip
+                    key="collapse"
+                    mode="outlined"
+                    style={[styles.featureChip, expandChipStyle]}
+                    textStyle={expandChipTextStyle}
+                    onPress={() => setFeaturesExpanded(false)}
+                  >
+                    Show less
+                  </Chip>
                 )}
               </View>
             )}
-
-            <Divider style={styles.divider} />
-
+            <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
             {/* Description */}
-            <View style={styles.descriptionSection}>
-                              <Text variant="titleMedium" style={styles.sectionTitle}>
-                  Description
-                </Text>
-              <Text variant="bodyMedium" style={styles.description}>
-                {post.description}
-              </Text>
-            </View>
-
-            {/* Contact Buttons */}
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface, fontSize: 16 }]}>Description</Text>
+            <Text variant="bodyMedium" style={[styles.description, { color: theme.colors.onSurface, fontSize: 13 }]}>{post.description}</Text>
+            <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+            {/* Seller Info Card */}
             {post?.user && (
-              <View style={styles.contactSection}>
+              <Surface style={[styles.sellerCard, { backgroundColor: theme.colors.surface }] } elevation={2}>
                 <View style={styles.sellerHeader}>
                   <View style={styles.sellerInfo}>
                     {post.user.avatar_url && (
@@ -368,7 +348,7 @@ export default function PostDetails() {
                     )}
                     <View>
                       <View style={styles.sellerNameRow}>
-                        <Text variant="titleSmall">
+                        <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontSize: 14 }}>
                           {post.user.full_name || post.user.username}
                         </Text>
                         {post.user.is_verified && (
@@ -380,29 +360,33 @@ export default function PostDetails() {
                           />
                         )}
                       </View>
-                      <Text variant="bodySmall" style={styles.userType}>
+                      <Text variant="bodySmall" style={[styles.userType, { color: theme.colors.onSurfaceVariant, fontSize: 12 }] }>
                         {post.user.user_type.charAt(0).toUpperCase() + post.user.user_type.slice(1)}
                       </Text>
                     </View>
                   </View>
                 </View>
-                <View style={styles.contactButtons}>
-                  <Button
-                    mode="contained"
-                    onPress={handleMessageSeller}
-                    icon="message"
-                    style={styles.contactButton}
-                  >
-                    Message Seller
-                  </Button>
-                </View>
-              </View>
+              </Surface>
             )}
           </View>
         </ScrollView>
+        {/* Sticky Message Seller Button */}
+        {post?.user && (
+          <View style={[styles.stickyButtonContainer, { backgroundColor: theme.colors.background, borderTopColor: theme.colors.outline }] }>
+            <Button
+              mode="contained"
+              onPress={handleMessageSeller}
+              icon="message"
+              style={styles.stickyButton}
+              contentStyle={{ height: 48 }}
+            >
+              Message Seller
+            </Button>
+          </View>
+        )}
       </View>
       <Portal>
-        <Dialog visible={showAuthDialog} onDismiss={() => setShowAuthDialog(false)}>
+        <Dialog visible={showContactDialog} onDismiss={() => setShowContactDialog(false)}>
           <Dialog.Title>Login Required</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
@@ -410,7 +394,19 @@ export default function PostDetails() {
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={handleContinueAsGuest}>Continue as Guest</Button>
+            <Button onPress={() => setShowContactDialog(false)}>Continue as Guest</Button>
+            <Button mode="contained" onPress={handleLogin}>Login</Button>
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog visible={showSaveDialog} onDismiss={() => setShowSaveDialog(false)}>
+          <Dialog.Title>Login Required</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              You need to be logged in to save posts. Would you like to login or continue browsing as a guest?
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowSaveDialog(false)}>Continue as Guest</Button>
             <Button mode="contained" onPress={handleLogin}>Login</Button>
           </Dialog.Actions>
         </Dialog>
@@ -425,10 +421,10 @@ const DetailItem = ({ icon, label, value }: { icon: IconName; label: string; val
   return (
     <View style={styles.detailItem}>
       <View style={styles.detailHeader}>
-        <MaterialCommunityIcons name={icon} size={20} color={theme.colors.primary} />
-        <Text variant="bodySmall" style={styles.detailLabel}>{label}</Text>
+        <MaterialCommunityIcons name={icon} size={18} color={theme.colors.primary} />
+        <Text variant="bodySmall" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant, fontSize: 12 }]}>{label}</Text>
       </View>
-      <Text variant="bodyMedium" style={styles.detailValue}>{value}</Text>
+      <Text variant="bodyMedium" style={[styles.detailValue, { color: theme.colors.onSurface, fontSize: 13 }]}>{value}</Text>
     </View>
   );
 };
@@ -453,12 +449,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   carouselContainer: {
-    backgroundColor: '#000',
+    // backgroundColor set inline
     height: 300,
   },
   carouselImageContainer: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    // backgroundColor set inline
   },
   carouselImage: {
     flex: 1,
@@ -490,19 +486,22 @@ const styles = StyleSheet.create({
   },
   metadataText: {
     marginLeft: 8,
+    // color set inline
   },
   date: {
-    color: '#666',
+    // color set inline
     marginTop: 4,
   },
   divider: {
     marginVertical: 16,
+    // backgroundColor set inline
   },
   detailsSection: {
     marginBottom: 16,
   },
   sectionTitle: {
     marginBottom: 16,
+    // color set inline
   },
   detailsGrid: {
     flexDirection: 'row',
@@ -520,17 +519,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   detailLabel: {
-    color: '#666',
+    // color set inline
     marginLeft: 6,
   },
   detailValue: {
     fontWeight: '500',
+    // color set inline
   },
   descriptionSection: {
     marginBottom: 24,
   },
   description: {
     lineHeight: 24,
+    // color set inline
   },
   contactSection: {
     padding: 16,
@@ -556,7 +557,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   userType: {
-    color: '#666',
+    // color set inline
     marginTop: 2,
   },
   contactButtons: {
@@ -579,5 +580,60 @@ const styles = StyleSheet.create({
   },
   featureChip: {
     marginBottom: 8,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
+  priceText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    // color set inline
+  },
+  listingTypeChip: {
+    // backgroundColor set inline
+    marginLeft: 8,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  stickyButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // backgroundColor set inline
+    padding: 16,
+    borderTopWidth: 1,
+    // borderTopColor set inline
+    zIndex: 10,
+  },
+  stickyButton: {
+    borderRadius: 8,
+  },
+  sellerCard: {
+    padding: 16,
+    borderRadius: 12,
+    // backgroundColor set inline
+    marginBottom: 24,
+  },
+  imageCountContainer: {
+    position: 'absolute',
+    bottom: 12,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    zIndex: 5,
+  },
+  imageCountText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 });

@@ -326,6 +326,10 @@ export default function Home() {
     loadMore();
   }, [loadingMore, hasMore, page, totalCount, activeFilters, fetchFilteredPosts, fetchInitialPosts]);
 
+  // Pad posts to ensure consistent two-column layout
+  const numColumns = 2;
+  const paddedPosts = posts.length % numColumns === 0 ? posts : [...posts, ...Array(numColumns - (posts.length % numColumns)).fill(null)];
+
   // Memoized Components
   const ListHeaderComponent = useMemo(() => (
     <View style={styles.headerSpacer} />
@@ -395,10 +399,12 @@ export default function Home() {
   }, [loadingMore, hasMore, theme.colors.primary, posts.length]);
 
   const renderItem: ListRenderItem<Post> = useCallback(({ item }) => (
-    <PostCard post={item} />
+    <View style={styles.postCardWrapper}>
+      <PostCard post={item} cardStyle={styles.postCard} />
+    </View>
   ), []);
 
-  const keyExtractor = useCallback((item: Post) => item.id, []);
+  const keyExtractor = useCallback((item: Post | null, index: number) => item ? item.id : `empty-${index}`, []);
 
   // Error State
   if (error) {
@@ -420,8 +426,10 @@ export default function Home() {
         onLogoPress={handleReset}
       />
       <FlatList
-        data={posts}
-        renderItem={renderItem}
+        data={paddedPosts}
+        renderItem={(info) =>
+          info.item ? renderItem({ ...info, item: info.item }) : <View style={[styles.postCardWrapper, { backgroundColor: 'transparent' }]} />
+        }
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContainer}
         ListHeaderComponent={ListHeaderComponent}
@@ -437,6 +445,8 @@ export default function Home() {
             tintColor={theme.colors.primary}
           />
         }
+        numColumns={numColumns}
+        columnWrapperStyle={styles.columnWrapper}
       />
       <Button 
         mode="contained" 
@@ -455,7 +465,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContainer: {
-    padding: 16,
+    paddingHorizontal: 8,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   headerSpacer: {
     height: 64, // Match the height of the FilterSection header
@@ -527,5 +539,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     padding: 16,
+  },
+  columnWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  postCardWrapper: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  postCard: {
+    width: '100%',
   },
 }); 
