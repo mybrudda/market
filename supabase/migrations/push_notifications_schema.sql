@@ -1,10 +1,32 @@
--- Push Notifications Schema for Expo Push Service
--- This schema is designed to work with Expo's push notification service
+-- Push Notifications Schema for Expo Push Service (migrated to public.users)
+-- This migration first drops all old objects, then recreates them to reference public.users(id)
+
+-- 1. DROP OLD OBJECTS
+
+-- Drop trigger and function for notification settings on auth.users
+DROP TRIGGER IF EXISTS on_new_user_notification_settings ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user_notification_settings();
+
+-- Drop functions
+DROP FUNCTION IF EXISTS public.create_default_notification_settings();
+DROP FUNCTION IF EXISTS public.should_send_notification(UUID, UUID, TEXT);
+DROP FUNCTION IF EXISTS public.get_user_expo_push_tokens(UUID);
+DROP FUNCTION IF EXISTS public.register_expo_push_token(TEXT, TEXT);
+
+-- Drop policies
+DROP POLICY IF EXISTS "Users can manage their own push tokens" ON public.push_tokens;
+DROP POLICY IF EXISTS "Users can manage their own notification settings" ON public.notification_settings;
+
+-- Drop tables
+DROP TABLE IF EXISTS public.push_tokens CASCADE;
+DROP TABLE IF EXISTS public.notification_settings CASCADE;
+
+-- 2. RECREATE OBJECTS WITH public.users(id)
 
 -- Push tokens table to store Expo push tokens
 CREATE TABLE IF NOT EXISTS public.push_tokens (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     expo_push_token TEXT NOT NULL,
     device_id TEXT,
     is_active BOOLEAN DEFAULT true,
@@ -16,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.push_tokens (
 -- Notification settings table for user preferences
 CREATE TABLE IF NOT EXISTS public.notification_settings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     message_notifications BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
@@ -195,9 +217,9 @@ BEGIN
 END;
 $$;
 
--- Create trigger for new users
-DROP TRIGGER IF EXISTS on_new_user_notification_settings ON auth.users;
+-- Create trigger for new users (on public.users)
+DROP TRIGGER IF EXISTS on_new_user_notification_settings ON public.users;
 CREATE TRIGGER on_new_user_notification_settings
-    AFTER INSERT ON auth.users
+    AFTER INSERT ON public.users
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user_notification_settings(); 
