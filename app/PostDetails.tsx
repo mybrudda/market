@@ -12,6 +12,7 @@ import { formatPrice, formatDate } from '../utils/format';
 import { Post, VehicleDetails, RealEstateDetails, CarouselRenderItemInfo, IconName } from '../types/database';
 import { useSavePost } from '../lib/hooks/useSavePost';
 import { Platform } from 'react-native';
+import ReportPostModal from '../components/ReportPostModal';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -22,6 +23,7 @@ export default function PostDetails() {
   const [loading, setLoading] = useState(true);
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   const [featuresExpanded, setFeaturesExpanded] = useState(false);
   const width = Dimensions.get('window').width;
   const { user } = useAuthStore();
@@ -115,6 +117,14 @@ export default function PostDetails() {
   const handleContinueAsGuest = () => {
     setShowContactDialog(false);
     setShowSaveDialog(false);
+  };
+
+  const handleReportPost = () => {
+    if (!user) {
+      setShowContactDialog(true);
+      return;
+    }
+    setShowReportDialog(true);
   };
 
   const renderCarouselItem = ({ item }: CarouselRenderItemInfo) => (
@@ -366,6 +376,19 @@ export default function PostDetails() {
                     </View>
                   </View>
                 </View>
+                
+                {/* Report Button */}
+                {user && user.id !== post.user.id && (
+                  <Button
+                    mode="outlined"
+                    onPress={handleReportPost}
+                    icon="flag"
+                    style={[styles.reportButton, { borderColor: theme.colors.error }]}
+                    textColor={theme.colors.error}
+                  >
+                    Report Post
+                  </Button>
+                )}
               </Surface>
             )}
           </View>
@@ -410,6 +433,16 @@ export default function PostDetails() {
             <Button mode="contained" onPress={handleLogin}>Login</Button>
           </Dialog.Actions>
         </Dialog>
+        
+        {/* Report Post Modal */}
+        <ReportPostModal
+          visible={showReportDialog}
+          onDismiss={() => setShowReportDialog(false)}
+          postId={post?.id || ''}
+          reporterId={user?.id || ''}
+          postOwnerId={post?.user_id || ''}
+          postTitle={post?.title || ''}
+        />
       </Portal>
     </>
   );
@@ -635,5 +668,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 13,
+  },
+  reportButton: {
+    marginTop: 12,
+    borderWidth: 1,
   },
 });
