@@ -102,7 +102,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave, c
   return (
     <View style={styles.container}>
       <Pressable onPress={() => router.push({ pathname: '/PostDetails', params: { post: JSON.stringify(post) } })}>
-        <Card style={[styles.card, cardStyle]}>
+        <Card style={[cardStyle]}>
           <View style={styles.cardContentWrapper}>
             <View style={styles.imageContainer}>
               <Image

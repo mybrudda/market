@@ -25,9 +25,21 @@ export default function PostDetails() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [featuresExpanded, setFeaturesExpanded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const width = Dimensions.get('window').width;
   const { user } = useAuthStore();
   const [carouselIndex, setCarouselIndex] = useState(0);
+  
+  // Memoize filtered images to avoid recalculating on every render
+  const filteredImages = React.useMemo(() => {
+    if (!post?.images) return [];
+    return post.images.filter(img => img && img.trim() !== '');
+  }, [post?.images]);
+
+  // Optimize carousel index update callback
+  const handleSnapToItem = React.useCallback((index: number) => {
+    setCarouselIndex(index);
+  }, []);
 
   // Use shared save post hook
   const { isSaved, saving, handleSavePost } = useSavePost({
@@ -42,6 +54,8 @@ export default function PostDetails() {
       try {
         const postData = JSON.parse(params.post as string) as Post;
         setPost(postData);
+        setImageError(false); // Reset image error state when post changes
+        setCarouselIndex(0); // Reset carousel index when post changes
         setLoading(false);
       } catch (error) {
         console.error('Error parsing post data:', error);
@@ -127,7 +141,7 @@ export default function PostDetails() {
     setShowReportDialog(true);
   };
 
-  const renderCarouselItem = ({ item }: CarouselRenderItemInfo) => (
+  const renderCarouselItem = React.useCallback(({ item }: CarouselRenderItemInfo) => (
     <View style={styles.carouselImageContainer}>
       <ExpoImage
         source={item}
@@ -136,9 +150,16 @@ export default function PostDetails() {
         transition={300}
         placeholder={blurhash}
         cachePolicy="memory-disk"
+        onError={() => setImageError(true)}
       />
+      {imageError && (
+        <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <MaterialCommunityIcons name="image-off" size={48} color={theme.colors.onSurfaceVariant} />
+          <Text style={[styles.imageErrorText, { color: theme.colors.onSurfaceVariant }]}>Image unavailable</Text>
+        </View>
+      )}
     </View>
-  );
+  ), [imageError, theme.colors.surfaceVariant, theme.colors.onSurfaceVariant]);
 
   const openInMaps = () => {
     if (!post) return;
@@ -196,23 +217,33 @@ export default function PostDetails() {
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           {/* Image Carousel */}
           <View style={[styles.carouselContainer, { backgroundColor: theme.colors.surface }]}>
-            <Carousel
-              loop
-              width={width}
-              height={300}
-              data={post.images}
-              scrollAnimationDuration={1000}
-              renderItem={renderCarouselItem}
-              defaultIndex={0}
-              onSnapToItem={setCarouselIndex}
-            />
-            {/* Image count indicator */}
-            {Array.isArray(post.images) && post.images.length > 1 && (
-              <View style={styles.imageCountContainer}>
-                <Text style={styles.imageCountText}>
-                  {carouselIndex + 1}/{post.images.length}
-                </Text>
+            {(!post.images || post.images.length === 0) ? (
+              <View style={[styles.errorOverlay, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <MaterialCommunityIcons name="image-off" size={48} color={theme.colors.onSurfaceVariant} />
+                <Text style={[styles.imageErrorText, { color: theme.colors.onSurfaceVariant }]}>No images available</Text>
               </View>
+            ) : (
+              <>
+                <Carousel
+                  key={`carousel-${filteredImages.length}`}
+                  loop
+                  width={width}
+                  height={300}
+                  data={filteredImages}
+                  scrollAnimationDuration={500}
+                  renderItem={renderCarouselItem}
+                  defaultIndex={0}
+                  onSnapToItem={handleSnapToItem}
+                />
+                {/* Image count indicator */}
+                {filteredImages.length > 1 && (
+                  <View style={styles.imageCountContainer}>
+                    <Text style={styles.imageCountText}>
+                      {carouselIndex + 1}/{filteredImages.length}
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -672,5 +703,19 @@ const styles = StyleSheet.create({
   reportButton: {
     marginTop: 12,
     borderWidth: 1,
+  },
+  errorOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageErrorText: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
