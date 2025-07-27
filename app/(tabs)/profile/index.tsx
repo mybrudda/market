@@ -22,7 +22,7 @@ interface UserProfile {
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { user, signOut } = useAuthStore();
+  const { user, session, signOut } = useAuthStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,8 +38,7 @@ export default function ProfileScreen() {
 
   const getCleanAvatarUrl = (url: string | null) => {
     if (!url) return null;
-    // Remove the @ prefix and ::text suffix from the URL
-    return url.replace(/^@/, '').replace(/::text$/, '');
+    return url;
   };
 
   const fetchUserProfile = async () => {
@@ -79,37 +78,61 @@ export default function ProfileScreen() {
       });
 
       if (!result.canceled && result.assets[0].base64) {
-        setIsUploading(true);
         const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
         if (!supabaseUrl) {
           throw new Error('Supabase URL is not configured');
         }
 
-        const response = await fetch(`${supabaseUrl}/functions/v1/update-avatar`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            userId: user?.id,
-            base64Image: `data:image/jpeg;base64,${result.assets[0].base64}`,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.text();
-          throw new Error(`Failed to update avatar: ${errorData}`);
+        // Use session token from Zustand store
+        if (!session?.access_token) {
+          throw new Error('No valid session found');
         }
 
-        const { avatar_url } = await response.json();
-        setUserProfile(prev => prev ? { ...prev, avatar_url } : null);
+        // Create temporary image URL for optimistic update
+        const tempImageUrl = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        
+                 // Store the original avatar URL for rollback
+         const originalAvatarUrl = userProfile?.avatar_url || null;
+         
+         // Optimistic update - show new image immediately
+         setUserProfile(prev => prev ? { ...prev, avatar_url: tempImageUrl } : null);
+
+                 // Start upload in background
+         setIsUploading(true);
+         
+         try {
+           const response = await fetch(`${supabaseUrl}/functions/v1/update-avatar`, {
+             method: 'POST',
+             headers: {
+               'Content-Type': 'application/json',
+               'Authorization': `Bearer ${session.access_token}`,
+             },
+             body: JSON.stringify({
+               base64Image: tempImageUrl,
+             }),
+           });
+
+          if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(`Failed to update avatar: ${errorData}`);
+          }
+
+          const { avatar_url } = await response.json();
+          
+          // Update with the actual Cloudinary URL
+          setUserProfile(prev => prev ? { ...prev, avatar_url } : null);
+                 } catch (error) {
+           // Rollback on error - restore original avatar
+           setUserProfile(prev => prev ? { ...prev, avatar_url: originalAvatarUrl } : null);
+           console.error('Error updating avatar:', error);
+           alert('Failed to update profile picture. Please try again.');
+        } finally {
+          setIsUploading(false);
+        }
       }
     } catch (error) {
-      console.error('Error updating avatar:', error);
-      // You might want to show an alert to the user here
-    } finally {
-      setIsUploading(false);
+      console.error('Error picking image:', error);
+      alert('Failed to pick image. Please try again.');
     }
   };
 
@@ -123,33 +146,28 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.headerTop}>
-            <View style={styles.logoContainer}>
-              <Pressable onPress={handleImagePick} style={styles.avatarContainer}>
-                {isUploading ? (
-                  <View style={[styles.avatar, styles.uploadingContainer]}>
-                    <ActivityIndicator color={theme.colors.primary} size="large" />
-                  </View>
-                ) : userProfile?.avatar_url ? (
-                  getCleanAvatarUrl(userProfile.avatar_url) ? (
-                    <Image
-                      source={{ uri: getCleanAvatarUrl(userProfile.avatar_url)! }}
-                      style={styles.avatar}
-                    />
-                  ) : (
-                    <MaterialCommunityIcons
-                      name="account-circle"
-                      size={80}
-                      color={theme.colors.primary}
-                    />
-                  )
-                ) : (
-                  <MaterialCommunityIcons
-                    name="account-circle"
-                    size={80}
-                    color={theme.colors.primary}
-                  />
-                )}
-              </Pressable>
+                         <View style={styles.logoContainer}>
+               <Pressable onPress={handleImagePick} style={styles.avatarContainer}>
+                 {userProfile?.avatar_url ? (
+                   <View style={styles.avatarWrapper}>
+                     <Image
+                       source={{ uri: userProfile.avatar_url }}
+                       style={styles.avatar}
+                     />
+                     {isUploading && (
+                       <View style={[styles.avatar, styles.uploadingOverlay]}>
+                         <ActivityIndicator color={theme.colors.primary} size="small" />
+                       </View>
+                     )}
+                   </View>
+                 ) : (
+                   <MaterialCommunityIcons
+                     name="account-circle"
+                     size={80}
+                     color={theme.colors.primary}
+                   />
+                 )}
+               </Pressable>
               <Text variant="titleLarge" style={{ marginLeft: 8 }}>
                 {userProfile?.username || 'Profile'}
               </Text>
@@ -302,27 +320,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
   },
-  logoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  uploadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
+     logoContainer: {
+     flexDirection: "row",
+     alignItems: "center",
+     gap: 16,
+   },
+   avatarContainer: {
+     position: 'relative',
+   },
+   avatarWrapper: {
+     position: 'relative',
+   },
+   avatar: {
+     width: 80,
+     height: 80,
+     borderRadius: 40,
+   },
+   uploadingOverlay: {
+     position: 'absolute',
+     top: 0,
+     left: 0,
+     justifyContent: 'center',
+     alignItems: 'center',
+     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+     borderRadius: 40,
+   },
   profileInfo: {
     padding: 16,
     marginTop: 10,
@@ -378,8 +400,5 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: 16,
   },
-  buttonLabel: {
-    fontSize: 16,
-    marginLeft: 12,
-  },
+  
 });
