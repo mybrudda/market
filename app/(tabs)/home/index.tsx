@@ -447,6 +447,7 @@ export default function Home() {
         }
         numColumns={numColumns}
         columnWrapperStyle={styles.columnWrapper}
+        showsVerticalScrollIndicator={false}
       />
       <Button 
         mode="contained" 

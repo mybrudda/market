@@ -193,7 +193,7 @@ export default function PostDetails() {
     <>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <Header title="Details" />
-        <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           {/* Image Carousel */}
           <View style={[styles.carouselContainer, { backgroundColor: theme.colors.surface }]}>
             <Carousel

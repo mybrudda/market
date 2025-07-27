@@ -7,7 +7,6 @@ import { format } from 'date-fns';
 import { Post, VehicleDetails, RealEstateDetails } from '../../types/database';
 import { formatPrice } from '../../utils/format';
 import { router } from 'expo-router';
-import { savedPostsService } from '../../lib/savedPostsService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSavePost } from '../../lib/hooks/useSavePost';
 
@@ -223,8 +222,6 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
   },
-  card: {
-  },
   cardContentWrapper: {
     overflow: 'hidden',
   },
@@ -260,8 +257,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
   },
   title: {
     marginBottom: 8,
