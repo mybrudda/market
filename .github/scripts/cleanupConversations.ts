@@ -1,4 +1,3 @@
-import { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabaseAdmin';
 
 interface CleanupResult {
@@ -46,16 +45,8 @@ async function cleanupConversations(): Promise<CleanupResult> {
     const deletedByBoth = conversations.filter(c => c.deleted_by_creator && c.deleted_by_participant).length;
     const deletedByInactivity = conversations.filter(c => new Date(c.last_activity_date) < new Date(oneMonthAgo)).length;
 
-    // Delete all messages first (due to foreign key constraints)
+    // Delete conversations directly (messages will be deleted automatically due to cascade delete)
     const conversationIds = conversations.map(c => c.id);
-    const { error: messagesError } = await supabaseAdmin
-      .from('messages')
-      .delete()
-      .in('conversation_id', conversationIds);
-
-    if (messagesError) throw messagesError;
-
-    // Then delete the conversations
     const { data: deletedConversations, error: deleteError } = await supabaseAdmin
       .from('conversations')
       .delete()
@@ -133,3 +124,4 @@ if (require.main === module) {
 }
 
 export { cleanupConversations, CleanupResult }; 
+
