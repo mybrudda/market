@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
@@ -9,6 +9,7 @@ import FeaturesSection from '../../../components/forms/FeaturesSection';
 import { VehicleFormData, transformVehicleForm, validateVehicleForm, VALIDATION_LIMITS } from '../../../types/forms';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { usePostForm } from '../../../lib/hooks/usePostForm';
+import { useVehicleModels } from '../../../lib/hooks/useVehicleModels';
 import { formStyles } from '../../../constants/formStyles';
 import {
   MAKES,
@@ -48,8 +49,7 @@ const initialState: VehicleFormData = {
 export default function CreateVehiclePost() {
   const theme = useTheme();
   const [formState, setFormState] = useState<VehicleFormData>(initialState);
-  const [models, setModels] = useState<{ id: string; name: string }[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
+  const { models, loadingModels } = useVehicleModels(formState.make);
 
   const {
     loading,
@@ -66,43 +66,7 @@ export default function CreateVehiclePost() {
     successMessage: 'Vehicle post created successfully!'
   });
 
-  // Fetch models when make changes
-  useEffect(() => {
-    const fetchModels = async () => {
-      if (!formState.make || formState.make === 'Other') {
-        setModels([]);
-        return;
-      }
 
-      setLoadingModels(true);
-      try {
-        // Use NHTSA API to fetch vehicle models
-        const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/${encodeURIComponent(formState.make)}?format=json`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          // Transform the API response to match our expected format
-          const modelList = data.Results?.map((item: any) => ({
-            id: item.Model_ID?.toString() || '',
-            name: item.Model_Name || ''
-          })) || [];
-          // Sort models alphabetically by name
-          const sortedModels = modelList.sort((a: { id: string; name: string }, b: { id: string; name: string }) => a.name.localeCompare(b.name));
-          setModels(sortedModels);
-        } else {
-          console.error('Failed to fetch models:', response.status);
-          setModels([]);
-        }
-      } catch (error) {
-        console.error('Error fetching models:', error);
-        setModels([]);
-      } finally {
-        setLoadingModels(false);
-      }
-    };
-
-    fetchModels();
-  }, [formState.make]);
 
   const handleImagePick = () => {
     handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })));

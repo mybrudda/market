@@ -128,7 +128,7 @@ export default function Home() {
         if (filters.make) {
           query = query.eq('details->>make', filters.make);
         }
-        if (filters.model) {
+        if (filters.model && filters.model.trim()) {
           query = query.ilike('details->>model', `%${filters.model}%`);
         }
         if (filters.fuelType) {

@@ -4,6 +4,7 @@ import { Text, Button, useTheme, Chip, TextInput, Divider, SegmentedButtons } fr
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from 'rn-range-slider';
 import Dropdown from '../ui/Dropdown';
+import { useVehicleModels } from '../../lib/hooks/useVehicleModels';
 import {
   CITIES,
   VEHICLE_CATEGORIES,
@@ -23,7 +24,7 @@ export interface FilterOptions {
   city: string | null;
   category: string | null;
   make: string | null;
-  model: string;
+  model: string | null;
   fuelType: string | null;
   transmission: 'Manual' | 'Automatic' | '';
   yearRange: {
@@ -54,7 +55,7 @@ const initialFilters: FilterOptions = {
   city: null,
   category: null,
   make: null,
-  model: '',
+  model: null,
   fuelType: null,
   transmission: '',
   yearRange: {
@@ -81,6 +82,9 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
   const expandAnimation = useRef(new Animated.Value(0)).current;
   const searchWidthAnimation = useRef(new Animated.Value(0)).current;
   const { height: windowHeight } = Dimensions.get('window');
+  
+  // Use the vehicle models hook for dynamic model fetching
+  const { models, loadingModels } = useVehicleModels(filters.make || '');
 
   const handleYearChange = useCallback((low: number, high: number) => {
     setFilters(prev => ({
@@ -443,16 +447,21 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
           <Dropdown
             data={makesData}
             value={filters.make}
-            onChange={value => setFilters(prev => ({ ...prev, make: value }))}
+            onChange={value => {
+              setFilters(prev => ({ 
+                ...prev, 
+                make: value,
+                model: '' // Clear model when make changes
+              }));
+            }}
             placeholder="Select Make"
           />
-          <TextInput
-            mode="outlined"
-            label="Model"
+          <Dropdown
+            data={models.map(model => ({ label: model.name, value: model.name }))}
             value={filters.model}
-            onChangeText={value => setFilters(prev => ({ ...prev, model: value }))}
-            style={styles.input}
-            dense
+            onChange={value => setFilters(prev => ({ ...prev, model: value }))}
+            placeholder={!filters.make ? "Select make first" : loadingModels ? "Loading models..." : "Select Model"}
+            disabled={!filters.make || loadingModels}
           />
         </View>
       </View>
