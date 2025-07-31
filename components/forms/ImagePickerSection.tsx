@@ -44,25 +44,31 @@ export default function ImagePickerSection({
             </TouchableOpacity>
           )}
           
-          {images.map((base64Image, index) => (
-            <View key={index} style={styles.imageWrapper}>
-              <View style={styles.imageContent}>
-                <Image
-                  source={`data:image/jpeg;base64,${base64Image}`}
-                  style={styles.image}
-                  contentFit="cover"
-                  transition={200}
-                  placeholder={blurhash}
+          {images.map((image, index) => {
+            // Check if the image is a URL or base64
+            const isUrl = image.startsWith('http');
+            const imageSource = isUrl ? { uri: image } : `data:image/jpeg;base64,${image}`;
+            
+            return (
+              <View key={index} style={styles.imageWrapper}>
+                <View style={styles.imageContent}>
+                  <Image
+                    source={imageSource}
+                    style={styles.image}
+                    contentFit="cover"
+                    transition={200}
+                    placeholder={blurhash}
+                  />
+                </View>
+                <IconButton
+                  icon="close"
+                  size={20}
+                  onPress={() => onRemoveImage(index)}
+                  style={styles.removeButton}
                 />
               </View>
-              <IconButton
-                icon="close"
-                size={20}
-                onPress={() => onRemoveImage(index)}
-                style={styles.removeButton}
-              />
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     </View>

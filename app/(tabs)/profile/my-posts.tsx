@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { ActivityIndicator, useTheme, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { supabase } from "../../../supabaseClient";
 import PostCard from "../../../components/posts/PostCard";
@@ -120,6 +121,27 @@ export default function MyPostsScreen() {
     }
   }, []);
 
+  const handleUpdate = useCallback((post: Post) => {
+    // Navigate to the appropriate form based on post type
+    if (post.post_type === 'vehicle') {
+      router.push({
+        pathname: '/(tabs)/create/vehicle',
+        params: { 
+          mode: 'update',
+          post: JSON.stringify(post)
+        }
+      });
+    } else if (post.post_type === 'realestate') {
+      router.push({
+        pathname: '/(tabs)/create/real-estate',
+        params: { 
+          mode: 'update',
+          post: JSON.stringify(post)
+        }
+      });
+    }
+  }, []);
+
   const ListEmptyComponent = useCallback(
     () => (
       <View style={styles.emptyContainer}>
@@ -159,6 +181,7 @@ export default function MyPostsScreen() {
                 post={item} 
                 showMenu={true}
                 onDelete={handleDelete}
+                onUpdate={handleUpdate}
                 cardStyle={styles.postCard}
               />
             </View>

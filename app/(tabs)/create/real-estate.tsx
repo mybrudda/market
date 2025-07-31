@@ -1,6 +1,7 @@
 import { View } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Text, Card, useTheme, TextInput } from 'react-native-paper';
+import { useLocalSearchParams } from 'expo-router';
 import RequireAuth from '../../../components/auth/RequireAuth';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import DropdownComponent from '../../../components/ui/Dropdown';
@@ -16,7 +17,9 @@ import {
 } from '../../../constants/FormOptions';
 import BasePostForm from '../../../components/forms/BasePostForm';
 import { usePostForm } from '../../../lib/hooks/usePostForm';
+import { usePostUpdate } from '../../../lib/hooks/usePostUpdate';
 import { formStyles } from '../../../constants/formStyles';
+import { Post } from '../../../types/database';
 
 import { DEFAULT_FORM_VALUES } from '../../../types/forms';
 
@@ -46,22 +49,70 @@ const initialFormState: RealEstateFormData = {
 
 export default function CreateRealEstatePost() {
   const theme = useTheme();
+  const params = useLocalSearchParams();
   const [formState, setFormState] = useState<RealEstateFormData>(initialFormState);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [postToUpdate, setPostToUpdate] = useState<Post | null>(null);
+
+  // Check if we're in update mode
+  useEffect(() => {
+    if (params.mode === 'update' && params.post) {
+      try {
+        const postData = JSON.parse(params.post as string) as Post;
+        setPostToUpdate(postData);
+        setIsUpdateMode(true);
+      } catch (error) {
+        console.error('Error parsing post data:', error);
+      }
+    }
+  }, [params.mode, params.post]);
 
   const {
-    loading,
-    errors,
-    handlePickImage,
-    handleRemoveImage,
-    handleInputChange,
-    handleLocationChange,
-    handleSubmit
+    loading: createLoading,
+    errors: createErrors,
+    handlePickImage: createHandlePickImage,
+    handleRemoveImage: createHandleRemoveImage,
+    handleInputChange: createHandleInputChange,
+    handleLocationChange: createHandleLocationChange,
+    handleSubmit: createHandleSubmit
   } = usePostForm<RealEstateFormData>({
     postType: 'realestate',
     transformForm: transformRealEstateForm,
     validateForm: validateRealEstateForm,
     successMessage: 'Real estate post created successfully!'
   });
+
+  const {
+    loading: updateLoading,
+    errors: updateErrors,
+    initializeFormFromPost,
+    handlePickImage: updateHandlePickImage,
+    handleRemoveImage: updateHandleRemoveImage,
+    handleInputChange: updateHandleInputChange,
+    handleLocationChange: updateHandleLocationChange,
+    handleUpdate
+  } = usePostUpdate<RealEstateFormData>({
+    postType: 'realestate',
+    transformForm: transformRealEstateForm,
+    validateForm: validateRealEstateForm,
+    successMessage: 'Real estate post updated successfully!'
+  });
+
+  // Initialize form with post data if in update mode
+  useEffect(() => {
+    if (isUpdateMode && postToUpdate) {
+      const initialFormData = initializeFormFromPost(postToUpdate);
+      setFormState(initialFormData);
+    }
+  }, [isUpdateMode, postToUpdate]);
+
+  // Use the appropriate handlers based on mode
+  const loading = isUpdateMode ? updateLoading : createLoading;
+  const errors = isUpdateMode ? updateErrors : createErrors;
+  const handlePickImage = isUpdateMode ? updateHandlePickImage : createHandlePickImage;
+  const handleRemoveImage = isUpdateMode ? updateHandleRemoveImage : createHandleRemoveImage;
+  const handleInputChange = isUpdateMode ? updateHandleInputChange : createHandleInputChange;
+  const handleLocationChange = isUpdateMode ? updateHandleLocationChange : createHandleLocationChange;
 
   const handleImagePick = () => {
     handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })));
@@ -80,7 +131,11 @@ export default function CreateRealEstatePost() {
   };
 
   const handleFormSubmit = () => {
-    handleSubmit(formState);
+    if (isUpdateMode && postToUpdate) {
+      handleUpdate(formState, postToUpdate.id);
+    } else {
+      createHandleSubmit(formState);
+    }
   };
 
   const renderPropertyFields = () => (
@@ -157,15 +212,15 @@ export default function CreateRealEstatePost() {
   );
 
   if (loading) {
-    return <LoadingScreen message="Creating your post..." />;
+    return <LoadingScreen message={isUpdateMode ? "Updating your post..." : "Creating your post..."} />;
   }
 
   return (
     <RequireAuth message="You need to be logged in to create a real estate listing.">
       <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
-        <Header title="Create Real Estate Post" />
+        <Header title={isUpdateMode ? "Update Real Estate Post" : "Create Real Estate Post"} />
         <BasePostForm<RealEstateFormData>
-          title="Create Real Estate Post"
+          title={isUpdateMode ? "Update Real Estate Post" : "Create Real Estate Post"}
           formState={formState}
           errors={errors}
           onInputChange={handleFormInputChange}
@@ -181,7 +236,7 @@ export default function CreateRealEstatePost() {
           onPress={handleFormSubmit}
           style={formStyles.submitButton}
         >
-          Create Post
+          {isUpdateMode ? "Update Post" : "Create Post"}
         </Button>
       </View>
     </RequireAuth>

@@ -1,6 +1,7 @@
 import { View } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
+import { useLocalSearchParams } from 'expo-router';
 import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
 import Header from '../../../components/layout/Header';
@@ -9,8 +10,10 @@ import FeaturesSection from '../../../components/forms/FeaturesSection';
 import { VehicleFormData, transformVehicleForm, validateVehicleForm, VALIDATION_LIMITS } from '../../../types/forms';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { usePostForm } from '../../../lib/hooks/usePostForm';
+import { usePostUpdate } from '../../../lib/hooks/usePostUpdate';
 import { useVehicleModels } from '../../../lib/hooks/useVehicleModels';
 import { formStyles } from '../../../constants/formStyles';
+import { Post } from '../../../types/database';
 import {
   MAKES,
   YEARS,
@@ -48,23 +51,71 @@ const initialState: VehicleFormData = {
 
 export default function CreateVehiclePost() {
   const theme = useTheme();
+  const params = useLocalSearchParams();
   const [formState, setFormState] = useState<VehicleFormData>(initialState);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [postToUpdate, setPostToUpdate] = useState<Post | null>(null);
   const { models, loadingModels } = useVehicleModels(formState.make);
 
+  // Check if we're in update mode
+  useEffect(() => {
+    if (params.mode === 'update' && params.post) {
+      try {
+        const postData = JSON.parse(params.post as string) as Post;
+        setPostToUpdate(postData);
+        setIsUpdateMode(true);
+      } catch (error) {
+        console.error('Error parsing post data:', error);
+      }
+    }
+  }, [params.mode, params.post]);
+
   const {
-    loading,
-    errors,
-    handlePickImage,
-    handleRemoveImage,
-    handleInputChange,
-    handleLocationChange,
-    handleSubmit
+    loading: createLoading,
+    errors: createErrors,
+    handlePickImage: createHandlePickImage,
+    handleRemoveImage: createHandleRemoveImage,
+    handleInputChange: createHandleInputChange,
+    handleLocationChange: createHandleLocationChange,
+    handleSubmit: createHandleSubmit
   } = usePostForm<VehicleFormData>({
     postType: 'vehicle',
     transformForm: transformVehicleForm,
     validateForm: validateVehicleForm,
     successMessage: 'Vehicle post created successfully!'
   });
+
+  const {
+    loading: updateLoading,
+    errors: updateErrors,
+    initializeFormFromPost,
+    handlePickImage: updateHandlePickImage,
+    handleRemoveImage: updateHandleRemoveImage,
+    handleInputChange: updateHandleInputChange,
+    handleLocationChange: updateHandleLocationChange,
+    handleUpdate
+  } = usePostUpdate<VehicleFormData>({
+    postType: 'vehicle',
+    transformForm: transformVehicleForm,
+    validateForm: validateVehicleForm,
+    successMessage: 'Vehicle post updated successfully!'
+  });
+
+  // Initialize form with post data if in update mode
+  useEffect(() => {
+    if (isUpdateMode && postToUpdate) {
+      const initialFormData = initializeFormFromPost(postToUpdate);
+      setFormState(initialFormData);
+    }
+  }, [isUpdateMode, postToUpdate]);
+
+  // Use the appropriate handlers based on mode
+  const loading = isUpdateMode ? updateLoading : createLoading;
+  const errors = isUpdateMode ? updateErrors : createErrors;
+  const handlePickImage = isUpdateMode ? updateHandlePickImage : createHandlePickImage;
+  const handleRemoveImage = isUpdateMode ? updateHandleRemoveImage : createHandleRemoveImage;
+  const handleInputChange = isUpdateMode ? updateHandleInputChange : createHandleInputChange;
+  const handleLocationChange = isUpdateMode ? updateHandleLocationChange : createHandleLocationChange;
 
 
 
@@ -90,11 +141,15 @@ export default function CreateVehiclePost() {
   };
 
   const handleFormSubmit = () => {
-    handleSubmit(formState);
+    if (isUpdateMode && postToUpdate) {
+      handleUpdate(formState, postToUpdate.id);
+    } else {
+      createHandleSubmit(formState);
+    }
   };
 
   if (loading) {
-    return <LoadingScreen message="Creating your post..." />;
+    return <LoadingScreen message={isUpdateMode ? "Updating your post..." : "Creating your post..."} />;
   }
 
   const renderVehicleFields = () => (
@@ -186,9 +241,9 @@ export default function CreateVehiclePost() {
   return (
     <RequireAuth message="You need to be logged in to create a vehicle listing.">
       <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
-        <Header title="Create Vehicle Post" />
+        <Header title={isUpdateMode ? "Update Vehicle Post" : "Create Vehicle Post"} />
         <BasePostForm<VehicleFormData>
-          title="Create Vehicle Post"
+          title={isUpdateMode ? "Update Vehicle Post" : "Create Vehicle Post"}
           formState={formState}
           errors={errors}
           onInputChange={handleFormInputChange}
@@ -204,7 +259,7 @@ export default function CreateVehiclePost() {
           onPress={handleFormSubmit}
           style={formStyles.submitButton}
         >
-          Create Post
+          {isUpdateMode ? "Update Post" : "Create Post"}
         </Button>
       </View>
     </RequireAuth>

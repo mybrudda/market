@@ -16,11 +16,12 @@ interface PostCardProps {
   post: Post;
   showMenu?: boolean;
   onDelete?: (postId: string) => void;
+  onUpdate?: (post: Post) => void;
   onUnsave?: (postId: string) => void;
   cardStyle?: object;
 }
 
-export default function PostCard({ post, showMenu = false, onDelete, onUnsave, cardStyle }: PostCardProps) {
+export default function PostCard({ post, showMenu = false, onDelete, onUpdate, onUnsave, cardStyle }: PostCardProps) {
   const theme = useTheme();
   const { user } = useAuthStore();
   const [imageError, setImageError] = useState(false);
@@ -40,6 +41,11 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave, c
   const handleDelete = () => {
     closeMenu();
     onDelete?.(post.id);
+  };
+
+  const handleUpdate = () => {
+    closeMenu();
+    onUpdate?.(post);
   };
 
 
@@ -152,6 +158,11 @@ export default function PostCard({ post, showMenu = false, onDelete, onUnsave, c
                       />
                     }
                   >
+                    <Menu.Item 
+                      onPress={handleUpdate} 
+                      title="Update"
+                      leadingIcon="pencil"
+                    />
                     <Menu.Item 
                       onPress={handleDelete} 
                       title="Delete"
