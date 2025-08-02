@@ -27,14 +27,16 @@ export const getCloudinaryUrl = (imageId: string | null, folder: string = 'avata
 /**
  * Uploads an image to Cloudinary and returns only the image ID
  * @param base64Image - Base64 encoded image data
+ * @param folder - Optional folder name (defaults to 'posts')
  * @returns The image ID (without folder prefix)
  */
-export const uploadToCloudinary = async (base64Image: string): Promise<string> => {
+export const uploadToCloudinary = async (base64Image: string, folder: string = 'posts'): Promise<string> => {
   try {
     const formData = new FormData();
     formData.append('file', base64Image);
     formData.append('upload_preset', CLOUDINARY_CONFIG.upload_preset);
     formData.append('cloud_name', CLOUDINARY_CONFIG.cloud_name);
+    formData.append('folder', folder);
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloud_name}/image/upload`,

@@ -1,174 +1,192 @@
+// Vehicle specific options:
+export const VEHICLE_CATEGORIES: string[] = [
+  "Sedan",
+  "SUV",
+  "Truck",
+  "Van",
+  "Motorcycle",
+  "Bus",
+  "Other"
+];
+
+export const MAKES: string[] = [
+  "Acura",
+  "Alfa Romeo",
+  "Aston Martin",
+  "Audi",
+  "Bentley",
+  "BMW",
+  "Bugatti",
+  "Buick",
+  "Cadillac",
+  "Chevrolet",
+  "Chrysler",
+  "Citroën",
+  "Dodge",
+  "Ferrari",
+  "Fiat",
+  "Ford",
+  "Genesis",
+  "GMC",
+  "Honda",
+  "Hyundai",
+  "Infiniti",
+  "Jaguar",
+  "Jeep",
+  "Kia",
+  "Koenigsegg",
+  "Lamborghini",
+  "Land Rover",
+  "Lexus",
+  "Lincoln",
+  "Lotus",
+  "Maserati",
+  "Mazda",
+  "McLaren",
+  "Mercedes-Benz",
+  "Mini",
+  "Mitsubishi",
+  "Nissan",
+  "Pagani",
+  "Peugeot",
+  "Pontiac",
+  "Porsche",
+  "Ram",
+  "Renault",
+  "Rolls-Royce",
+  "Saab",
+  "Saturn",
+  "Scion",
+  "Subaru",
+  "Tesla",
+  "Toyota",
+  "Volkswagen",
+  "Volvo",
+  "Other"
+];
+
+export const VEHICLE_CONDITION: string[] = [
+  "New",
+  "Like New",
+  "Excellent",
+  "Good",
+  "Fair",
+  "Poor"
+];
+
+export const VEHICLE_FUEL_TYPES: string[] = [
+  "Gasoline",
+  "Diesel",
+  "Electric",
+  "Hybrid",
+  "Plug-in Hybrid",
+  "Hydrogen",
+  "Other"
+];
+
+export const VEHICLE_TRANSMISSION: string[] = [
+  "Automatic",
+  "Manual",
+  "CVT",
+  "Semi-Automatic"
+];
+
+export const VEHICLE_MILEAGE_UNITS: string[] = [
+  "km",
+  "miles"
+];
+
+export const VEHICLE_FEATURES = [
+  "Air Conditioning",
+  "Power Windows",
+  "Power Locks",
+  "Power Steering",
+  "ABS",
+  "Airbags",
+  "Bluetooth",
+  "Navigation",
+  "Backup Camera",
+  "Cruise Control",
+  "Heated Seats",
+  "Leather Seats",
+  "Sunroof",
+  "Alloy Wheels",
+  "Fog Lights",
+  "Tinted Windows",
+  "Alarm System",
+  "Spare Tire",
+];
+
+// Common options:
+export const YEARS: string[] = Array.from({ length: 50 }, (_, i) => (new Date().getFullYear() - i).toString());
+
 export const CITIES: string[] = [
-    "Aibak",
-    "Asadabad",
-    "Bamyan",
-    "Bazarak",
-    "Charikar",
-    "Faizabad",
-    "Farah",
-    "Gardez",
-    "Ghazni",
-    "Herat",
-    "Ibrahim Khan",
-    "Injil",
-    "Jabal us Saraj",
-    "Jalalabad",
-    "Kalakan",
-    "Kabul",
-    "Kandahar",
-    "Khost",
-    "Kunduz",
-    "Lashkar Gah",
-    "Maidan Shahr",
-    "Maimana",
-    "Mahmud-e Raqi",
-    "Mazar-e Sharif",
-    "Mehtar Lam",
-    "Mir Bachah Kot",
-    "Nadir Shah Kot",
-    "Nadir Shah Kot",
-    "Nili",
-    "Paghman",
-    "Pul-e Khumri",
-    "Pul-e Alam",
-    "Qala-ye Now",
-    "Qalat",
-    "Qarah Bagh Bazar",
-    "Sar-e Pul",
-    "Sharan",
-    "Shibirghan",
-    "Tarin Kot",
-    "Talqan",
-    "Zaranj",
-  ];
-  
-  export const SALE_RENT_OPTIONS: string[] = ["Sale", "Rent"];
-  
-  const currentYear = new Date().getFullYear();
-  export const YEARS: string[] = Array.from(
-    { length: currentYear - 1970 + 1 },
-    (_, i) => (currentYear - i).toString()
-  );
-  
-  
-  // Vehicle-specific constants
-  export const VEHICLE_CATEGORIES = [
-    "Car",
-    "Truck",
-    "Motorcycle",
-    "Van",
-    "Minivan",
-    "Pickup Truck",
-    "Bus",
-    "Tractor",
-    "Trailer",
-    "Boat",
-    "ATV/Quad Bike",
-    "Scooter",
-    "Bicycle",
-    "Other"
-  ];
-  
-  export const MAKES = [
-    "Acura",
-    "Alfa Romeo",
-    "Aston Martin",
-    "Audi",
-    "Bentley",
-    "BMW",
-    "Bugatti",
-    "Buick",
-    "Cadillac",
-    "Chevrolet",
-    "Chrysler",
-    "Citroën",
-    "Dodge",
-    "Ferrari",
-    "Fiat",
-    "Ford",
-    "Genesis",
-    "GMC",
-    "Honda",
-    "Hyundai",
-    "Infiniti",
-    "Jaguar",
-    "Jeep",
-    "Kia",
-    "Koenigsegg",
-    "Lamborghini",
-    "Land Rover",
-    "Lexus",
-    "Lincoln",
-    "Lotus",
-    "Maserati",
-    "Mazda",
-    "McLaren",
-    "Mercedes-Benz",
-    "Mini",
-    "Mitsubishi",
-    "Nissan",
-    "Pagani",
-    "Peugeot",
-    "Pontiac",
-    "Porsche",
-    "Ram",
-    "Renault",
-    "Rolls-Royce",
-    "Saab",
-    "Saturn",
-    "Scion",
-    "Subaru",
-    "Tesla",
-    "Toyota",
-    "Volkswagen",
-    "Volvo",
-    "Other"
-  ];
-  
-  export const VEHICLE_CONDITION = [
-    "New",
-    "Excellent",
-    "Good",
-    "Fair",
-    "Non-Operational",
-  ];
-  
-  export const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid", "Plug-in Hybrid", "LPG/CNG", "Other"];
-  
-  export const TRANSMISSIONS = ["Automatic", "Manual", "CVT", "Semi-Automatic", "Other"];
-  
-  export const VEHICLE_FEATURES = [
-    "Air Conditioning",
-    "Airbags",
-    "Bluetooth",
-    "Navigation System",
-    "Backup Camera",
-    "Heated Seats",
-    "Power Windows",
-    "ABS (Anti-lock Brakes)",
-    "Spare Tire",
-    "Leather Seats",
-  ];
-  
-  
-  
-  // Real Estate specific options:
-  export const REAL_ESTATE_CATEGORIES: string[] = ["Apartment", "House", "Land", "Office", "Restaurant", "Shop", "Warehouse", "Farm", "Other"];
-  
-  
-  export const PROPERTY_FEATURES = [
-    "Swimming Pool",
-    "Garden",
-    "Guest House",
-    "Parking",
-    "Balcony",
-    "Elevator",
-  ];
-  
-  export const REAL_ESTATE_CONDITION = [
-    "New",
-    "Excellent",
-    "Good",
-    "Fair",
-    "Needs Renovation",
-  ];
+  "Kabul",
+  "Kandahar",
+  "Herat",
+  "Mazar-e-Sharif",
+  "Kunduz",
+  "Jalalabad",
+  "Ghazni",
+  "Balkh",
+  "Baghlan",
+  "Khost",
+  "Kunar",
+  "Nangarhar",
+  "Paktia",
+  "Paktika",
+  "Zabul",
+  "Uruzgan",
+  "Helmand",
+  "Farah",
+  "Nimroz",
+  "Badghis",
+  "Ghor",
+  "Bamyan",
+  "Daykundi",
+  "Panjshir",
+  "Kapisa",
+  "Parwan",
+  "Wardak",
+  "Logar",
+  "Nuristan",
+  "Badakhshan",
+  "Takhar",
+  "Samangan",
+  "Sar-e-Pul",
+  "Faryab",
+  "Jowzjan",
+  "Other"
+];
+
+export const CURRENCIES: string[] = [
+  "USD",
+  "EUR",
+  "GBP",
+  "AFN",
+  "PKR",
+  "IRR",
+  "Other"
+];
+
+export const COUNTRIES: string[] = [
+  "Afghanistan",
+  "Pakistan",
+  "Iran",
+  "Tajikistan",
+  "Uzbekistan",
+  "Turkmenistan",
+  "China",
+  "Other"
+];
+
+// Dropdown data helpers
+export const vehicleCategoriesData = VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }));
+export const vehicleConditionData = VEHICLE_CONDITION.map(condition => ({ label: condition, value: condition }));
+export const vehicleFuelTypesData = VEHICLE_FUEL_TYPES.map(fuelType => ({ label: fuelType, value: fuelType }));
+export const vehicleTransmissionData = VEHICLE_TRANSMISSION.map(transmission => ({ label: transmission, value: transmission }));
+export const vehicleMileageUnitsData = VEHICLE_MILEAGE_UNITS.map(unit => ({ label: unit, value: unit }));
+export const yearsData = YEARS.map(year => ({ label: year, value: year }));
+export const citiesData = CITIES.map(city => ({ label: city, value: city }));
+export const currenciesData = CURRENCIES.map(currency => ({ label: currency, value: currency }));
+export const countriesData = COUNTRIES.map(country => ({ label: country, value: country }));

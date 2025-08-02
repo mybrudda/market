@@ -15,13 +15,16 @@ import { useVehicleModels } from '../../../lib/hooks/useVehicleModels';
 import { formStyles } from '../../../constants/formStyles';
 import { Post } from '../../../types/database';
 import {
+  VEHICLE_CATEGORIES,
+  VEHICLE_CONDITION,
+  VEHICLE_FUEL_TYPES,
+  VEHICLE_TRANSMISSION,
+  VEHICLE_FEATURES,
   MAKES,
   YEARS,
-  FUEL_TYPES,
-  TRANSMISSIONS,
-  VEHICLE_FEATURES,
-  VEHICLE_CONDITION,
-  VEHICLE_CATEGORIES,
+  CITIES,
+  CURRENCIES,
+  COUNTRIES,
 } from '../../../constants/FormOptions';
 
 import { DEFAULT_FORM_VALUES } from '../../../types/forms';
@@ -36,13 +39,16 @@ const initialState: VehicleFormData = {
   category: '',
   location: {
     city: '',
-    address: null,
+    address: undefined,
     country: DEFAULT_FORM_VALUES.COUNTRY
   },
   make: '',
   model: '',
   year: '',
-  mileage: '',
+  mileage: {
+    value: '',
+    unit: 'km'
+  },
   condition: '',
   fuelType: '',
   transmission: '',
@@ -193,26 +199,29 @@ export default function CreateVehiclePost() {
 
         <TextInput
           label="Mileage (km)"
-          value={formState.mileage}
-          onChangeText={text => handleFormInputChange('mileage', text)}
+          value={formState.mileage.value}
+          onChangeText={text => setFormState(prev => ({ 
+            ...prev, 
+            mileage: { ...prev.mileage, value: text } 
+          }))}
           keyboardType="numeric"
           error={!!errors.mileage}
           style={formStyles.input}
         />
 
         <DropdownComponent
-          data={FUEL_TYPES.map(type => ({ label: type, value: type }))}
+          data={VEHICLE_FUEL_TYPES.map(type => ({ label: type, value: type }))}
           value={formState.fuelType}
           onChange={(value: string | null) => handleFormInputChange('fuelType', value || '')}
-          placeholder="Fuel Type"
+          placeholder="Select fuel type"
           error={errors.fuelType}
         />
 
         <DropdownComponent
-          data={TRANSMISSIONS.map(trans => ({ label: trans, value: trans }))}
+          data={VEHICLE_TRANSMISSION.map(trans => ({ label: trans, value: trans }))}
           value={formState.transmission}
           onChange={(value: string | null) => handleFormInputChange('transmission', value || '')}
-          placeholder="Transmission"
+          placeholder="Select transmission"
           error={errors.transmission}
         />
 

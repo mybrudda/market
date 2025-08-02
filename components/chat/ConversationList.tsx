@@ -14,6 +14,7 @@ import { Text, useTheme, Surface, Badge } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUnreadMessagesStore } from '../../store/useUnreadMessagesStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { getCloudinaryUrl } from '../../lib/cloudinary';
 
 const PLACEHOLDER_IMAGE = 'https://res.cloudinary.com/dtac4dhtj/image/upload/v1701835686/placeholder_image.jpg';
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -79,6 +80,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         const formattedDate = format(lastActivityDate, 'MMM d, h:mm a');
         const isPostActive = item.post_status === 'active';
 
+        // Convert image ID to URL if it exists
+        const postImageUrl = item.post_image 
+            ? getCloudinaryUrl(item.post_image, 'posts') 
+            : PLACEHOLDER_IMAGE;
+
         return (
             <Surface
                 style={[
@@ -95,7 +101,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     style={styles.touchableContent}
                 >
                     <ExpoImage
-                        source={{ uri: isPostActive ? (item.post_image || PLACEHOLDER_IMAGE) : PLACEHOLDER_IMAGE }}
+                        source={{ uri: postImageUrl || PLACEHOLDER_IMAGE }}
                         style={[
                             styles.postImage,
                             !isPostActive && { opacity: 0.5 }

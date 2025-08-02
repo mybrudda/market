@@ -4,11 +4,12 @@ import { Card, Text, Chip, useTheme, Menu, IconButton, Button } from 'react-nati
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { format } from 'date-fns';
-import { Post, VehicleDetails, RealEstateDetails } from '../../types/database';
+import { Post, VehicleDetails } from '../../types/database';
 import { formatPrice } from '../../utils/format';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSavePost } from '../../lib/hooks/useSavePost';
+import { getCloudinaryUrl } from '../../lib/cloudinary';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -48,8 +49,6 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
     onUpdate?.(post);
   };
 
-
-
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMM d, yyyy');
   };
@@ -82,28 +81,10 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
     </View>
   );
 
-  const renderRealEstateDetails = (details: RealEstateDetails) => (
-    <View style={styles.detailsContainer}>
-      <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="home" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodySmall" style={styles.detailValue}>
-          {post.category}
-        </Text>
-      </View>
-      <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="bed" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodySmall" style={styles.detailValue}>
-          {details.rooms} rooms, {details.bathrooms} baths
-        </Text>
-      </View>
-      <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="ruler-square" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodySmall" style={styles.detailValue}>
-          {details.size.value} {details.size.unit}
-        </Text>
-      </View>
-    </View>
-  );
+  // Get the first image URL from the image ID
+  const firstImageUrl = post.images && post.images.length > 0 
+    ? getCloudinaryUrl(post.images[0], 'posts') 
+    : null;
 
   return (
     <View style={styles.container}>
@@ -112,7 +93,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
           <View style={styles.cardContentWrapper}>
             <View style={styles.imageContainer}>
               <Image
-                source={{ uri: post.images[0] }}
+                source={{ uri: firstImageUrl || '' }}
                 style={styles.cardImage}
                 contentFit="cover"
                 transition={300}
@@ -193,10 +174,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
                 {post.title}
               </Text>
               
-              {post.post_type === 'vehicle' 
-                ? renderVehicleDetails(post.details as VehicleDetails)
-                : renderRealEstateDetails(post.details as RealEstateDetails)
-              }
+              {renderVehicleDetails(post.details)}
 
               <View style={styles.footerRow}>
                 <View style={{ flex: 1 }}>
@@ -231,7 +209,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   cardContentWrapper: {
     overflow: 'hidden',

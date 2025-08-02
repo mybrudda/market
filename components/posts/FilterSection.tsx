@@ -8,18 +8,14 @@ import { useVehicleModels } from '../../lib/hooks/useVehicleModels';
 import {
   CITIES,
   VEHICLE_CATEGORIES,
-  REAL_ESTATE_CATEGORIES,
   MAKES,
-  FUEL_TYPES,
-  TRANSMISSIONS,
-  PROPERTY_FEATURES,
+  VEHICLE_FUEL_TYPES,
+  VEHICLE_TRANSMISSION,
 } from '../../constants/FormOptions';
 
-type PostType = 'vehicle' | 'realestate';
 type ListingType = 'rent' | 'sale';
 
 export interface FilterOptions {
-  postType: PostType;
   listingType: ListingType;
   city: string | null;
   category: string | null;
@@ -36,10 +32,6 @@ export interface FilterOptions {
     max: string;
   };
   features: string[];
-  size?: {
-    min: string;
-    max: string;
-  };
 }
 
 interface FilterSectionProps {
@@ -50,7 +42,6 @@ interface FilterSectionProps {
 
 const currentYear = new Date().getFullYear();
 const initialFilters: FilterOptions = {
-  postType: 'vehicle',
   listingType: 'sale',
   city: null,
   category: null,
@@ -67,10 +58,6 @@ const initialFilters: FilterOptions = {
     max: '',
   },
   features: [],
-  size: {
-    min: '',
-    max: '',
-  },
 };
 
 export default function FilterSection({ onSearch, onFilter, onLogoPress }: FilterSectionProps) {
@@ -106,17 +93,14 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
     }));
   }, []);
 
-  const handleSizeChange = useCallback((field: 'min' | 'max', value: string) => {
+  const handleFilterChange = useCallback((field: keyof FilterOptions, value: any) => {
     setFilters(prev => ({
       ...prev,
-      size: {
-        ...prev.size!,
-        [field]: value,
-      },
+      [field]: value,
     }));
   }, []);
 
-  const toggleFeature = useCallback((feature: string) => {
+  const handleFeatureToggle = useCallback((feature: string) => {
     setFilters(prev => ({
       ...prev,
       features: prev.features.includes(feature)
@@ -125,60 +109,35 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
     }));
   }, []);
 
-  const handleClearFilters = useCallback(() => {
+  const clearFilters = useCallback(() => {
     setFilters(initialFilters);
   }, []);
 
-  const handleApplyFilters = useCallback(() => {
-    if (onFilter) {
-      onFilter(filters);
-    }
+  const applyFilters = useCallback(() => {
+    onFilter?.(filters);
     setIsExpanded(false);
-    
-    // Animate the filter section closed
-    Animated.spring(expandAnimation, {
-      toValue: 0,
-      useNativeDriver: false,
-      friction: 8,
-      tension: 40,
-    }).start();
-  }, [filters, onFilter, expandAnimation]);
+  }, [filters, onFilter]);
 
-  const handleTransmissionChange = useCallback((value: string) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      transmission: value as 'Manual' | 'Automatic' | '' 
-    }));
-  }, []);
+  const handleSearch = useCallback(() => {
+    onSearch?.(searchQuery);
+  }, [searchQuery, onSearch]);
 
   const toggleExpand = () => {
-    const toValue = isExpanded ? 0 : 1;
-    setIsExpanded(!isExpanded);
+    const newExpanded = !isExpanded;
+    setIsExpanded(newExpanded);
     
-    Animated.spring(expandAnimation, {
-      toValue,
+    Animated.timing(expandAnimation, {
+      toValue: newExpanded ? 1 : 0,
+      duration: 300,
       useNativeDriver: false,
-      friction: 8,
-      tension: 40,
     }).start();
   };
 
-  const containerHeight = expandAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [64, windowHeight * 0.7]
-  });
-
-  const rotateIcon = expandAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
   const animateSearchWidth = (focused: boolean) => {
-    Animated.spring(searchWidthAnimation, {
+    Animated.timing(searchWidthAnimation, {
       toValue: focused ? 1 : 0,
+      duration: 200,
       useNativeDriver: false,
-      friction: 8,
-      tension: 40,
     }).start();
   };
 
@@ -192,170 +151,30 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
     animateSearchWidth(false);
   };
 
-  const searchContainerWidth = searchWidthAnimation.interpolate({
+  const maxHeight = expandAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['100%', '100%']
+    outputRange: [0, windowHeight * 0.7],
   });
 
-  const citiesData = CITIES.map(city => ({ label: city, value: city }));
-  const vehicleCategoriesData = VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }));
-  const realEstateCategoriesData = REAL_ESTATE_CATEGORIES.map(category => ({ label: category, value: category }));
-  const makesData = MAKES.map(make => ({ label: make, value: make }));
-  const fuelTypesData = FUEL_TYPES.map(type => ({ label: type, value: type }));
-  const transmissionsData = TRANSMISSIONS.map(transmission => ({ label: transmission, value: transmission }));
-
-  const styles = StyleSheet.create({
-    container: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 1000,
-      elevation: 3,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
-      overflow: 'hidden',
-    },
-    header: {
-      height: 64,
-      paddingHorizontal: 16,
-    },
-    headerContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      height: '100%',
-      gap: 12,
-    },
-    logo: {
-      marginRight: 4,
-    },
-    searchContainer: {
-      flex: 1,
-    },
-    searchContainerFocused: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-    },
-    searchInput: {
-      backgroundColor: 'transparent',
-      height: 40,
-      paddingLeft: 4,
-    },
-    expandButton: {
-      borderRadius: 20,
-      minWidth: 80,
-      height: 36,
-    },
-    expandedContent: {
-      flex: 1,
-      paddingHorizontal: 16,
-    },
-    section: {
-      marginVertical: 8,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 8,
-      gap: 8,
-    },
-    input: {
-      flex: 1,
-    },
-    toText: {
-      marginHorizontal: 4,
-    },
-    chipGroup: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      marginTop: 8,
-      gap: 8,
-    },
-    chip: {
-      marginRight: 8,
-      marginBottom: 8,
-    },
-    divider: {
-      marginVertical: 6,
-    },
-    segmentedButton: {
-      marginTop: 4,
-    },
-    topGap: {
-      marginTop: 8,
-    },
-    dropdownGroup: {
-      gap: 8,
-      marginTop: 8,
-    },
-    scrollContent: {
-      paddingBottom: 24,
-    },
-    yearContainer: {
-      marginTop: 16,
-      marginHorizontal: 8,
-    },
-    yearLabels: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    yearText: {
-      textAlign: 'center',
-      fontSize: 20,
-      fontWeight: '600',
-    },
-    sliderContainer: {
-      paddingHorizontal: 14,
-    },
-    slider: {
-      height: 60,
-    },
-    thumb: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      elevation: 3,
-    },
-    rail: {
-      flex: 1,
-      height: 6,
-      borderRadius: 3,
-    },
-    railSelected: {
-      height: 6,
-      borderRadius: 3,
-    },
-    transmissionContainer: {
-      marginTop: 16,
-    },
-    transmissionLabel: {
-      marginBottom: 8,
-    },
-    filterActions: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: 16,
-      gap: 12,
-    },
-    actionButton: {
-      flex: 1,
-    },
+  const searchWidth = searchWidthAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['80%', '100%'],
   });
 
   const renderCommonInputs = () => (
-    <>
+    <View style={styles.inputSection}>
+      <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+        Basic Filters
+      </Text>
+      
       {/* Listing Type */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Listing Type</Text>
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Listing Type
+        </Text>
         <SegmentedButtons
           value={filters.listingType}
-          onValueChange={value => setFilters(prev => ({ ...prev, listingType: value as ListingType }))}
+          onValueChange={(value) => handleFilterChange('listingType', value)}
           buttons={[
             { value: 'sale', label: 'Sale' },
             { value: 'rent', label: 'Rent' },
@@ -364,323 +183,304 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
         />
       </View>
 
-      <Divider style={styles.divider} />
+      {/* City */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          City
+        </Text>
+        <Dropdown
+          data={CITIES.map(city => ({ label: city, value: city }))}
+          value={filters.city}
+          onChange={(value) => handleFilterChange('city', value)}
+          placeholder="Select city"
+        />
+      </View>
 
-      {/* Post Type */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Post Type</Text>
+      {/* Category */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Category
+        </Text>
+        <Dropdown
+          data={VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }))}
+          value={filters.category}
+          onChange={(value) => handleFilterChange('category', value)}
+          placeholder="Select category"
+        />
+      </View>
+
+      {/* Price Range */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Price Range
+        </Text>
+        <View style={styles.priceInputs}>
+          <TextInput
+            mode="outlined"
+            label="Min"
+            value={filters.priceRange.min}
+            onChangeText={(value) => handlePriceChange('min', value)}
+            keyboardType="numeric"
+            style={styles.priceInput}
+            dense
+          />
+          <TextInput
+            mode="outlined"
+            label="Max"
+            value={filters.priceRange.max}
+            onChangeText={(value) => handlePriceChange('max', value)}
+            keyboardType="numeric"
+            style={styles.priceInput}
+            dense
+          />
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderVehicleInputs = () => (
+    <View style={styles.inputSection}>
+      <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+        Vehicle Details
+      </Text>
+      
+      {/* Make */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Make
+        </Text>
+        <Dropdown
+          data={MAKES.map(make => ({ label: make, value: make }))}
+          value={filters.make}
+          onChange={(value) => {
+            handleFilterChange('make', value);
+            handleFilterChange('model', null); // Reset model when make changes
+          }}
+          placeholder="Select make"
+        />
+      </View>
+
+      {/* Model */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Model
+        </Text>
+        <Dropdown
+          data={models.map(model => ({ label: model.toString(), value: model.toString() }))}
+          value={filters.model}
+          onChange={(value) => handleFilterChange('model', value)}
+          placeholder={loadingModels ? "Loading..." : "Select model"}
+          disabled={!filters.make || loadingModels}
+        />
+      </View>
+
+      {/* Fuel Type */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Fuel Type
+        </Text>
+        <Dropdown
+          data={VEHICLE_FUEL_TYPES.map(fuelType => ({ label: fuelType, value: fuelType }))}
+          value={filters.fuelType}
+          onChange={(value) => handleFilterChange('fuelType', value)}
+          placeholder="Select fuel type"
+        />
+      </View>
+
+      {/* Transmission */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Transmission
+        </Text>
         <SegmentedButtons
-          value={filters.postType}
-          onValueChange={value => setFilters(prev => ({ ...prev, postType: value as PostType }))}
+          value={filters.transmission}
+          onValueChange={(value) => handleFilterChange('transmission', value)}
           buttons={[
-            { value: 'vehicle', label: 'Vehicle' },
-            { value: 'realestate', label: 'Real Estate' },
+            { value: 'Manual', label: 'Manual' },
+            { value: 'Automatic', label: 'Automatic' },
           ]}
           style={styles.segmentedButton}
         />
       </View>
 
-      <Divider style={styles.divider} />
-
-      {/* Location */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Location</Text>
-        <Dropdown
-          data={citiesData}
-          value={filters.city}
-          onChange={value => setFilters(prev => ({ ...prev, city: value }))}
-          placeholder="Select Location"
-        />
-      </View>
-
-      <Divider style={styles.divider} />
-
-      {/* Category */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Category</Text>
-        <Dropdown
-          data={filters.postType === 'vehicle' ? vehicleCategoriesData : realEstateCategoriesData}
-          value={filters.category}
-          onChange={value => setFilters(prev => ({ ...prev, category: value }))}
-          placeholder="Select Category"
-        />
-      </View>
-
-      <Divider style={styles.divider} />
-
-      {/* Price Range */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Price Range</Text>
-        <View style={styles.row}>
-          <TextInput
-            mode="outlined"
-            label="Min"
-            value={filters.priceRange.min}
-            onChangeText={value => handlePriceChange('min', value)}
-            style={styles.input}
-            keyboardType="numeric"
-            dense
-          />
-          <Text style={styles.toText}>to</Text>
-          <TextInput
-            mode="outlined"
-            label="Max"
-            value={filters.priceRange.max}
-            onChangeText={value => handlePriceChange('max', value)}
-            style={styles.input}
-            keyboardType="numeric"
-            dense
+      {/* Year Range */}
+      <View style={styles.inputGroup}>
+        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+          Year Range: {filters.yearRange.min} - {filters.yearRange.max}
+        </Text>
+        <View style={styles.sliderContainer}>
+          <Slider
+            min={currentYear - 50}
+            max={currentYear}
+            low={filters.yearRange.min}
+            high={filters.yearRange.max}
+            step={1}
+            onValueChanged={handleYearChange}
+            renderThumb={() => <View style={[styles.thumb, { backgroundColor: theme.colors.primary }]} />}
+            renderRail={() => <View style={[styles.rail, { backgroundColor: theme.colors.outlineVariant }]} />}
+            renderRailSelected={() => <View style={[styles.railSelected, { backgroundColor: theme.colors.primary }]} />}
           />
         </View>
       </View>
-
-      <Divider style={styles.divider} />
-    </>
-  );
-
-  const renderVehicleInputs = () => (
-    <>
-      {/* Make & Model */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Vehicle Details</Text>
-        <View style={styles.dropdownGroup}>
-          <Dropdown
-            data={makesData}
-            value={filters.make}
-            onChange={value => {
-              setFilters(prev => ({ 
-                ...prev, 
-                make: value,
-                model: '' // Clear model when make changes
-              }));
-            }}
-            placeholder="Select Make"
-          />
-          <Dropdown
-            data={models.map(model => ({ label: model.name, value: model.name }))}
-            value={filters.model}
-            onChange={value => setFilters(prev => ({ ...prev, model: value }))}
-            placeholder={!filters.make ? "Select make first" : loadingModels ? "Loading models..." : "Select Model"}
-            disabled={!filters.make || loadingModels}
-          />
-        </View>
-      </View>
-
-      <Divider style={styles.divider} />
-
-      {/* Fuel Type & Transmission */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Specifications</Text>
-        <View style={styles.dropdownGroup}>
-          <Dropdown
-            data={fuelTypesData}
-            value={filters.fuelType}
-            onChange={value => setFilters(prev => ({ ...prev, fuelType: value }))}
-            placeholder="Select Fuel Type"
-          />
-        </View>
-        <View style={styles.transmissionContainer}>
-          <Text 
-            variant="bodyMedium" 
-            style={[styles.transmissionLabel, { color: theme.colors.onSurfaceVariant }]}
-          >
-            Transmission
-          </Text>
-          <SegmentedButtons
-            value={filters.transmission}
-            onValueChange={value => handleTransmissionChange(value as 'Manual' | 'Automatic' | '')}
-            buttons={[
-              { value: 'Manual', label: 'Manual' },
-              { value: 'Automatic', label: 'Automatic' },
-            ]}
-            style={styles.segmentedButton}
-          />
-        </View>
-      </View>
-
-      <Divider style={styles.divider} />
-
-      {/* Year Range Slider */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Year Range</Text>
-        <View style={styles.yearContainer}>
-          <View style={styles.yearLabels}>
-            <Text style={[styles.yearText, { color: theme.colors.onSurfaceVariant }]}>
-              {filters.yearRange.min}
-            </Text>
-            <Text style={[styles.yearText, { color: theme.colors.onSurfaceVariant }]}>
-              {filters.yearRange.max}
-            </Text>
-          </View>
-          <View style={styles.sliderContainer}>
-            <Slider
-              style={styles.slider}
-              min={1950}
-              max={currentYear}
-              step={1}
-              floatingLabel
-              renderThumb={() => (
-                <View style={[styles.thumb, { backgroundColor: theme.colors.primary }]} />
-              )}
-              renderRail={() => (
-                <View style={[styles.rail, { backgroundColor: theme.colors.outlineVariant }]} />
-              )}
-              renderRailSelected={() => (
-                <View style={[styles.railSelected, { backgroundColor: theme.colors.primary }]} />
-              )}
-              onValueChanged={handleYearChange}
-            />
-          </View>
-        </View>
-      </View>
-    </>
-  );
-
-  const renderRealEstateInputs = () => (
-    <>
-      {/* Size */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Size (sqm)</Text>
-        <View style={styles.row}>
-          <TextInput
-            mode="outlined"
-            label="Min"
-            value={filters.size?.min}
-            onChangeText={value => handleSizeChange('min', value)}
-            style={styles.input}
-            keyboardType="numeric"
-            dense
-          />
-          <Text style={styles.toText}>to</Text>
-          <TextInput
-            mode="outlined"
-            label="Max"
-            value={filters.size?.max}
-            onChangeText={value => handleSizeChange('max', value)}
-            style={styles.input}
-            keyboardType="numeric"
-            dense
-          />
-        </View>
-      </View>
-
-      <Divider style={styles.divider} />
-
-      {/* Features */}
-      <View style={styles.section}>
-        <Text variant="titleSmall">Features</Text>
-        <View style={styles.chipGroup}>
-          {PROPERTY_FEATURES.map((feature) => (
-            <Chip
-              key={feature}
-              mode="outlined"
-              selected={filters.features.includes(feature)}
-              style={styles.chip}
-              onPress={() => toggleFeature(feature)}
-            >
-              {feature}
-            </Chip>
-          ))}
-        </View>
-      </View>
-    </>
+    </View>
   );
 
   return (
-    <Animated.View 
-      style={[
-        styles.container, 
-        { 
-          height: containerHeight,
-          backgroundColor: theme.colors.surface 
-        }
-      ]}
-    >
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Animated.View style={[
-          styles.headerContent,
-          {
-            width: searchContainerWidth,
-          }
-        ]}>
-          {!isSearchFocused && (
-            <Pressable onPress={onLogoPress}>
-              <MaterialCommunityIcons
-                name="shopping"
-                size={24}
-                color={theme.colors.primary}
-                style={styles.logo}
-              />
-            </Pressable>
-          )}
-          <View style={[styles.searchContainer, isSearchFocused && styles.searchContainerFocused]}>
-            <TextInput
-              mode="outlined"
-              placeholder="Search..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={styles.searchInput}
-              contentStyle={{ paddingLeft: 0 }}
-              left={<TextInput.Icon icon="magnify" size={16} style={{ marginLeft: -4 }} />}
-              right={searchQuery ? (
-                <TextInput.Icon 
-                  icon="close" 
-                  size={14}
-                  onPress={() => setSearchQuery('')}
-                />
-              ) : null}
-              dense
-              onFocus={handleSearchFocus}
-              onBlur={handleSearchBlur}
-              onSubmitEditing={() => onSearch?.(searchQuery)}
-              returnKeyType="search"
-            />
-          </View>
-          {!isSearchFocused && (
-            <Button
-              mode="contained-tonal"
-              onPress={toggleExpand}
-              style={styles.expandButton}
-              labelStyle={{ fontSize: 13 }}
-              contentStyle={{ flexDirection: 'row-reverse', height: 36 }}
-              icon={({ color }) => (
-                <MaterialCommunityIcons 
-                  name={isExpanded ? "chevron-up" : "chevron-right"} 
-                  size={16} 
-                  color={color} 
-                />
-              )}
-            >
-              Filter
-            </Button>
-          )}
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Animated.View style={[styles.searchInputContainer, { width: searchWidth }]}>
+          <TextInput
+            mode="outlined"
+            placeholder="Search vehicles..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
+            onSubmitEditing={handleSearch}
+            left={<TextInput.Icon icon="magnify" />}
+            right={
+              searchQuery.length > 0 ? (
+                <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} />
+              ) : undefined
+            }
+            style={styles.searchInput}
+            dense
+          />
         </Animated.View>
+        
+        <Button
+          mode="contained"
+          onPress={toggleExpand}
+          icon={isExpanded ? "chevron-up" : "chevron-down"}
+          style={styles.filterButton}
+        >
+          Filters
+        </Button>
       </View>
 
-      {/* Expanded Content */}
-      <ScrollView style={styles.expandedContent} contentContainerStyle={styles.scrollContent}>
-        {renderCommonInputs()}
-        {filters.postType === 'vehicle' ? renderVehicleInputs() : renderRealEstateInputs()}
-        
-        {/* Filter Action Buttons */}
-        <View style={styles.filterActions}>
-          <Button
-            mode="outlined"
-            onPress={handleClearFilters}
-            style={styles.actionButton}
-          >
-            Clear Filters
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleApplyFilters}
-            style={styles.actionButton}
-          >
-            Apply Filters
-          </Button>
-        </View>
-      </ScrollView>
-    </Animated.View>
+      {/* Expandable Filter Section */}
+      <Animated.View style={[styles.expandableContent, { maxHeight }]}>
+        <ScrollView 
+          style={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+        >
+          {renderCommonInputs()}
+          <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+          {renderVehicleInputs()}
+          
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <Button
+              mode="outlined"
+              onPress={clearFilters}
+              style={styles.clearButton}
+            >
+              Clear All
+            </Button>
+            <Button
+              mode="contained"
+              onPress={applyFilters}
+              style={styles.applyButton}
+            >
+              Apply Filters
+            </Button>
+          </View>
+        </ScrollView>
+      </Animated.View>
+    </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchInputContainer: {
+    flex: 1,
+  },
+  searchInput: {
+    backgroundColor: 'transparent',
+  },
+  filterButton: {
+    borderRadius: 8,
+  },
+  expandableContent: {
+    overflow: 'hidden',
+  },
+  scrollContent: {
+    paddingTop: 16,
+  },
+  inputSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  dropdown: {
+    backgroundColor: 'transparent',
+  },
+  segmentedButton: {
+    marginTop: 4,
+  },
+  priceInputs: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priceInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  sliderContainer: {
+    marginTop: 8,
+    paddingHorizontal: 8,
+  },
+  slider: {
+    height: 40,
+  },
+  divider: {
+    marginVertical: 16,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  clearButton: {
+    flex: 1,
+  },
+  applyButton: {
+    flex: 1,
+  },
+  thumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  rail: {
+    height: 6,
+    borderRadius: 3,
+  },
+  railSelected: {
+    height: 6,
+    borderRadius: 3,
+  },
+}); 

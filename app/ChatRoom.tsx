@@ -94,7 +94,7 @@ export default function ChatRoom() {
         deleted_by_creator: false,
         deleted_by_participant: false,
         post_title: postTitle,
-        post_image: postImage,
+        post_image: postImage, // This is now an image ID
         post_price: parseFloat(postPrice) || 0,
         post_status: 'active',
         other_user_name: sellerName,
@@ -624,7 +624,7 @@ export default function ChatRoom() {
         {conversation?.post_title && (
           <View style={styles.postInfoContainer}>
             <ExpoImage
-              source={{ uri: conversation?.post_image || '' }}
+              source={{ uri: conversation?.post_image ? getCloudinaryUrl(conversation.post_image, 'posts') || '' : '' }}
               style={[
                 styles.postImage,
                 conversation?.post_status !== 'active' && { opacity: 0.5 }

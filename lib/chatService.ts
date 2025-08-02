@@ -16,6 +16,8 @@ export const chatService = {
         if (error) throw error;
         if (!conversations) return [];
 
+
+
         return conversations.map(conv => ({
             ...conv,
             last_message: typeof conv.last_message === 'string' 

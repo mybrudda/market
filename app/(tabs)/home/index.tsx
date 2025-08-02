@@ -106,7 +106,7 @@ export default function Home() {
         .eq('status', 'active');
 
       // Apply filters
-      query = query.eq('post_type', filters.postType)
+      query = query.eq('post_type', 'vehicle')
         .eq('listing_type', filters.listingType);
       
       if (filters.city) {
@@ -125,38 +125,26 @@ export default function Home() {
       }
 
       // Vehicle-specific filters
-      if (filters.postType === 'vehicle') {
-        if (filters.make) {
-          query = query.eq('details->>make', filters.make);
-        }
-        if (filters.model && filters.model.trim()) {
-          query = query.ilike('details->>model', `%${filters.model}%`);
-        }
-        if (filters.fuelType) {
-          query = query.eq('details->>fuel_type', filters.fuelType);
-        }
-        if (filters.transmission === 'Manual' || filters.transmission === 'Automatic') {
-          query = query.eq('details->>transmission', filters.transmission);
-        }
-        if (filters.yearRange.min && filters.yearRange.max) {
-          query = query
-            .gte('details->>year', filters.yearRange.min.toString())
-            .lte('details->>year', filters.yearRange.max.toString());
-        }
+      if (filters.make) {
+        query = query.eq('details->>make', filters.make);
       }
-
-      // Real estate-specific filters
-      if (filters.postType === 'realestate') {
-        if (filters.size?.min) {
-          query = query.gte('details->size->>value', parseFloat(filters.size.min));
-        }
-        if (filters.size?.max) {
-          query = query.lte('details->size->>value', parseFloat(filters.size.max));
-        }
-        if (filters.features.length > 0) {
-          const featuresArray = JSON.stringify(filters.features);
-          query = query.contains('details->features', featuresArray);
-        }
+      if (filters.model && filters.model.trim()) {
+        query = query.ilike('details->>model', `%${filters.model}%`);
+      }
+      if (filters.fuelType) {
+        query = query.eq('details->>fuel_type', filters.fuelType);
+      }
+      if (filters.transmission === 'Manual' || filters.transmission === 'Automatic') {
+        query = query.eq('details->>transmission', filters.transmission);
+      }
+      if (filters.yearRange.min && filters.yearRange.max) {
+        query = query
+          .gte('details->>year', filters.yearRange.min.toString())
+          .lte('details->>year', filters.yearRange.max.toString());
+      }
+      if (filters.features.length > 0) {
+        const featuresArray = JSON.stringify(filters.features);
+        query = query.contains('details->features', featuresArray);
       }
 
       const { data, error: supabaseError, count } = await query
@@ -244,17 +232,105 @@ export default function Home() {
     searchPosts();
   }, []);
 
-  // Handle filters
-  const handleFilter = useCallback((filters: FilterOptions) => {
-    // Clear search query when filtering
-    if (searchQuery) {
-      setSearchQuery('');
-    }
+  // Handle filter changes
+  const handleFilter = useCallback(async (filters: FilterOptions) => {
     setActiveFilters(filters);
+    setSearchQuery('');
     setPage(0);
     setHasMore(true);
-    fetchFilteredPosts(0, filters, false);
-  }, [fetchFilteredPosts, searchQuery]);
+    
+    const fetchFilteredPosts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const start = 0;
+
+        let query = supabase
+          .from('posts')
+          .select(`
+            *,
+            user:user_id (
+              id,
+              username,
+              full_name,
+              profile_image_id,
+              email,
+              user_type,
+              is_verified
+            )
+          `, { count: 'exact' })
+          .eq('status', 'active')
+          .eq('post_type', 'vehicle');
+
+        // Apply filters
+        if (filters.listingType) {
+          query = query.eq('listing_type', filters.listingType);
+        }
+        if (filters.city) {
+          query = query.eq('location->>city', filters.city);
+        }
+        if (filters.category) {
+          query = query.eq('category', filters.category);
+        }
+        if (filters.make) {
+          query = query.eq('details->>make', filters.make);
+        }
+        if (filters.model) {
+          query = query.eq('details->>model', filters.model);
+        }
+        if (filters.fuelType) {
+          query = query.eq('details->>fuel_type', filters.fuelType);
+        }
+        if (filters.transmission) {
+          query = query.eq('details->>transmission', filters.transmission);
+        }
+        if (filters.priceRange.min) {
+          query = query.gte('price', parseFloat(filters.priceRange.min));
+        }
+        if (filters.priceRange.max) {
+          query = query.lte('price', parseFloat(filters.priceRange.max));
+        }
+        if (filters.yearRange.min && filters.yearRange.max) {
+          query = query
+            .gte('details->>year', filters.yearRange.min.toString())
+            .lte('details->>year', filters.yearRange.max.toString());
+        }
+        if (filters.features.length > 0) {
+          const featuresArray = JSON.stringify(filters.features);
+          query = query.contains('details->features', featuresArray);
+        }
+
+        const { data, error: supabaseError, count } = await query
+          .order('created_at', { ascending: false })
+          .range(start, start + POSTS_PER_PAGE - 1);
+
+        if (supabaseError) {
+          throw new Error(supabaseError.message);
+        }
+
+        const total = count || 0;
+        setTotalCount(total);
+        setHasMore(start + POSTS_PER_PAGE < total);
+        setPosts(data || []);
+
+        if (__DEV__) {
+          console.log('Filtered fetch:', {
+            totalPosts: total,
+            fetchedPosts: data?.length,
+            filters,
+            start
+          });
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred while fetching posts');
+        console.error('Error fetching filtered posts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFilteredPosts();
+  }, []);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -468,11 +544,11 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 8,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 32,
   },
   headerSpacer: {
-    height: 64, // Match the height of the FilterSection header
+    height: 8, // Reduced from 64 to minimize top spacing
   },
   fab: {
     position: 'absolute',

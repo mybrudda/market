@@ -1,157 +1,126 @@
 // Form types, validation, and transformations
-import type { VehicleDetails, RealEstateDetails } from './database';
-
-/**
- * Validation limits and constraints for form fields
- */
-export const VALIDATION_LIMITS = {
-  // Image constraints
-  IMAGES_PER_POST: 10,
-  MIN_IMAGES: 1,
-  
-  // Text length constraints
-  MAX_TITLE_LENGTH: 100,
-  MAX_DESCRIPTION_LENGTH: 1000,
-  
-  // Price constraints
-  MIN_PRICE: 0,
-  MAX_PRICE: 999999999,
-} as const;
-
-/**
- * Default form values for initialization
- */
-export const DEFAULT_FORM_VALUES = {
-  CURRENCY: 'USD',
-  LISTING_TYPE: 'sale' as const,
-  COUNTRY: 'AF',
-  IMAGE_QUALITY: 1,
-  IMAGE_ASPECT: [4, 3] as const,
-  POST_EXPIRY_DAYS: 30,
-} as const;
+import type { VehicleDetails } from './database';
 
 export interface BaseFormData {
   title: string;
   description: string;
   price: string;
   currency: string;
-  images: string[]; // Base64 strings before upload
-  listingType: 'rent' | 'sale';
-  category: string;
   location: {
     city: string;
-    address?: string | null;
-    country?: string;
+    address?: string;
+    country: string;
   };
+  images: string[];
+  listingType: 'rent' | 'sale';
+  category: string;
 }
 
 export interface VehicleFormData extends BaseFormData {
   make: string;
   model: string;
   year: string;
-  mileage: string;
-  condition: string;
-  fuelType: string;
-  transmission: string;
-  features: string[];
-}
-
-export interface RealEstateFormData extends BaseFormData {
-  size: {
+  mileage: {
     value: string;
     unit: string;
   };
-  rooms: string;
-  bathrooms: string;
-  constructionYear: string;
+  fuelType: string;
+  transmission: string;
   condition: string;
   features: string[];
 }
 
 export type FormErrors = {
-  [K in keyof VehicleFormData | keyof RealEstateFormData | `location.${keyof BaseFormData['location']}`]?: string;
+  [K in keyof VehicleFormData | `location.${keyof BaseFormData['location']}`]?: string;
 };
 
-// Helper validation functions
-const validateRequiredField = (value: string, fieldName: string): string | undefined => {
-  return !value.trim() ? `${fieldName} is required` : undefined;
-};
+export const VALIDATION_LIMITS = {
+  TITLE_MIN: 3,
+  TITLE_MAX: 100,
+  DESCRIPTION_MIN: 10,
+  DESCRIPTION_MAX: 1000,
+  PRICE_MIN: 0,
+  PRICE_MAX: 999999999,
+  IMAGES_MIN: 1,
+  IMAGES_MAX: 10,
+  IMAGES_PER_POST: 10,
+  MIN_IMAGES: 1,
+  MILEAGE_MIN: 0,
+  MILEAGE_MAX: 999999,
+  YEAR_MIN: 1900,
+  YEAR_MAX: new Date().getFullYear() + 1,
+} as const;
 
-const validateNumericField = (
-  value: string, 
-  fieldName: string, 
-  min: number = 0, 
-  allowZero: boolean = false
-): string | undefined => {
-  if (!value.trim()) {
-    return `${fieldName} is required`;
-  }
-  
-  const numValue = parseFloat(value);
-  if (isNaN(numValue)) {
-    return `${fieldName} must be a valid number`;
-  }
-  
-  if (allowZero ? numValue < min : numValue <= min) {
-    return `${fieldName} must be a valid positive number`;
-  }
-  
-  return undefined;
-};
+export const DEFAULT_FORM_VALUES = {
+  CURRENCY: 'USD',
+  COUNTRY: 'US',
+  LISTING_TYPE: 'sale' as const,
+  POST_EXPIRY_DAYS: 30,
+  IMAGE_QUALITY: 1,
+  IMAGE_ASPECT: [4, 3] as const,
+} as const;
 
-const validateIntegerField = (
-  value: string, 
-  fieldName: string, 
-  min: number = 0, 
-  allowZero: boolean = false
-): string | undefined => {
-  if (!value.trim()) {
-    return `${fieldName} is required`;
-  }
-  
-  const intValue = parseInt(value);
-  if (isNaN(intValue)) {
-    return `${fieldName} must be a valid number`;
-  }
-  
-  if (allowZero ? intValue < min : intValue <= min) {
-    return `${fieldName} must be a valid positive number`;
-  }
-  
-  return undefined;
-};
+export const ERROR_MESSAGES = {
+  AUTHENTICATION_REQUIRED: 'Please log in to create a post.',
+  VALIDATION_FAILED: 'Please check your input and try again.',
+  SUPABASE_CONNECTION_FAILED: (error: string) => `Database connection failed: ${error}`,
+  POST_NOT_FOUND: 'Post not found or you do not have permission to edit it.',
+  IMAGE_UPLOAD_FAILED: 'Failed to upload image. Please try again.',
+  IMAGE_PICK_FAILED: 'Failed to pick image. Please try again.',
+  IMAGE_LIMIT_REACHED: (limit: number) => `You can only select up to ${limit} images.`,
+  POST_CREATION_FAILED: 'Failed to create post. Please try again.',
+  POST_UPDATE_FAILED: 'Failed to update post. Please try again.',
+  NETWORK_ERROR: 'Network error. Please check your connection and try again.',
+  UNKNOWN_ERROR: 'An unexpected error occurred. Please try again.',
+} as const;
 
-export const validateBaseForm = (form: BaseFormData): Partial<FormErrors> => {
-  const errors: Partial<FormErrors> = {};
+export const validateVehicleForm = (form: VehicleFormData): FormErrors => {
+  const errors: FormErrors = {};
 
   // Title validation
   if (!form.title.trim()) {
     errors.title = 'Title is required';
-  } else if (form.title.length > VALIDATION_LIMITS.MAX_TITLE_LENGTH) {
-    errors.title = `Title must be ${VALIDATION_LIMITS.MAX_TITLE_LENGTH} characters or less`;
+  } else if (form.title.length < VALIDATION_LIMITS.TITLE_MIN) {
+    errors.title = `Title must be at least ${VALIDATION_LIMITS.TITLE_MIN} characters`;
+  } else if (form.title.length > VALIDATION_LIMITS.TITLE_MAX) {
+    errors.title = `Title must be no more than ${VALIDATION_LIMITS.TITLE_MAX} characters`;
   }
 
   // Description validation
   if (!form.description.trim()) {
     errors.description = 'Description is required';
-  } else if (form.description.length > VALIDATION_LIMITS.MAX_DESCRIPTION_LENGTH) {
-    errors.description = `Description must be ${VALIDATION_LIMITS.MAX_DESCRIPTION_LENGTH} characters or less`;
+  } else if (form.description.length < VALIDATION_LIMITS.DESCRIPTION_MIN) {
+    errors.description = `Description must be at least ${VALIDATION_LIMITS.DESCRIPTION_MIN} characters`;
+  } else if (form.description.length > VALIDATION_LIMITS.DESCRIPTION_MAX) {
+    errors.description = `Description must be no more than ${VALIDATION_LIMITS.DESCRIPTION_MAX} characters`;
   }
 
   // Price validation
-  const priceError = validateNumericField(form.price, 'Price', VALIDATION_LIMITS.MIN_PRICE, false);
-  if (priceError) {
-    errors.price = priceError;
-  } else {
-    const priceValue = parseFloat(form.price);
-    if (priceValue > VALIDATION_LIMITS.MAX_PRICE) {
-      errors.price = 'Price is too high';
-    }
+  const price = parseFloat(form.price);
+  if (isNaN(price) || price < VALIDATION_LIMITS.PRICE_MIN) {
+    errors.price = 'Price must be a positive number';
+  } else if (price > VALIDATION_LIMITS.PRICE_MAX) {
+    errors.price = `Price must be no more than ${VALIDATION_LIMITS.PRICE_MAX.toLocaleString()}`;
+  }
+
+  // Currency validation
+  if (!form.currency) {
+    errors.currency = 'Currency is required';
   }
 
   // Location validation
   if (!form.location.city.trim()) {
     errors['location.city'] = 'City is required';
+  }
+  if (!form.location.country.trim()) {
+    errors['location.country'] = 'Country is required';
+  }
+
+  // Images validation
+  if (!form.images || form.images.length < VALIDATION_LIMITS.IMAGES_MIN) {
+    errors.images = `At least ${VALIDATION_LIMITS.IMAGES_MIN} image is required`;
+  } else if (form.images.length > VALIDATION_LIMITS.IMAGES_MAX) {
+    errors.images = `No more than ${VALIDATION_LIMITS.IMAGES_MAX} images allowed`;
   }
 
   // Listing type validation
@@ -164,104 +133,61 @@ export const validateBaseForm = (form: BaseFormData): Partial<FormErrors> => {
     errors.category = 'Category is required';
   }
 
-  // Images validation
-  if (form.images.length < VALIDATION_LIMITS.MIN_IMAGES) {
-    errors.images = 'At least one image is required';
-  } else if (form.images.length > VALIDATION_LIMITS.IMAGES_PER_POST) {
-    errors.images = `Maximum ${VALIDATION_LIMITS.IMAGES_PER_POST} images allowed`;
+  // Vehicle-specific validations
+  if (!form.make.trim()) {
+    errors.make = 'Make is required';
   }
 
-  return errors;
-};
+  if (!form.model.trim()) {
+    errors.model = 'Model is required';
+  }
 
-export const validateVehicleForm = (form: VehicleFormData): FormErrors => {
-  const errors = validateBaseForm(form) as FormErrors;
-
-  // Required string fields
-  const requiredFields = [
-    { field: form.make, name: 'Make' },
-    { field: form.model, name: 'Model' },
-    { field: form.year, name: 'Year' },
-    { field: form.fuelType, name: 'Fuel type' },
-    { field: form.transmission, name: 'Transmission' },
-    { field: form.condition, name: 'Condition' }
-  ];
-
-  requiredFields.forEach(({ field, name }) => {
-    const error = validateRequiredField(field, name);
-    if (error) {
-      errors[name.toLowerCase().replace(' ', '') as keyof FormErrors] = error;
-    }
-  });
+  // Year validation
+  const year = parseInt(form.year);
+  if (isNaN(year) || year < VALIDATION_LIMITS.YEAR_MIN || year > VALIDATION_LIMITS.YEAR_MAX) {
+    errors.year = `Year must be between ${VALIDATION_LIMITS.YEAR_MIN} and ${VALIDATION_LIMITS.YEAR_MAX}`;
+  }
 
   // Mileage validation
-  const mileageError = validateNumericField(form.mileage, 'Mileage', 0, false);
-  if (mileageError) {
-    errors.mileage = mileageError;
+  const mileage = parseFloat(form.mileage.value);
+  if (isNaN(mileage) || mileage < VALIDATION_LIMITS.MILEAGE_MIN) {
+    errors.mileage = 'Mileage must be a positive number';
+  } else if (mileage > VALIDATION_LIMITS.MILEAGE_MAX) {
+    errors.mileage = `Mileage must be no more than ${VALIDATION_LIMITS.MILEAGE_MAX.toLocaleString()}`;
   }
 
-  return errors;
-};
-
-export const validateRealEstateForm = (form: RealEstateFormData): FormErrors => {
-  const errors = validateBaseForm(form) as FormErrors;
-
-  // Rooms validation
-  const roomsError = validateIntegerField(form.rooms, 'Number of rooms', 1, false);
-  if (roomsError) {
-    errors.rooms = roomsError;
+  if (!form.mileage.unit) {
+    errors.mileage = 'Mileage unit is required';
   }
 
-  // Size validation
-  const sizeError = validateNumericField(form.size.value, 'Size', 0, false);
-  if (sizeError) {
-    errors.size = sizeError;
+  // Fuel type validation
+  if (!form.fuelType) {
+    errors.fuelType = 'Fuel type is required';
   }
 
-  // Bathrooms validation
-  const bathroomsError = validateIntegerField(form.bathrooms, 'Number of bathrooms', 0, true);
-  if (bathroomsError) {
-    errors.bathrooms = bathroomsError;
+  // Transmission validation
+  if (!form.transmission) {
+    errors.transmission = 'Transmission is required';
   }
 
-  // Required string fields
-  const requiredFields = [
-    { field: form.constructionYear, name: 'Construction year' },
-    { field: form.condition, name: 'Condition' }
-  ];
-
-  requiredFields.forEach(({ field, name }) => {
-    const error = validateRequiredField(field, name);
-    if (error) {
-      errors[name.toLowerCase().replace(' ', '') as keyof FormErrors] = error;
-    }
-  });
+  // Condition validation
+  if (!form.condition) {
+    errors.condition = 'Condition is required';
+  }
 
   return errors;
 };
 
 export const transformVehicleForm = (form: VehicleFormData): VehicleDetails => ({
-  make: form.make,
-  model: form.model,
+  make: form.make.trim(),
+  model: form.model.trim(),
   year: form.year,
   mileage: {
-    value: parseFloat(form.mileage),
-    unit: 'km'
+    value: parseFloat(form.mileage.value),
+    unit: form.mileage.unit,
   },
-  condition: form.condition,
   fuel_type: form.fuelType,
   transmission: form.transmission,
-  features: form.features
-});
-
-export const transformRealEstateForm = (form: RealEstateFormData): RealEstateDetails => ({
-  size: {
-    value: parseFloat(form.size.value),
-    unit: form.size.unit
-  },
-  rooms: parseInt(form.rooms),
-  bathrooms: parseInt(form.bathrooms),
-  year: form.constructionYear,
   condition: form.condition,
-  features: form.features
+  features: form.features || [],
 }); 

@@ -122,24 +122,13 @@ export default function MyPostsScreen() {
   }, []);
 
   const handleUpdate = useCallback((post: Post) => {
-    // Navigate to the appropriate form based on post type
-    if (post.post_type === 'vehicle') {
-      router.push({
-        pathname: '/(tabs)/create/vehicle',
-        params: { 
-          mode: 'update',
-          post: JSON.stringify(post)
-        }
-      });
-    } else if (post.post_type === 'realestate') {
-      router.push({
-        pathname: '/(tabs)/create/real-estate',
-        params: { 
-          mode: 'update',
-          post: JSON.stringify(post)
-        }
-      });
-    }
+    router.push({
+      pathname: '/(tabs)/create/vehicle',
+      params: { 
+        mode: 'update',
+        post: JSON.stringify(post)
+      }
+    });
   }, []);
 
   const ListEmptyComponent = useCallback(

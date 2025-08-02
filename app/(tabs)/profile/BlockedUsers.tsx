@@ -8,6 +8,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { getCloudinaryUrl } from '../../../lib/cloudinary';
 
+const PLACEHOLDER_IMAGE = 'https://res.cloudinary.com/dtac4dhtj/image/upload/v1701835686/placeholder_image.jpg';
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
+
 interface BlockedUser {
   id: string;
   username: string;
@@ -99,10 +102,12 @@ export default function BlockedUsers() {
       <View style={styles.userInfo}>
         {item.profile_image_id ? (
           <ExpoImage
-            source={{ uri: getCloudinaryUrl(item.profile_image_id) }}
+            source={{ uri: getCloudinaryUrl(item.profile_image_id) || PLACEHOLDER_IMAGE }}
             style={styles.avatar}
             contentFit="cover"
             transition={200}
+            placeholder={blurhash}
+            cachePolicy="memory-disk"
           />
         ) : (
           <Avatar.Icon

@@ -20,7 +20,7 @@ export default function MessagesScreen() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const lastRefreshTime = useRef<number>(Date.now());
-    const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+    const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     const loadConversations = useCallback(async (force = false) => {
         try {

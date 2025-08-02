@@ -2,11 +2,11 @@
 export interface User {
   id: string;
   username: string;
-  full_name: string | null;
-  profile_image_id: string | null;
+  full_name: string;
   email: string;
   user_type: 'person' | 'company';
   is_verified: boolean | null;
+  profile_image_id?: string | null;
 }
 
 export interface BasePost {
@@ -15,7 +15,7 @@ export interface BasePost {
   user?: User;
   title: string;
   description: string;
-  post_type: 'vehicle' | 'realestate';
+  post_type: 'vehicle';
   listing_type: 'rent' | 'sale';
   category: string;
   price: number;
@@ -25,8 +25,8 @@ export interface BasePost {
     address?: string;
     country: string;
   };
-  images: string[]; // Cloudinary URLs
-  details: VehicleDetails | RealEstateDetails;
+  images: string[]; // Cloudinary image IDs
+  details: VehicleDetails;
   status: 'active' | 'pending' | 'removed' | 'expired';
   expiry_date: string;
   created_at: string;
@@ -41,23 +41,10 @@ export interface VehicleDetails {
     value: number;
     unit: string;
   };
-  condition: string;
   fuel_type: string;
   transmission: string;
-  features: string[];
-}
-
-export interface RealEstateDetails {
-  category: string;
-  rooms: number;
-  bathrooms: number;
-  year: string;
   condition: string;
   features: string[];
-  size: {
-    value: number;
-    unit: string;
-  };
 }
 
 export interface VehiclePost extends BasePost {
@@ -66,18 +53,36 @@ export interface VehiclePost extends BasePost {
   user: User;
 }
 
-export interface RealEstatePost extends BasePost {
-  post_type: 'realestate';
-  details: RealEstateDetails;
-  user: User;
-}
+export type Post = VehiclePost;
 
-export type Post = VehiclePost | RealEstatePost;
+export type IconName = 
+  | 'car' 
+  | 'calendar' 
+  | 'speedometer' 
+  | 'car-cog' 
+  | 'gas-station' 
+  | 'car-shift-pattern'
+  | 'map-marker'
+  | 'phone'
+  | 'message'
+  | 'bookmark'
+  | 'bookmark-outline'
+  | 'share'
+  | 'flag'
+  | 'dots-vertical'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'close'
+  | 'check'
+  | 'alert-circle'
+  | 'image-off'
+  | 'home'
+  | 'bed'
+  | 'shower'
+  | 'ruler-square'
+  | 'home-variant';
 
-// UI Component types
 export interface CarouselRenderItemInfo {
   item: string;
   index: number;
-}
-
-export type IconName = keyof typeof import('@expo/vector-icons').MaterialCommunityIcons.glyphMap; 
+} 

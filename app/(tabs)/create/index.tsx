@@ -17,7 +17,7 @@ export default function CreateScreen() {
           styles.title,
           { color: theme.colors.onSecondaryContainer }
         ]}>
-          What would you like to post?
+          Create a Post
         </Text>
 
         <View style={styles.cardsContainer}>
@@ -42,32 +42,10 @@ export default function CreateScreen() {
               </Text>
             </Card.Content>
           </Card>
-
-          <Card 
-            style={styles.card}
-            onPress={() => router.push('/create/real-estate')}
-            mode="elevated"
-          >
-            <Card.Content style={styles.cardContent}>
-              <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-                <MaterialCommunityIcons 
-                  name="home" 
-                  size={24} 
-                  color={theme.colors.primary}
-                />
-              </View>
-              <Text variant="titleMedium" style={styles.cardTitle}>
-                Real Estate
-              </Text>
-              <Text variant="bodySmall" style={[styles.cardDescription, { color: theme.colors.onSurfaceVariant }]}>
-                List properties for sale or rent, including houses and apartments
-              </Text>
-            </Card.Content>
-          </Card>
         </View>
 
         <Text variant="bodySmall" style={[styles.hint, { color: theme.colors.onSurfaceVariant }]}>
-          Tap a card to create a new listing
+          Tap the card to create a new vehicle listing
         </Text>
       </View>
     </View>

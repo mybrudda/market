@@ -18,7 +18,10 @@ SELECT
     c.unread_count_creator,
     c.unread_count_participant,
     p.title as post_title,
-    p.images[1] as post_image,
+    CASE 
+        WHEN p.id IS NOT NULL AND p.images IS NOT NULL AND array_length(p.images, 1) > 0 THEN p.images[1]
+        ELSE NULL
+    END as post_image,
     p.price as post_price,
     p.status as post_status,
     -- Dynamic user information based on current user
