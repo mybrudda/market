@@ -2,9 +2,10 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
-import { uploadToCloudinary } from '../cloudinary';
+import { uploadToCloudinary, getCloudinaryUrl } from '../cloudinary';
 import { Post, VehicleDetails } from '../../types/database';
 import { BaseFormData, VALIDATION_LIMITS, DEFAULT_FORM_VALUES, ERROR_MESSAGES } from '../../types/forms';
 
@@ -19,6 +20,7 @@ interface ImageChange {
   type: 'added' | 'removed' | 'unchanged';
   url?: string;
   base64?: string;
+  imageId?: string;
   index: number;
 }
 
@@ -40,9 +42,26 @@ const extractCloudinaryPublicId = (url: string): string | null => {
 
 // Helper function to resize image
 const resizeImage = async (base64Image: string): Promise<string> => {
-  // For now, return the original base64 image
-  // In a real implementation, you would resize the image here
-  return base64Image;
+  try {
+    const manipResult = await ImageManipulator.manipulateAsync(
+      `data:image/jpeg;base64,${base64Image}`,
+      [{ resize: { width: 800 } }], // Only specify width, height will be calculated automatically
+      {
+        compress: 0.5,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      }
+    );
+
+    if (manipResult.base64) {
+      return manipResult.base64;
+    } else {
+      throw new Error('Failed to get base64 from manipulated image');
+    }
+  } catch (error) {
+    console.error('Error resizing image:', error);
+    throw new Error('Failed to resize image');
+  }
 };
 
 export function usePostUpdate<T extends BaseFormData>({
@@ -57,6 +76,9 @@ export function usePostUpdate<T extends BaseFormData>({
   const [imageChanges, setImageChanges] = useState<ImageChange[]>([]);
 
   const initializeFormFromPost = useCallback((post: Post): T => {
+    // Convert image IDs to URLs for display
+    const imageUrls = post.images.map(imageId => getCloudinaryUrl(imageId, 'posts') || imageId);
+    
     const formData: any = {
       title: post.title,
       description: post.description,
@@ -65,7 +87,7 @@ export function usePostUpdate<T extends BaseFormData>({
       listingType: post.listing_type,
       category: post.category,
       location: post.location,
-      images: post.images,
+      images: imageUrls, // Use URLs for display
     };
 
     // Add vehicle-specific fields
@@ -87,9 +109,10 @@ export function usePostUpdate<T extends BaseFormData>({
     }
 
     // Reset image changes tracking and initialize with current images
-    const initialImageChanges: ImageChange[] = post.images.map((url, index) => ({
+    const initialImageChanges: ImageChange[] = post.images.map((imageId, index) => ({
       type: 'unchanged',
-      url,
+      url: getCloudinaryUrl(imageId, 'posts') || undefined,
+      imageId,
       index,
     }));
     setImageChanges(initialImageChanges);
@@ -155,10 +178,16 @@ export function usePostUpdate<T extends BaseFormData>({
     const removedImage = images[index];
     const isUrl = removedImage.startsWith('http');
     
+    // Find the original image ID for this URL
+    const originalImageChange = imageChanges.find(change => 
+      change.url === removedImage && change.type === 'unchanged'
+    );
+    
     const newImageChange: ImageChange = {
       type: 'removed',
       url: isUrl ? removedImage : undefined,
       base64: !isUrl ? removedImage : undefined,
+      imageId: originalImageChange?.imageId,
       index,
     };
     setImageChanges(prev => [...prev, newImageChange]);
@@ -234,7 +263,7 @@ export function usePostUpdate<T extends BaseFormData>({
     }
 
     setLoading(true);
-    let uploadedUrls: string[] = [];
+    let uploadedImageIds: string[] = [];
     
     try {
       // First test if we can connect to Supabase
@@ -256,8 +285,7 @@ export function usePostUpdate<T extends BaseFormData>({
       }
 
       // Process image changes
-      const imagesToUpload: string[] = [];
-      const imagesToDelete: string[] = [];
+      const imageIdsToDelete: string[] = [];
 
       // Separate base64 images (new) from URLs (existing)
       const base64Images = formState.images.filter(img => !img.startsWith('http'));
@@ -265,23 +293,22 @@ export function usePostUpdate<T extends BaseFormData>({
 
       // Upload new base64 images
       if (base64Images.length > 0) {
-        uploadedUrls = await Promise.all(
+        uploadedImageIds = await Promise.all(
           base64Images.map((base64Image: string) => 
             uploadToCloudinary(`data:image/jpeg;base64,${base64Image}`)
           )
         );
-        imagesToUpload.push(...uploadedUrls);
       }
 
-      // Collect URLs of images to delete
-      const removedImages = imageChanges.filter(change => change.type === 'removed' && change.url);
+      // Collect image IDs of images to delete
+      const removedImages = imageChanges.filter(change => change.type === 'removed' && change.imageId);
       if (removedImages.length > 0) {
-        imagesToDelete.push(...removedImages.map(change => change.url!));
+        imageIdsToDelete.push(...removedImages.map(change => change.imageId!));
       }
 
       // Delete removed images from Cloudinary FIRST (before database update)
       let deletionResults = null;
-      if (imagesToDelete.length > 0) {
+      if (imageIdsToDelete.length > 0) {
         try {
           const { data: session } = await supabase.auth.getSession();
           if (!session.session?.access_token) {
@@ -296,8 +323,8 @@ export function usePostUpdate<T extends BaseFormData>({
                   'Authorization': `Bearer ${session.session.access_token}`,
                 },
                 body: JSON.stringify({
-                  imageUrls: imagesToDelete,
-                  postId: postId
+                  imageIds: imageIdsToDelete,
+                  folder: 'posts'
                 }),
               }
             );
@@ -330,23 +357,34 @@ export function usePostUpdate<T extends BaseFormData>({
         }
       }
 
-      // Build final images array based on deletion results
-      let finalImages = [...urlImages, ...imagesToUpload];
+      // Build final image IDs array
+      // For existing images, we need to extract the image IDs from the URLs
+      const existingImageIds = urlImages.map(url => {
+        const publicId = extractCloudinaryPublicId(url);
+        if (publicId) {
+          // Extract just the image ID part (without folder)
+          const parts = publicId.split('/');
+          return parts[parts.length - 1];
+        }
+        return null;
+      }).filter(Boolean) as string[];
+      
+      let finalImageIds = [...existingImageIds, ...uploadedImageIds];
       
       // If deletion was attempted, filter out failed deletions
       if (deletionResults && deletionResults.results) {
         const { successful, failed } = deletionResults.results;
         
-        // Map failed publicIds back to URLs for comparison
+        // Map failed publicIds back to image IDs for comparison
         const failedPublicIds = failed.map((f: any) => f.publicId).filter(Boolean);
-        const failedUrls = imagesToDelete.filter(url => {
-          const publicId = extractCloudinaryPublicId(url);
-          return publicId && failedPublicIds.includes(publicId);
+        const failedImageIds = imageIdsToDelete.filter(imageId => {
+          const publicId = `posts/${imageId}`;
+          return failedPublicIds.includes(publicId);
         });
         
         // Keep failed deletions in the final images array
-        finalImages = finalImages.filter(img => !failedUrls.includes(img));
-        console.log(`Keeping ${failedUrls.length} failed deletions in database`);
+        finalImageIds = finalImageIds.filter(imgId => !failedImageIds.includes(imgId));
+        console.log(`Keeping ${failedImageIds.length} failed deletions in database`);
       }
 
       const postData = {
@@ -357,7 +395,7 @@ export function usePostUpdate<T extends BaseFormData>({
         listing_type: formState.listingType,
         category: formState.category,
         location: formState.location,
-        images: finalImages,
+        images: finalImageIds, // Store image IDs in database
         details: transformForm(formState),
         updated_at: new Date().toISOString(),
       };
@@ -382,7 +420,7 @@ export function usePostUpdate<T extends BaseFormData>({
       console.error('Error updating post:', error);
       
       // Rollback: Delete newly uploaded images if database update failed
-      if (uploadedUrls.length > 0) {
+      if (uploadedImageIds.length > 0) {
         try {
           console.log('Rolling back uploaded images due to update failure');
           const { data: session } = await supabase.auth.getSession();
@@ -396,8 +434,8 @@ export function usePostUpdate<T extends BaseFormData>({
                   'Authorization': `Bearer ${session.session.access_token}`,
                 },
                 body: JSON.stringify({
-                  imageUrls: uploadedUrls,
-                  postId: postId
+                  imageIds: uploadedImageIds,
+                  folder: 'posts'
                 }),
               }
             );
