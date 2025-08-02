@@ -239,13 +239,7 @@ export default function PostDetails() {
     );
   }
 
-  const expandChipStyle = {
-    backgroundColor: theme.colors.primaryContainer,
-    borderColor: theme.colors.primary,
-  };
-  const expandChipTextStyle = {
-    color: theme.colors.primary,
-  };
+
 
   return (
     <>
@@ -308,6 +302,7 @@ export default function PostDetails() {
                 icon="car"
                 mode="flat"
                 style={[styles.listingTypeChip, { backgroundColor: theme.colors.primaryContainer }]}
+                textStyle={{ color: theme.colors.primary, fontWeight: 'bold' }}
               >
                 {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
               </Chip>
@@ -364,21 +359,39 @@ export default function PostDetails() {
             {post.details.features && post.details.features.length > 0 && (
               <View style={styles.featuresContainer}>
                 {featuresExpanded
-                  ? post.details.features.map((feature: string, index: number) => (
-                      <Chip
-                        key={index}
-                        mode="outlined"
-                        style={styles.featureChip}
-                      >
-                        {feature}
-                      </Chip>
-                    ))
+                  ? [
+                      ...post.details.features.map((feature: string, index: number) => (
+                        <Chip
+                          key={index}
+                          mode="outlined"
+                          style={[styles.featureChip, { borderColor: theme.colors.outline }]}
+                          textStyle={{ color: theme.colors.onSurface }}
+                        >
+                          {feature}
+                        </Chip>
+                      )),
+                      post.details.features.length > 3 && (
+                        <Chip
+                          key="collapse"
+                          mode="outlined"
+                          style={[styles.featureChip, { 
+                            backgroundColor: theme.colors.primaryContainer,
+                            borderColor: theme.colors.primary 
+                          }]}
+                          textStyle={{ color: theme.colors.primary }}
+                          onPress={() => setFeaturesExpanded(false)}
+                        >
+                          Show Less
+                        </Chip>
+                      )
+                    ]
                   : [
                       ...(post.details.features.slice(0, 3).map((feature: string, index: number) => (
                         <Chip
                           key={index}
                           mode="outlined"
-                          style={styles.featureChip}
+                          style={[styles.featureChip, { borderColor: theme.colors.outline }]}
+                          textStyle={{ color: theme.colors.onSurface }}
                         >
                           {feature}
                         </Chip>
@@ -387,8 +400,11 @@ export default function PostDetails() {
                         <Chip
                           key="expand"
                           mode="outlined"
-                          style={[styles.featureChip, expandChipStyle]}
-                          textStyle={expandChipTextStyle}
+                          style={[styles.featureChip, { 
+                            backgroundColor: theme.colors.primaryContainer,
+                            borderColor: theme.colors.primary 
+                          }]}
+                          textStyle={{ color: theme.colors.primary }}
                           onPress={() => setFeaturesExpanded(true)}
                         >
                           +{post.details.features.length - 3} more
@@ -463,10 +479,16 @@ export default function PostDetails() {
 
       {/* Contact Dialog */}
       <Portal>
-        <Dialog visible={showContactDialog} onDismiss={() => setShowContactDialog(false)}>
-          <Dialog.Title>Contact Seller</Dialog.Title>
+        <Dialog 
+          visible={showContactDialog} 
+          onDismiss={() => setShowContactDialog(false)}
+          style={{ backgroundColor: theme.colors.surface }}
+        >
+          <Dialog.Title style={{ color: theme.colors.onSurface }}>Contact Seller</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">You need to be logged in to message the seller.</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              You need to be logged in to message the seller.
+            </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setShowContactDialog(false)}>Cancel</Button>
@@ -478,10 +500,16 @@ export default function PostDetails() {
 
       {/* Save Dialog */}
       <Portal>
-        <Dialog visible={showSaveDialog} onDismiss={() => setShowSaveDialog(false)}>
-          <Dialog.Title>Login Required</Dialog.Title>
+        <Dialog 
+          visible={showSaveDialog} 
+          onDismiss={() => setShowSaveDialog(false)}
+          style={{ backgroundColor: theme.colors.surface }}
+        >
+          <Dialog.Title style={{ color: theme.colors.onSurface }}>Login Required</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">You need to be logged in to save posts.</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              You need to be logged in to save posts.
+            </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setShowSaveDialog(false)}>Cancel</Button>
@@ -585,7 +613,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listingTypeChip: {
-    height: 24,
+    height: 32,
+    paddingHorizontal: 8,
   },
   metadataRow: {
     marginBottom: 4,
