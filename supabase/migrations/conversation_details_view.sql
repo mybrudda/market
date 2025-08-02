@@ -1,7 +1,10 @@
--- Drop the existing view if it exists
+-- Step 1: Drop the existing view
 DROP VIEW IF EXISTS conversation_details;
 
--- Create the conversation details view
+-- Step 2: Rename the column from profile_picture_ids to profile_picture_id
+ALTER TABLE public.users RENAME COLUMN profile_picture_id TO profile_image_id;
+
+-- Step 3: Recreate the view with the correct column name
 CREATE OR REPLACE VIEW conversation_details AS
 SELECT 
     c.id,
@@ -28,9 +31,9 @@ SELECT
         ELSE creator.full_name
     END as other_user_full_name,
     CASE 
-        WHEN c.creator_id = auth.uid() THEN participant.avatar_url
-        ELSE creator.avatar_url
-    END as other_user_avatar,
+        WHEN c.creator_id = auth.uid() THEN participant.profile_image_id
+        ELSE creator.profile_image_id
+    END as other_user_profile_image_id,
     CASE 
         WHEN c.creator_id = auth.uid() THEN participant.is_verified
         ELSE creator.is_verified

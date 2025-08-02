@@ -3,7 +3,7 @@ export interface User {
   id: string;
   username: string;
   full_name: string | null;
-  avatar_url: string | null;
+  profile_image_id: string | null;
   email: string;
   user_type: 'person' | 'company';
   is_verified: boolean | null;

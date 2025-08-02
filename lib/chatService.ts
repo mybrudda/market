@@ -51,7 +51,7 @@ export const chatService = {
         // Then get user info for all senders
         const { data: users, error: usersError } = await supabase
             .from('users')
-            .select('id, username, avatar_url')
+            .select('id, username, profile_image_id')
             .in('id', senderIds);
 
         if (usersError) throw usersError;
@@ -136,7 +136,7 @@ export const chatService = {
             sender: {
                 id: currentUser.user.id,
                 username: currentUser.user.email || currentUser.user.id,
-                avatar_url: null
+                profile_image_id: null
             }
         };
     },

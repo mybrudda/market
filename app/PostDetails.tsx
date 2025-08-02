@@ -13,6 +13,7 @@ import { Post, VehicleDetails, RealEstateDetails, CarouselRenderItemInfo, IconNa
 import { useSavePost } from '../lib/hooks/useSavePost';
 import { Platform } from 'react-native';
 import ReportPostModal from '../components/ReportPostModal';
+import { getCloudinaryUrl } from '../lib/cloudinary';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -109,7 +110,7 @@ export default function PostDetails() {
           postId: post.id,
           sellerId: post.user.id,
           sellerName: post.user.full_name || post.user.username,
-          sellerAvatar: post.user.avatar_url || '',
+          sellerAvatar: post.user.profile_image_id || '',
           postTitle: post.title,
           postImage: post.images?.[0] || '',
           postPrice: post.price.toString(),
@@ -377,9 +378,9 @@ export default function PostDetails() {
               <Surface style={[styles.sellerCard, { backgroundColor: theme.colors.surface }] } elevation={2}>
                 <View style={styles.sellerHeader}>
                   <View style={styles.sellerInfo}>
-                    {post.user.avatar_url && (
+                    {post.user.profile_image_id && (
                       <ExpoImage
-                        source={post.user.avatar_url}
+                        source={getCloudinaryUrl(post.user.profile_image_id)}
                         style={styles.avatar}
                         contentFit="cover"
                         transition={200}

@@ -113,9 +113,9 @@ SELECT
         ELSE creator.full_name
     END as other_user_full_name,
     CASE 
-        WHEN auth.uid() = c.creator_id THEN participant.avatar_url
-        ELSE creator.avatar_url
-    END as other_user_avatar,
+        WHEN auth.uid() = c.creator_id THEN participant.profile_image_id
+        ELSE creator.profile_image_id
+    END as other_user_profile_image_id,
     CASE 
         WHEN auth.uid() = c.creator_id THEN participant.is_verified
         ELSE creator.is_verified

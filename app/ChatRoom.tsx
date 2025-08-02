@@ -27,6 +27,7 @@ import { Image as ExpoImage } from "expo-image";
 import { useUnreadMessagesStore } from "../store/useUnreadMessagesStore";
 import { useBlockedUsers } from '../lib/hooks/useBlockedUsers';
 import { formatPrice } from '../utils/format';
+import { getCloudinaryUrl } from '../lib/cloudinary';
 
 const blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4";
 const MemoizedChatMessage = memo(ChatMessage);
@@ -98,7 +99,7 @@ export default function ChatRoom() {
         post_status: 'active',
         other_user_name: sellerName,
         other_user_full_name: sellerName,
-        other_user_avatar: sellerAvatar,
+        other_user_profile_image_id: sellerAvatar,
         other_user_is_verified: false,
         other_user_type: 'person',
         last_message: null,
@@ -252,7 +253,7 @@ export default function ChatRoom() {
       sender: {
         id: currentUser?.id,
         username: currentUser?.username || currentUser?.email,
-        avatar_url: currentUser?.avatar_url
+        profile_image_id: currentUser?.profile_image_id
       },
     };
 
@@ -527,10 +528,9 @@ export default function ChatRoom() {
     index,
   }), []);
 
-  // Utility function for cleaning avatar URLs
-  const getCleanAvatarUrl = (url: string | null) => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `https://${url}`;
+  // Utility function for getting profile image URL from profile_image_id
+  const getProfileImageUrl = (profileImageId: string | null) => {
+    return getCloudinaryUrl(profileImageId, 'avatars');
   };
 
   if (loading) {
@@ -624,7 +624,7 @@ export default function ChatRoom() {
         {conversation?.post_title && (
           <View style={styles.postInfoContainer}>
             <ExpoImage
-              source={{ uri: getCleanAvatarUrl(conversation?.post_image || null) || conversation?.post_image }}
+              source={{ uri: conversation?.post_image || '' }}
               style={[
                 styles.postImage,
                 conversation?.post_status !== 'active' && { opacity: 0.5 }
@@ -740,7 +740,7 @@ export default function ChatRoom() {
         visible={showUserInfo}
         onClose={() => setShowUserInfo(false)}
         conversation={conversation}
-        getCleanAvatarUrl={getCleanAvatarUrl}
+        getProfileImageUrl={getProfileImageUrl}
         blurhash={blurhash}
       />
     </View>

@@ -6,12 +6,13 @@ import { useBlockedUsers } from '../../../lib/hooks/useBlockedUsers';
 import Header from '../../../components/layout/Header';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
+import { getCloudinaryUrl } from '../../../lib/cloudinary';
 
 interface BlockedUser {
   id: string;
   username: string;
   full_name: string;
-  avatar_url: string | null;
+  profile_image_id: string | null;
   is_verified: boolean;
 }
 
@@ -46,7 +47,7 @@ export default function BlockedUsers() {
             id,
             username,
             full_name,
-            avatar_url,
+            profile_image_id,
             is_verified
           )
         `)
@@ -96,9 +97,9 @@ export default function BlockedUsers() {
   const renderBlockedUser = ({ item }: { item: BlockedUser }) => (
     <View style={[styles.userCard, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.userInfo}>
-        {item.avatar_url ? (
+        {item.profile_image_id ? (
           <ExpoImage
-            source={{ uri: item.avatar_url }}
+            source={{ uri: getCloudinaryUrl(item.profile_image_id) }}
             style={styles.avatar}
             contentFit="cover"
             transition={200}

@@ -40,7 +40,7 @@ export default function MyPostsScreen() {
             id,
             username,
             full_name,
-            avatar_url,
+            profile_image_id,
             email,
             user_type,
             is_verified

@@ -9,7 +9,7 @@ interface UserInfoModalProps {
   visible: boolean;
   onClose: () => void;
   conversation: Conversation | null;
-  getCleanAvatarUrl: (url: string | null) => string | null;
+  getProfileImageUrl: (profileImageId: string | null) => string | null;
   blurhash: string;
 }
 
@@ -17,7 +17,7 @@ export const UserInfoModal = ({
   visible,
   onClose,
   conversation,
-  getCleanAvatarUrl,
+  getProfileImageUrl,
   blurhash
 }: UserInfoModalProps) => {
   const theme = useTheme();
@@ -49,25 +49,18 @@ export const UserInfoModal = ({
           
           <View style={styles.userInfoContent}>
             <View style={styles.avatarContainer}>
-              {conversation?.other_user_avatar ? (
-                getCleanAvatarUrl(conversation.other_user_avatar) ? (
-                  <ExpoImage
-                    source={{
-                      uri: getCleanAvatarUrl(conversation.other_user_avatar)!,
-                    }}
-                    style={styles.modalAvatar}
-                    contentFit="cover"
-                    transition={200}
-                    placeholder={blurhash}
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <MaterialCommunityIcons
-                    name="account-circle"
-                    size={80}
-                    color={theme.colors.primary}
-                  />
-                )
+              {conversation?.other_user_profile_image_id && getProfileImageUrl(conversation.other_user_profile_image_id) ? (
+                <ExpoImage
+                  source={{
+                    uri: getProfileImageUrl(conversation.other_user_profile_image_id)!,
+                  }}
+                  style={styles.modalAvatar}
+                  contentFit="cover"
+                  transition={200}
+                  placeholder={blurhash}
+                  cachePolicy="memory-disk"
+
+                />
               ) : (
                 <MaterialCommunityIcons
                   name="account-circle"

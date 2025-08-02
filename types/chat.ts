@@ -13,7 +13,7 @@ export interface Conversation {
     post_status: 'active' | 'expired' | 'removed' | 'pending';
     other_user_name: string;
     other_user_full_name: string | null;
-    other_user_avatar: string | null;
+    other_user_profile_image_id: string | null;
     other_user_is_verified: boolean | null;
     other_user_type: 'person' | 'company';
     last_message: string | null;
@@ -21,7 +21,7 @@ export interface Conversation {
     user?: {
         id: string;
         username: string;
-        avatar_url: string | null;
+        profile_image_id: string | null;
     };
 }
 
@@ -35,7 +35,7 @@ export interface Message {
     sender?: {
         id: string;
         username: string;
-        avatar_url: string | null;
+        profile_image_id: string | null;
     };
 }
 

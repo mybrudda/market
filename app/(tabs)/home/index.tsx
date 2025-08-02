@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PostCard from '../../../components/posts/PostCard';
 import FilterSection, { FilterOptions } from '../../../components/posts/FilterSection';
 import { Post } from '../../../types/database';
+import { getCloudinaryUrl } from '../../../lib/cloudinary';
 
 // Constants
 const POSTS_PER_PAGE = 10;
@@ -41,7 +42,7 @@ export default function Home() {
             id,
             username,
             full_name,
-            avatar_url,
+            profile_image_id,
             email,
             user_type,
             is_verified
@@ -96,7 +97,7 @@ export default function Home() {
             id,
             username,
             full_name,
-            avatar_url,
+            profile_image_id,
             email,
             user_type,
             is_verified
@@ -213,7 +214,7 @@ export default function Home() {
               id,
               username,
               full_name,
-              avatar_url,
+              profile_image_id,
               email,
               user_type,
               is_verified

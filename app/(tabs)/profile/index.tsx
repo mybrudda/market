@@ -9,12 +9,13 @@ import LoadingScreen from "../../../components/ui/LoadingScreen";
 import { supabase } from "../../../supabaseClient";
 import RequireAuth from "../../../components/auth/RequireAuth";
 import * as ImagePicker from 'expo-image-picker';
+import { getCloudinaryUrl } from "../../../lib/cloudinary";
 
 interface UserProfile {
   id: string;
   username: string;
   full_name: string | null;
-  avatar_url: string | null;
+  profile_image_id: string | null;
   email: string;
   user_type: 'person' | 'company';
   is_verified: boolean | null;
@@ -36,9 +37,8 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  const getCleanAvatarUrl = (url: string | null) => {
-    if (!url) return null;
-    return url;
+  const getProfileImageUrl = (profileImageId: string | null) => {
+    return getCloudinaryUrl(profileImageId, 'avatars');
   };
 
   const fetchUserProfile = async () => {
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
         mediaTypes: "images",
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.5,
         base64: true,
       });
 
@@ -91,41 +91,41 @@ export default function ProfileScreen() {
         // Create temporary image URL for optimistic update
         const tempImageUrl = `data:image/jpeg;base64,${result.assets[0].base64}`;
         
-                 // Store the original avatar URL for rollback
-         const originalAvatarUrl = userProfile?.avatar_url || null;
-         
-         // Optimistic update - show new image immediately
-         setUserProfile(prev => prev ? { ...prev, avatar_url: tempImageUrl } : null);
+        // Store the original profile image ID for rollback
+        const originalProfileImageId = userProfile?.profile_image_id || null;
+        
+        // Optimistic update - show new image immediately
+        setUserProfile(prev => prev ? { ...prev, profile_image_id: 'temp' } : null);
 
-                 // Start upload in background
-         setIsUploading(true);
-         
-         try {
-           const response = await fetch(`${supabaseUrl}/functions/v1/update-avatar`, {
-             method: 'POST',
-             headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${session.access_token}`,
-             },
-             body: JSON.stringify({
-               base64Image: tempImageUrl,
-             }),
-           });
+        // Start upload in background
+        setIsUploading(true);
+        
+        try {
+          const response = await fetch(`${supabaseUrl}/functions/v1/update-profile-image`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              base64Image: tempImageUrl,
+            }),
+          });
 
           if (!response.ok) {
             const errorData = await response.text();
-            throw new Error(`Failed to update avatar: ${errorData}`);
+            throw new Error(`Failed to update profile image: ${errorData}`);
           }
 
-          const { avatar_url } = await response.json();
+          const { profile_image_id } = await response.json();
           
-          // Update with the actual Cloudinary URL
-          setUserProfile(prev => prev ? { ...prev, avatar_url } : null);
-                 } catch (error) {
-           // Rollback on error - restore original avatar
-           setUserProfile(prev => prev ? { ...prev, avatar_url: originalAvatarUrl } : null);
-           console.error('Error updating avatar:', error);
-           alert('Failed to update profile picture. Please try again.');
+          // Update with the actual profile image ID
+          setUserProfile(prev => prev ? { ...prev, profile_image_id } : null);
+        } catch (error) {
+          // Rollback on error - restore original profile image ID
+          setUserProfile(prev => prev ? { ...prev, profile_image_id: originalProfileImageId } : null);
+          console.error('Error updating profile image:', error);
+          alert('Failed to update profile picture. Please try again.');
         } finally {
           setIsUploading(false);
         }
@@ -140,34 +140,36 @@ export default function ProfileScreen() {
     return <LoadingScreen />;
   }
 
+  const profileImageUrl = getProfileImageUrl(userProfile?.profile_image_id || null);
+
   return (
     <RequireAuth message="You need to be logged in to view your profile.">
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.headerTop}>
-                         <View style={styles.logoContainer}>
-               <Pressable onPress={handleImagePick} style={styles.avatarContainer}>
-                 {userProfile?.avatar_url ? (
-                   <View style={styles.avatarWrapper}>
-                     <Image
-                       source={{ uri: userProfile.avatar_url }}
-                       style={styles.avatar}
-                     />
-                     {isUploading && (
-                       <View style={[styles.avatar, styles.uploadingOverlay]}>
-                         <ActivityIndicator color={theme.colors.primary} size="small" />
-                       </View>
-                     )}
-                   </View>
-                 ) : (
-                   <MaterialCommunityIcons
-                     name="account-circle"
-                     size={80}
-                     color={theme.colors.primary}
-                   />
-                 )}
-               </Pressable>
+            <View style={styles.logoContainer}>
+              <Pressable onPress={handleImagePick} style={styles.avatarContainer}>
+                {profileImageUrl ? (
+                  <View style={styles.avatarWrapper}>
+                    <Image
+                      source={{ uri: profileImageUrl }}
+                      style={styles.avatar}
+                    />
+                    {isUploading && (
+                      <View style={[styles.avatar, styles.uploadingOverlay]}>
+                        <ActivityIndicator color={theme.colors.primary} size="small" />
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <MaterialCommunityIcons
+                    name="account-circle"
+                    size={80}
+                    color={theme.colors.primary}
+                  />
+                )}
+              </Pressable>
               <Text variant="titleLarge" style={{ marginLeft: 8 }}>
                 {userProfile?.username || 'Profile'}
               </Text>
