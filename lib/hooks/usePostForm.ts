@@ -193,20 +193,20 @@ export function usePostForm<T extends BaseFormData>({
 
       const postData = {
         user_id: user?.id,
-        post_type: postType,
         title: formState.title,
         description: formState.description,
+        category: formState.category,
+        subcategory: formState.subcategory,
         price: parseFloat(formState.price),
         currency: formState.currency,
         listing_type: formState.listingType,
-        category: formState.category,
         location: formState.location,
-        images: uploadedUrls,
+        image_ids: uploadedUrls,
         details: transformForm(formState),
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        expiry_date: new Date(Date.now() + DEFAULT_FORM_VALUES.POST_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
+        expires_at: new Date(Date.now() + DEFAULT_FORM_VALUES.POST_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
       };
 
       console.log('Attempting to create post with data:', JSON.stringify(postData, null, 2));

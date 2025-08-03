@@ -1,8 +1,7 @@
 -- Step 1: Drop the existing view
 DROP VIEW IF EXISTS conversation_details;
 
--- Step 2: Rename the column from profile_picture_ids to profile_picture_id
-ALTER TABLE public.users RENAME COLUMN profile_picture_id TO profile_image_id;
+
 
 -- Step 3: Recreate the view with the correct column name
 CREATE OR REPLACE VIEW conversation_details AS
@@ -19,7 +18,7 @@ SELECT
     c.unread_count_participant,
     p.title as post_title,
     CASE 
-        WHEN p.id IS NOT NULL AND p.images IS NOT NULL AND array_length(p.images, 1) > 0 THEN p.images[1]
+        WHEN p.id IS NOT NULL AND p.image_ids IS NOT NULL AND jsonb_array_length(p.image_ids) > 0 THEN p.image_ids->0
         ELSE NULL
     END as post_image,
     p.price as post_price,

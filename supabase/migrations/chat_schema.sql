@@ -102,7 +102,10 @@ CREATE VIEW conversation_details AS
 SELECT 
     c.*,
     p.title as post_title,
-    p.images[0] as post_image,
+    CASE 
+        WHEN p.image_ids IS NOT NULL AND jsonb_array_length(p.image_ids) > 0 THEN p.image_ids->0
+        ELSE NULL
+    END as post_image,
     p.price as post_price,
     CASE 
         WHEN auth.uid() = c.creator_id THEN participant.username

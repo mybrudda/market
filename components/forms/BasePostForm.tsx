@@ -72,6 +72,7 @@ export default function BasePostForm<T extends BaseFormData>({
               buttons={[
                 { value: 'sale', label: 'For Sale' },
                 { value: 'rent', label: 'For Rent' },
+                { value: 'other', label: 'Other' },
               ]}
               style={styles.segmentedButton}
             />

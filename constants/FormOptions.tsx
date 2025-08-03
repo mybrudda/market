@@ -9,6 +9,39 @@ export const VEHICLE_CATEGORIES: string[] = [
   "Other"
 ];
 
+// New category and subcategory structure
+export const CATEGORIES = [
+  { label: 'Vehicle', value: 'vehicle' },
+  { label: 'Other', value: 'other' }
+];
+
+export const VEHICLE_SUBCATEGORIES = [
+  { label: 'Car', value: 'car' },
+  { label: 'Motorcycle', value: 'motorcycle' },
+  { label: 'Truck', value: 'truck' },
+  { label: 'Van', value: 'van' },
+  { label: 'Bus', value: 'bus' },
+  { label: 'Parts', value: 'parts' },
+  { label: 'Accessories', value: 'accessories' },
+  { label: 'Other', value: 'other' }
+];
+
+export const OTHER_SUBCATEGORIES = [
+  { label: 'General', value: 'general' },
+  { label: 'Electronics', value: 'electronics' },
+  { label: 'Furniture', value: 'furniture' },
+  { label: 'Clothing', value: 'clothing' },
+  { label: 'Books', value: 'books' },
+  { label: 'Sports', value: 'sports' },
+  { label: 'Other', value: 'other' }
+];
+
+export const LISTING_TYPES = [
+  { label: 'Sale', value: 'sale' },
+  { label: 'Rent', value: 'rent' },
+  { label: 'Other', value: 'other' }
+];
+
 export const MAKES: string[] = [
   "Acura",
   "Alfa Romeo",

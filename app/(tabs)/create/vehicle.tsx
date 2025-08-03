@@ -15,11 +15,11 @@ import { useVehicleModels } from '../../../lib/hooks/useVehicleModels';
 import { formStyles } from '../../../constants/formStyles';
 import { Post } from '../../../types/database';
 import {
-  VEHICLE_CATEGORIES,
   VEHICLE_CONDITION,
   VEHICLE_FUEL_TYPES,
   VEHICLE_TRANSMISSION,
   VEHICLE_FEATURES,
+  VEHICLE_SUBCATEGORIES,
   MAKES,
   YEARS,
   CITIES,
@@ -36,7 +36,8 @@ const initialState: VehicleFormData = {
   currency: DEFAULT_FORM_VALUES.CURRENCY,
   images: [],
   listingType: DEFAULT_FORM_VALUES.LISTING_TYPE,
-  category: '',
+  category: 'vehicle',
+  subcategory: '',
   location: {
     city: '',
     address: undefined,
@@ -164,11 +165,11 @@ export default function CreateVehiclePost() {
         <Text variant="titleMedium" style={formStyles.sectionTitle}>Vehicle Details</Text>
         
         <DropdownComponent
-          data={VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }))}
-          value={formState.category}
-          onChange={(value: string | null) => handleFormInputChange('category', value || '')}
-          placeholder="Vehicle Category"
-          error={errors.category}
+          data={VEHICLE_SUBCATEGORIES}
+          value={formState.subcategory}
+          onChange={(value: string | null) => handleFormInputChange('subcategory', value || '')}
+          placeholder="Vehicle Subcategory"
+          error={errors.subcategory}
         />
 
         <DropdownComponent

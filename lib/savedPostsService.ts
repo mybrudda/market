@@ -5,22 +5,47 @@ export const savedPostsService = {
   // Save a post for the current user
   async savePost(postId: string, userId: string): Promise<void> {
     // First check if the user is the creator of the post
-    const { data: post, error: postError } = await supabase
+    const { data, error } = await supabase
       .from('posts')
-      .select('user_id')
+      .select(`
+        id,
+        title,
+        description,
+        category,
+        subcategory,
+        listing_type,
+        price,
+        currency,
+        location,
+        image_ids,
+        details,
+        status,
+        expires_at,
+        created_at,
+        updated_at,
+        user:user_id (
+          id,
+          username,
+          full_name,
+          profile_image_id,
+          email,
+          user_type,
+          is_verified
+        )
+      `)
       .eq('id', postId)
       .single();
 
-    if (postError) {
-      console.error('Error fetching post:', postError);
-      throw postError;
+    if (error) {
+      console.error('Error fetching post:', error);
+      throw error;
     }
 
-    if (post.user_id === userId) {
+    if (data.user?.id === userId) {
       throw new Error('Cannot save your own post');
     }
 
-    const { error } = await supabase
+    const { error: savedPostError } = await supabase
       .from('saved_posts')
       .insert([
         {
@@ -29,9 +54,9 @@ export const savedPostsService = {
         }
       ]);
 
-    if (error) {
-      console.error('Error saving post:', error);
-      throw error;
+    if (savedPostError) {
+      console.error('Error saving post:', savedPostError);
+      throw savedPostError;
     }
   },
 
@@ -77,19 +102,19 @@ export const savedPostsService = {
           user_id,
           title,
           description,
-          post_type,
-          listing_type,
           category,
+          subcategory,
+          listing_type,
           price,
           currency,
           location,
-          images,
+          image_ids,
           details,
           status,
-          expiry_date,
+          expires_at,
           created_at,
           updated_at,
-          users (
+          user:user_id (
             id,
             username,
             full_name,
@@ -111,7 +136,7 @@ export const savedPostsService = {
     // Transform the data to match the Post interface
     return data?.map(item => ({
       ...item.posts,
-      user: item.posts.users,
+      user: item.posts.user,
     } as any)) || [];
   },
 

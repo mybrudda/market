@@ -77,7 +77,7 @@ export function usePostUpdate<T extends BaseFormData>({
 
   const initializeFormFromPost = useCallback((post: Post): T => {
     // Convert image IDs to URLs for display
-    const imageUrls = post.images.map(imageId => getCloudinaryUrl(imageId, 'posts') || imageId);
+    const imageUrls = post.image_ids.map((imageId: string) => getCloudinaryUrl(imageId, 'posts') || imageId);
     
     const formData: any = {
       title: post.title,
@@ -86,12 +86,13 @@ export function usePostUpdate<T extends BaseFormData>({
       currency: post.currency,
       listingType: post.listing_type,
       category: post.category,
+      subcategory: post.subcategory,
       location: post.location,
       images: imageUrls, // Use URLs for display
     };
 
     // Add vehicle-specific fields
-    if (post.post_type === 'vehicle' && post.details) {
+    if (post.category === 'vehicle' && post.details) {
       const vehicleDetails = post.details as VehicleDetails;
       Object.assign(formData, {
         make: vehicleDetails.make,
@@ -109,7 +110,7 @@ export function usePostUpdate<T extends BaseFormData>({
     }
 
     // Reset image changes tracking and initialize with current images
-    const initialImageChanges: ImageChange[] = post.images.map((imageId, index) => ({
+    const initialImageChanges: ImageChange[] = post.image_ids.map((imageId: string, index: number) => ({
       type: 'unchanged',
       url: getCloudinaryUrl(imageId, 'posts') || undefined,
       imageId,
@@ -266,6 +267,54 @@ export function usePostUpdate<T extends BaseFormData>({
     let uploadedImageIds: string[] = [];
     
     try {
+      // Load existing post data
+      const { data: post, error: fetchError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            username,
+            full_name,
+            profile_image_id,
+            email,
+            user_type,
+            is_verified
+          )
+        `)
+        .eq('id', postId)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch post: ${fetchError.message}`);
+      }
+
+      if (!post) {
+        throw new Error(ERROR_MESSAGES.POST_NOT_FOUND);
+      }
+
+      // Transform existing data to form state
+      const existingImages = post.image_ids || [];
+      const imageUrls = existingImages.map((imageId: string) => getCloudinaryUrl(imageId, 'posts') || imageId);
+
+      // Transform form data based on post type
+      if (post.category === 'vehicle' && post.details) {
+        const vehicleDetails = post.details as VehicleDetails;
+        Object.assign(formState, {
+          make: vehicleDetails.make,
+          model: vehicleDetails.model,
+          year: vehicleDetails.year,
+          mileage: {
+            value: vehicleDetails.mileage.value.toString(),
+            unit: vehicleDetails.mileage.unit,
+          },
+          condition: vehicleDetails.condition,
+          fuelType: vehicleDetails.fuel_type,
+          transmission: vehicleDetails.transmission,
+          features: vehicleDetails.features || [],
+        });
+      }
+
       // First test if we can connect to Supabase
       const testQuery = await supabase.from('posts').select('id').limit(1);
       if (testQuery.error) {
@@ -273,13 +322,7 @@ export function usePostUpdate<T extends BaseFormData>({
       }
 
       // Verify post ownership
-      const { data: post, error: fetchError } = await supabase
-        .from('posts')
-        .select('user_id')
-        .eq('id', postId)
-        .single();
-        
-      if (fetchError || !post || post.user_id !== user.id) {
+      if (post.user_id !== user.id) {
         Alert.alert('Error', ERROR_MESSAGES.POST_NOT_FOUND);
         return;
       }
@@ -287,14 +330,20 @@ export function usePostUpdate<T extends BaseFormData>({
       // Process image changes
       const imageIdsToDelete: string[] = [];
 
-      // Separate base64 images (new) from URLs (existing)
-      const base64Images = formState.images.filter(img => !img.startsWith('http'));
-      const urlImages = formState.images.filter(img => img.startsWith('http'));
+      // Handle image uploads for new images
+      const newImages = formState.images.filter((image: string) => !image.startsWith('http'));
+      const existingImageIds = formState.images
+        .filter((image: string) => image.startsWith('http'))
+        .map((imageUrl: string) => {
+          // Extract image ID from URL using the existing helper function
+          const imageId = extractCloudinaryPublicId(imageUrl);
+          return imageId || imageUrl;
+        });
 
       // Upload new base64 images
-      if (base64Images.length > 0) {
+      if (newImages.length > 0) {
         uploadedImageIds = await Promise.all(
-          base64Images.map((base64Image: string) => 
+          newImages.map((base64Image: string) => 
             uploadToCloudinary(`data:image/jpeg;base64,${base64Image}`)
           )
         );
@@ -359,19 +408,9 @@ export function usePostUpdate<T extends BaseFormData>({
 
       // Build final image IDs array
       // For existing images, we need to extract the image IDs from the URLs
-      const existingImageIds = urlImages.map(url => {
-        const publicId = extractCloudinaryPublicId(url);
-        if (publicId) {
-          // Extract just the image ID part (without folder)
-          const parts = publicId.split('/');
-          return parts[parts.length - 1];
-        }
-        return null;
-      }).filter(Boolean) as string[];
-      
-      let finalImageIds = [...existingImageIds, ...uploadedImageIds];
-      
-      // If deletion was attempted, filter out failed deletions
+             let finalImageIds = [...existingImageIds, ...uploadedImageIds];
+        
+        // If deletion was attempted, filter out failed deletions
       if (deletionResults && deletionResults.results) {
         const { successful, failed } = deletionResults.results;
         
@@ -390,12 +429,13 @@ export function usePostUpdate<T extends BaseFormData>({
       const postData = {
         title: formState.title,
         description: formState.description,
+        category: formState.category,
+        subcategory: formState.subcategory,
         price: parseFloat(formState.price),
         currency: formState.currency,
         listing_type: formState.listingType,
-        category: formState.category,
         location: formState.location,
-        images: finalImageIds, // Store image IDs in database
+        image_ids: finalImageIds, // Store image IDs in database
         details: transformForm(formState),
         updated_at: new Date().toISOString(),
       };

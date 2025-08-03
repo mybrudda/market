@@ -66,6 +66,7 @@ AS $$
     SELECT NOT EXISTS (
         SELECT 1 FROM public.blocked_users
         WHERE (blocker_id = $2 AND blocked_id = $1)
+        OR (blocker_id = $1 AND blocked_id = $2)
     );
 $$;
 
@@ -127,6 +128,15 @@ BEGIN
             WHERE c.id = NEW.conversation_id
         )
         AND blocked_id = NEW.sender_id)
+        OR (blocked_id = (
+            SELECT CASE 
+                WHEN c.creator_id = NEW.sender_id THEN c.participant_id
+                ELSE c.creator_id
+            END
+            FROM public.conversations c
+            WHERE c.id = NEW.conversation_id
+        )
+        AND blocker_id = NEW.sender_id)
     ) THEN
         RAISE EXCEPTION 'Cannot send message: User is blocked';
     END IF;

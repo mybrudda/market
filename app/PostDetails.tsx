@@ -51,13 +51,13 @@ export default function PostDetails() {
   
   // Memoize filtered images to avoid recalculating on every render
   const filteredImages = React.useMemo(() => {
-    if (!post?.images) return [];
+    if (!post?.image_ids) return [];
     // Convert image IDs to URLs
-    return post.images
+    return post.image_ids
       .filter(img => img && img.trim() !== '')
       .map(imgId => getCloudinaryUrl(imgId, 'posts'))
       .filter(url => url !== null) as string[];
-  }, [post?.images]);
+  }, [post?.image_ids]);
 
   // Optimize carousel index update callback
   const handleSnapToItem = React.useCallback((index: number) => {
@@ -168,7 +168,7 @@ export default function PostDetails() {
           sellerName: post.user.full_name,
           sellerAvatar: post.user.profile_image_id || '',
           postTitle: post.title,
-          postImage: post.images[0],
+          postImage: post.image_ids && post.image_ids.length > 0 ? post.image_ids[0] : '',
           postPrice: post.price.toString(),
           postCurrency: post.currency,
         }

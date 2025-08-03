@@ -41,7 +41,7 @@ interface CleanupLog {
 
 interface Post {
   id: string;
-  images?: string[];
+  image_ids?: string[];
 }
 
 // Helper: Extract Cloudinary public_id from full image URL
@@ -83,8 +83,8 @@ async function getExpiredPosts(offset: number): Promise<Post[]> {
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin
     .from('posts')
-    .select('id, images')
-    .lt('expiry_date', now)
+    .select('id, image_ids')
+    .lt('expires_at', now)
     .in('status', ['expired', 'removed'])
     .range(offset, offset + CONFIG.BATCH_SIZE - 1);
 
@@ -115,7 +115,7 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
       const allPublicIds: string[] = [];
 
       for (const post of posts) {
-        const publicIds = (post.images || [])
+        const publicIds = (post.image_ids || [])
           .map(extractPublicId)
           .filter((id): id is string => !!id)
           .slice(0, 10); // max 10 images per post
@@ -124,7 +124,7 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
         allPublicIds.push(...publicIds);
         
         // Log if post has invalid image URLs
-        const totalImages = (post.images || []).length;
+        const totalImages = (post.image_ids || []).length;
         const validImages = publicIds.length;
         if (totalImages > validImages) {
           console.log(`Post ${post.id}: ${totalImages - validImages} invalid image URLs found`);

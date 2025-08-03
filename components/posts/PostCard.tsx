@@ -82,8 +82,8 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
   );
 
   // Get the first image URL from the image ID
-  const firstImageUrl = post.images && post.images.length > 0 
-    ? getCloudinaryUrl(post.images[0], 'posts') 
+  const firstImageUrl = post.image_ids && post.image_ids.length > 0 
+    ? getCloudinaryUrl(post.image_ids[0], 'posts') 
     : null;
 
   return (

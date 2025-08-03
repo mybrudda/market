@@ -15,9 +15,9 @@ export interface BasePost {
   user?: User;
   title: string;
   description: string;
-  post_type: 'vehicle';
-  listing_type: 'rent' | 'sale';
-  category: string;
+  category: 'vehicle' | 'other';
+  subcategory: string;
+  listing_type: 'sale' | 'rent' | 'other';
   price: number;
   currency: string;
   location: {
@@ -25,10 +25,10 @@ export interface BasePost {
     address?: string;
     country: string;
   };
-  images: string[]; // Cloudinary image IDs
+  image_ids: string[]; // Cloudinary image IDs
   details: VehicleDetails;
   status: 'active' | 'pending' | 'removed' | 'expired';
-  expiry_date: string;
+  expires_at: string;
   created_at: string;
   updated_at: string;
 }
@@ -48,7 +48,7 @@ export interface VehicleDetails {
 }
 
 export interface VehiclePost extends BasePost {
-  post_type: 'vehicle';
+  category: 'vehicle';
   details: VehicleDetails;
   user: User;
 }

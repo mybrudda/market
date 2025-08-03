@@ -12,8 +12,9 @@ export interface BaseFormData {
     country: string;
   };
   images: string[];
-  listingType: 'rent' | 'sale';
-  category: string;
+  listingType: 'sale' | 'rent' | 'other';
+  category: 'vehicle' | 'other';
+  subcategory: string;
 }
 
 export interface VehicleFormData extends BaseFormData {
@@ -129,8 +130,13 @@ export const validateVehicleForm = (form: VehicleFormData): FormErrors => {
   }
 
   // Category validation
-  if (!form.category.trim()) {
+  if (!form.category) {
     errors.category = 'Category is required';
+  }
+
+  // Subcategory validation
+  if (!form.subcategory.trim()) {
+    errors.subcategory = 'Subcategory is required';
   }
 
   // Vehicle-specific validations
