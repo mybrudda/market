@@ -1,0 +1,47 @@
+name: Update Expired Posts
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC every day
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  update-expired-posts:
+    runs-on: ubuntu-latest
+    
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: |
+          cd .github/scripts
+          npm init -y
+          npm install typescript ts-node @types/node
+          npm install @supabase/supabase-js
+          echo '{
+            "compilerOptions": {
+              "target": "es2018",
+              "module": "commonjs",
+              "strict": true,
+              "esModuleInterop": true,
+              "skipLibCheck": true,
+              "forceConsistentCasingInFileNames": true,
+              "outDir": "./dist"
+            },
+            "include": ["./**/*.ts"],
+            "exclude": ["node_modules"]
+          }' > tsconfig.json
+
+      - name: Run expired posts update script
+        run: |
+          cd .github/scripts
+          npx ts-node updateExpiredPosts.ts

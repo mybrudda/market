@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('./supabaseAdmin');
+import { supabaseAdmin } from './supabaseAdmin';
 const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary
@@ -18,11 +18,12 @@ interface CleanupResult {
   postsDeleted: number;
   imagesDeleted: number;
   imagesFailed: number;
+  postsSkipped: number;
 }
 
 interface FailedDeletion {
   postId: string;
-  imagePublicId: string;
+  imageIds: string[];
   error: string;
 }
 
@@ -30,10 +31,11 @@ interface CleanupLog {
   operation: string;
   rows_affected: number;
   details: {
-    images_deleted?: number;
-    images_failed?: number;
+    posts_deleted: number;
+    images_deleted: number;
+    posts_failed: number;
+    images_failed: number;
     failed_deletions?: FailedDeletion[];
-    error?: string;
     timestamp: string;
   };
   executed_at: string;
@@ -44,52 +46,92 @@ interface Post {
   image_ids?: string[];
 }
 
-// Helper: Extract Cloudinary public_id from full image URL
-function extractPublicId(url: string): string | null {
-  try {
-    const parts = url.split('/');
-    const lastSegment = parts.pop();
-    if (!lastSegment) return null;
-    return lastSegment.split('.')[0]; // Removes file extension
-  } catch {
-    return null;
-  }
+// Helper function to construct full Cloudinary public IDs for posts
+function constructPostImagePublicIds(imageIds: string[]): string[] {
+  return imageIds.map(imageId => {
+    // If imageId already includes folder prefix, use as is
+    if (imageId.includes('/')) {
+      return imageId;
+    }
+    // Otherwise, add the posts folder prefix
+    return `posts/${imageId}`;
+  });
 }
 
-// Bulk delete images via Cloudinary
-async function deleteImages(publicIds: string[]): Promise<{ deleted: string[], failed: string[] }> {
+// Bulk delete images via Cloudinary Admin API
+async function deleteImagesFromCloudinary(imageIds: string[]): Promise<{ deleted: string[], failed: string[] }> {
+  if (imageIds.length === 0) {
+    return { deleted: [], failed: [] };
+  }
+
   try {
-    // Cloudinary allows up to 100 per call on free tier, BATCH_SIZE ensures we don't exceed
-    const result = await cloudinary.api.delete_resources(publicIds);
+    // Construct full public IDs with folder prefix for posts
+    const publicIds = constructPostImagePublicIds(imageIds);
+    
+    console.log(`Attempting to delete ${publicIds.length} images from Cloudinary...`);
+    
+    // Cloudinary Admin API allows up to 100 images per call
+    const result = await cloudinary.api.delete_resources(publicIds, {
+      type: 'upload',
+      resource_type: 'image'
+    });
 
     const deleted: string[] = [];
     const failed: string[] = [];
 
-    for (const [id, status] of Object.entries(result.deleted || {})) {
-      if (status === 'deleted') deleted.push(id);
-      else failed.push(id);
+    // Process results
+    if (result.deleted) {
+      for (const [id, status] of Object.entries(result.deleted)) {
+        if (status === 'deleted') {
+          deleted.push(id);
+        } else {
+          failed.push(id);
+        }
+      }
     }
 
+    // Check for not found images
+    if (result.not_found) {
+      failed.push(...result.not_found);
+    }
+
+    console.log(`Cloudinary deletion result: ${deleted.length} deleted, ${failed.length} failed`);
+    
     return { deleted, failed };
   } catch (error) {
     console.error('Cloudinary bulk delete error:', error);
     // On failure, assume all failed (to be safe)
-    return { deleted: [], failed: publicIds };
+    return { deleted: [], failed: imageIds };
   }
 }
 
-// Fetch expired posts in batches with offset pagination
+// Fetch posts that have been expired for more than 7 days in batches
 async function getExpiredPosts(offset: number): Promise<Post[]> {
-  const now = new Date().toISOString();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoISO = sevenDaysAgo.toISOString();
+  
   const { data, error } = await supabaseAdmin
     .from('posts')
     .select('id, image_ids')
-    .lt('expires_at', now)
-    .in('status', ['expired', 'removed'])
-    .range(offset, offset + CONFIG.BATCH_SIZE - 1);
+    .lt('expires_at', sevenDaysAgoISO)
+    .range(offset, offset + CONFIG.BATCH_SIZE - 1)
+    .order('created_at', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(`Failed to fetch posts expired for more than 7 days: ${error.message}`);
+  }
+
   return (data || []) as Post[];
+}
+
+// Log cleanup operation to database
+async function logCleanupOperation(log: CleanupLog): Promise<void> {
+  try {
+    await supabaseAdmin.from('cleanup_logs').insert(log);
+  } catch (error) {
+    console.error('Failed to log cleanup operation:', error);
+  }
 }
 
 // Main cleanup function
@@ -100,89 +142,93 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
   let totalPostsDeleted = 0;
   let totalImagesDeleted = 0;
   let totalImagesFailed = 0;
+  let totalPostsSkipped = 0;
 
   const failedDeletions: FailedDeletion[] = [];
 
   try {
+    console.log('Starting cleanup of posts expired for more than 7 days...');
+
     while (true) {
       const posts = await getExpiredPosts(offset);
-      if (!posts.length) break;
+      if (!posts.length) {
+        console.log('No more posts expired for more than 7 days to process');
+        break;
+      }
 
-      console.log(`Processing batch of ${posts.length} posts`);
+      console.log(`Processing batch of ${posts.length} posts (offset: ${offset})`);
 
-      // Map posts to their Cloudinary public_ids
-      const postIdToPublicIds: { [postId: string]: string[] } = {};
-      const allPublicIds: string[] = [];
-
+      // Process each post individually to ensure atomicity
       for (const post of posts) {
-        const publicIds = (post.image_ids || [])
-          .map(extractPublicId)
-          .filter((id): id is string => !!id)
-          .slice(0, 10); // max 10 images per post
-
-        postIdToPublicIds[post.id] = publicIds;
-        allPublicIds.push(...publicIds);
+        const imageIds = post.image_ids || [];
         
-        // Log if post has invalid image URLs
-        const totalImages = (post.image_ids || []).length;
-        const validImages = publicIds.length;
-        if (totalImages > validImages) {
-          console.log(`Post ${post.id}: ${totalImages - validImages} invalid image URLs found`);
-        }
-      }
+        if (imageIds.length === 0) {
+          // Post has no images, safe to delete directly
+          try {
+            const { error } = await supabaseAdmin
+              .from('posts')
+              .delete()
+              .eq('id', post.id);
 
-      // Delete images in bulk (<= 100 images)
-      let deletedIds: string[] = [];
-      let failedIds: string[] = [];
-      if (allPublicIds.length > 0) {
-        const { deleted, failed } = await deleteImages(allPublicIds);
-        deletedIds = deleted;
-        failedIds = failed;
-
-        totalImagesDeleted += deleted.length;
-        totalImagesFailed += failed.length;
-
-        // Track failed deletions by post
-        for (const failedId of failed) {
-          for (const [postId, ids] of Object.entries(postIdToPublicIds)) {
-            if (ids.includes(failedId)) {
-              failedDeletions.push({
-                postId,
-                imagePublicId: failedId,
-                error: 'Failed to delete image from Cloudinary'
-              });
-              break;
+            if (error) {
+              console.error(`Failed to delete post ${post.id}:`, error);
+              totalPostsSkipped++;
+            } else {
+              totalPostsDeleted++;
+              console.log(`Deleted post ${post.id} (no images)`);
             }
+          } catch (error) {
+            console.error(`Error deleting post ${post.id}:`, error);
+            totalPostsSkipped++;
           }
+          continue;
         }
-      }
 
-      // Filter posts where **all** images deleted successfully
-      const postsToDelete = posts.filter((post: Post) => {
-        const publicIds = postIdToPublicIds[post.id] || [];
-        
-        // If post has no images, it's safe to delete
-        if (publicIds.length === 0) {
-          return true;
+        // Post has images, attempt to delete them first
+        try {
+          console.log(`Processing post ${post.id} with ${imageIds.length} images`);
+          const { deleted, failed } = await deleteImagesFromCloudinary(imageIds);
+          
+          if (failed.length === 0) {
+            // All images deleted successfully, safe to delete post
+            const { error } = await supabaseAdmin
+              .from('posts')
+              .delete()
+              .eq('id', post.id);
+
+            if (error) {
+              console.error(`Failed to delete post ${post.id}:`, error);
+              totalPostsSkipped++;
+            } else {
+              totalPostsDeleted++;
+              totalImagesDeleted += deleted.length;
+              console.log(`Deleted post ${post.id} with ${deleted.length} images`);
+            }
+          } else {
+            // Some images failed to delete, skip post deletion and log failure
+            totalPostsSkipped++;
+            totalImagesFailed += failed.length;
+            totalImagesDeleted += deleted.length;
+            
+            failedDeletions.push({
+              postId: post.id,
+              imageIds: failed,
+              error: 'Failed to delete images from Cloudinary'
+            });
+
+            console.log(`Skipped post ${post.id}: ${failed.length} images failed to delete`);
+          }
+        } catch (error) {
+          console.error(`Error processing post ${post.id}:`, error);
+          totalPostsSkipped++;
+          totalImagesFailed += imageIds.length;
+          
+          failedDeletions.push({
+            postId: post.id,
+            imageIds: imageIds,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
         }
-        
-        // If post has images, only delete if ALL images were successfully deleted
-        return publicIds.every((id: string) => deletedIds.includes(id));
-      });
-
-      if (postsToDelete.length > 0) {
-        const { error: deleteError } = await supabaseAdmin
-          .from('posts')
-          .delete()
-          .in('id', postsToDelete.map((p: Post) => p.id));
-
-        if (deleteError) {
-          throw deleteError;
-        }
-        totalPostsDeleted += postsToDelete.length;
-        console.log(`Deleted ${postsToDelete.length} posts (${posts.length - postsToDelete.length} posts skipped due to image deletion failures)`);
-      } else {
-        console.log(`Skipped all ${posts.length} posts due to image deletion failures`);
       }
 
       offset += CONFIG.BATCH_SIZE;
@@ -193,7 +239,9 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
       operation: 'posts_cleanup',
       rows_affected: totalPostsDeleted,
       details: {
+        posts_deleted: totalPostsDeleted,
         images_deleted: totalImagesDeleted,
+        posts_failed: totalPostsSkipped,
         images_failed: totalImagesFailed,
         failed_deletions: failedDeletions,
         timestamp: new Date().toISOString()
@@ -201,11 +249,15 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
       executed_at: new Date().toISOString(),
     };
 
-    await supabaseAdmin.from('cleanup_logs').insert(cleanupLog);
+    await logCleanupOperation(cleanupLog);
 
-    console.log(`Cleanup finished. Posts deleted: ${totalPostsDeleted}, Images deleted: ${totalImagesDeleted}, Images failed: ${totalImagesFailed}`);
+    const duration = Date.now() - startTime;
+    console.log(`Cleanup finished in ${duration}ms:`);
+    console.log(`- Posts deleted: ${totalPostsDeleted}`);
+    console.log(`- Posts skipped: ${totalPostsSkipped}`);
+    console.log(`- Images deleted: ${totalImagesDeleted}`);
+    console.log(`- Images failed: ${totalImagesFailed}`);
 
-    // Log warnings for failed images but don't fail the entire script
     if (totalImagesFailed > 0) {
       console.warn(`Warning: ${totalImagesFailed} images failed to delete. Check cleanup_logs for details.`);
       console.warn(`Posts with failed images were skipped to prevent orphaned images in Cloudinary.`);
@@ -215,8 +267,10 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
       success: true,
       postsDeleted: totalPostsDeleted,
       imagesDeleted: totalImagesDeleted,
-      imagesFailed: totalImagesFailed
+      imagesFailed: totalImagesFailed,
+      postsSkipped: totalPostsSkipped
     };
+
   } catch (error) {
     console.error('Cleanup error:', error);
 
@@ -225,32 +279,35 @@ async function cleanupExpiredPosts(): Promise<CleanupResult> {
       operation: 'posts_cleanup',
       rows_affected: 0,
       details: {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        posts_deleted: 0,
+        images_deleted: 0,
+        posts_failed: 0,
+        images_failed: 0,
+        failed_deletions: [],
         timestamp: new Date().toISOString()
       },
       executed_at: new Date().toISOString()
     };
 
-    try {
-      await supabaseAdmin.from('cleanup_logs').insert(errorLog);
-    } catch (logErr) {
-      console.error('Failed to log cleanup error:', logErr);
-    }
-
-    throw error; // Fail the GitHub Action or calling process
+    await logCleanupOperation(errorLog);
+    throw error;
   }
 }
 
 // If run directly from CLI
 if (require.main === module) {
   cleanupExpiredPosts()
-    .then(() => process.exit(0))
+    .then(() => {
+      console.log('Cleanup completed successfully');
+      process.exit(0);
+    })
     .catch((err) => {
       console.error('Cleanup failed:', err);
       process.exit(1);
     });
 }
 
-module.exports = { cleanupExpiredPosts };
+export { cleanupExpiredPosts };
+
 
 
