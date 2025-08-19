@@ -93,7 +93,7 @@ export default function Login() {
               Login
             </Button>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
               <Text variant="bodyMedium">Don't have an account? </Text>
               <Button 
                 mode="text" 
@@ -102,6 +102,17 @@ export default function Login() {
                 disabled={loading}
               >
                 Register
+              </Button>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 24 }}>
+              <Button 
+                mode="text" 
+                compact 
+                onPress={() => router.replace('/(auth)/forgotPassword')}
+                disabled={loading}
+              >
+                Forgot Password?
               </Button>
             </View>
 
