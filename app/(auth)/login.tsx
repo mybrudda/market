@@ -44,7 +44,7 @@ export default function Login() {
         >
           <View style={{ padding: 20, flex: 1, justifyContent: 'center' }}>
             <Text variant="headlineMedium" style={{ marginBottom: 24, textAlign: 'center' }}>
-              Welcome to Market
+              Welcome to Spinkor
             </Text>
             <Text variant="bodyMedium" style={{ marginBottom: 32, textAlign: 'center', color: theme.colors.onSurfaceVariant }}>
               Sign in to access all features or continue as a guest
