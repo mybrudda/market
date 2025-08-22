@@ -1,22 +1,25 @@
+import React, { useRef, useState } from 'react'; 
 import { View, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
-import React, { useState } from 'react';
 import { TextInput, Button, Text, useTheme, HelperText } from 'react-native-paper';
 import { router } from 'expo-router';
-import { supabase } from '../../supabaseClient';
+import Recaptcha from 'react-native-recaptcha-that-works';
 
 export default function ForgotPassword() {
+  const theme = useTheme();
+
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const theme = useTheme();
+
+  const recaptchaRef = useRef<any>(null);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = () => {
     if (!email.trim()) {
       setError('Please enter your email address');
       return;
@@ -27,21 +30,37 @@ export default function ForgotPassword() {
       return;
     }
 
+    if (!process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY) {
+      setError('reCAPTCHA is not configured. Please contact support.');
+      return;
+    }
+
+    setError('');
+    recaptchaRef.current?.open();
+  };
+
+  const onCaptchaVerify = async (recaptchaToken: string) => {
     try {
       setLoading(true);
       setError('');
-      
-      const { data, error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'https://spinkor-web.vercel.app',
+
+      const response = await fetch('https://bcgaxusnquwhslrgyaxk.supabase.co/functions/v1/password-reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          recaptchaToken,
+        }),
       });
 
-      if (resetError) {
-        throw resetError;
-      }
-
+      const result = await response.json();
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while sending reset email');
+      console.error(err);
+      setError('An error occurred while sending reset email');
     } finally {
       setLoading(false);
     }
@@ -58,24 +77,17 @@ export default function ForgotPassword() {
           <Text variant="headlineMedium" style={[styles.successTitle, { color: theme.colors.primary }]}>
             Check Your Email
           </Text>
-          <Text variant="bodyLarge" style={[styles.successMessage, { color: theme.colors.onSurfaceVariant }]}>
-            We've sent a password reset link to:
-          </Text>
           <Text variant="bodyLarge" style={[styles.emailText, { color: theme.colors.primary }]}>
             {email}
           </Text>
           <Text variant="bodyMedium" style={[styles.successInstructions, { color: theme.colors.onSurfaceVariant }]}>
-            Click the link in the email to reset your password. The link will expire in 24 hours.
+            Check your email and click the link to reset your password. The link will expire in 24 hours.
           </Text>
-          
-          <Button
-            mode="contained"
-            onPress={handleBackToLogin}
-            style={styles.backButton}
-          >
+
+          <Button mode="contained" onPress={handleBackToLogin} style={styles.backButton}>
             Back to Login
           </Button>
-          
+
           <Button
             mode="text"
             onPress={() => {
@@ -93,19 +105,13 @@ export default function ForgotPassword() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView 
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
           <View style={styles.content}>
             <Text variant="headlineMedium" style={styles.title}>
               Forgot Password?
             </Text>
-            
+
             <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
               No worries! Enter your email address and we'll send you a link to reset your password.
             </Text>
@@ -115,7 +121,7 @@ export default function ForgotPassword() {
                 {error}
               </HelperText>
             ) : null}
-            
+
             <TextInput
               mode="outlined"
               label="Email Address"
@@ -150,14 +156,23 @@ export default function ForgotPassword() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Recaptcha
+        ref={recaptchaRef}
+        siteKey={process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY!}
+        baseUrl="https://spinkor.com"
+        size="normal"
+        theme="light"
+        onVerify={onCaptchaVerify}
+        onExpire={() => setError('Captcha expired. Try again.')}
+        onError={() => setError('Captcha error. Try again.')}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {
     padding: 20,
     flex: 1,
