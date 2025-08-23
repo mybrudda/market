@@ -3,12 +3,13 @@ import { View, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 're
 import { TextInput, Button, Text, useTheme, HelperText } from 'react-native-paper';
 import { router } from 'expo-router';
 import Recaptcha from 'react-native-recaptcha-that-works';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function ForgotPassword() {
   const theme = useTheme();
+  const { resetPassword, loading } = useAuthStore();
 
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -41,28 +42,12 @@ export default function ForgotPassword() {
 
   const onCaptchaVerify = async (recaptchaToken: string) => {
     try {
-      setLoading(true);
       setError('');
-
-      const response = await fetch('https://bcgaxusnquwhslrgyaxk.supabase.co/functions/v1/password-reset', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          recaptchaToken,
-        }),
-      });
-
-      const result = await response.json();
+      await resetPassword(email.trim(), recaptchaToken);
       setSuccess(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('An error occurred while sending reset email');
-    } finally {
-      setLoading(false);
+      setError(err.message || 'An error occurred while sending reset email');
     }
   };
 

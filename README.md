@@ -29,7 +29,7 @@ This project began as part of a thesis project developed by **Abdul Doranai**. I
 ### Backend & Database
 - **Supabase**: 
   - PostgreSQL database
-  - Edge functions for serverless operations
+  - Edge functions for serverless operations (password reset, user registration with reCAPTCHA and profile creation)
   - Real-time subscriptions for live updates
   - Row Level Security (RLS) for data protection
 
@@ -64,8 +64,8 @@ Required environment variables:
 - `CLOUDINARY_API_SECRET`
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
-- `RECAPTCHA_SITE_KEY`
-- `RECAPTCHA_SECRET_KEY`
+- `EXPO_PUBLIC_RECAPTCHA_SITE_KEY`
+- `EXPO_PUBLIC_RECAPTCHA_SECRET_KEY`
 
 ### Environment Setup
 

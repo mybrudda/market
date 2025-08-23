@@ -9,7 +9,8 @@ interface AuthState {
   loading: boolean
   initialized: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, userData: any) => Promise<void>
+  signUp: (email: string, password: string, username: string, recaptchaToken: string, fullName?: string) => Promise<{ success: boolean }>
+  resetPassword: (email: string, recaptchaToken: string) => Promise<{ success: boolean }>
   signOut: () => Promise<void>
   initialize: () => Promise<void>
 }
@@ -54,46 +55,68 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  signUp: async (email: string, password: string, userData: any) => {
+  signUp: async (email: string, password: string, username: string, recaptchaToken: string, fullName?: string) => {
     try {
       set({ loading: true })
       
-      // Sign up the user without email confirmation
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: undefined,
-          data: userData
-        }
-      })
-      if (signUpError) throw signUpError
-
-      if (data.user) {
-        // Create a user record
-        const { error: userError } = await supabase
-          .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              ...userData,
-              email: email,
-              user_type: 'person',
-            },
-          ])
-        if (userError) throw userError
-
-        // Sign in the user immediately after signup
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+      // Call the edge function for user registration
+      const response = await fetch('https://bcgaxusnquwhslrgyaxk.supabase.co/functions/v1/register-new-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: email.trim(),
           password,
-        })
-        if (signInError) throw signInError
+          username: username.toLowerCase(),
+          fullName: fullName || null,
+          recaptchaToken,
+        }),
+      });
 
-        set({ session: signInData.session, user: signInData.user })
+      const result = await response.json();
+      
+      if (result.success) {
+        // Registration successful - user will need to verify email
+        return { success: true };
+      } else {
+        throw new Error(result.message || 'Registration failed');
       }
     } catch (error) {
-      throw error
+      throw error;
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  resetPassword: async (email: string, recaptchaToken: string) => {
+    try {
+      set({ loading: true })
+      
+      // Call the edge function for password reset
+      const response = await fetch('https://bcgaxusnquwhslrgyaxk.supabase.co/functions/v1/password-reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          recaptchaToken,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Password reset email sent successfully
+        return { success: true };
+      } else {
+        throw new Error(result.message || 'Password reset failed');
+      }
+    } catch (error) {
+      throw error;
     } finally {
       set({ loading: false })
     }

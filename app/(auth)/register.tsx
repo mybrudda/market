@@ -1,8 +1,9 @@
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { TextInput, Button, Text, useTheme, HelperText } from 'react-native-paper';
 import { router, Redirect } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
+import Recaptcha from 'react-native-recaptcha-that-works';
 
 export default function Register() {
   const [username, setUsername] = useState('');
@@ -11,12 +12,50 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const theme = useTheme();
   const { signUp, loading, session } = useAuthStore();
+  const recaptchaRef = useRef<any>(null);
 
   // Redirect if already logged in
   if (session) {
     return <Redirect href="/home" />;
+  }
+
+  if (success) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.successContainer}>
+          <Text variant="headlineMedium" style={[styles.successTitle, { color: theme.colors.primary }]}>
+            Verify Your Email!
+          </Text>
+          <Text variant="bodyLarge" style={[styles.emailText, { color: theme.colors.primary }]}>
+            {email}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.successInstructions, { color: theme.colors.onSurfaceVariant }]}>
+            Please check your email and click the verification link to activate your account. The link will expire in 24 hours.
+          </Text>
+
+          <Button mode="contained" onPress={() => router.replace('/(auth)/login')} style={styles.backButton}>
+            Go to Login
+          </Button>
+
+          <Button
+            mode="text"
+            onPress={() => {
+              setSuccess(false);
+              setUsername('');
+              setFullName('');
+              setEmail('');
+              setPassword('');
+            }}
+            style={styles.resendButton}
+          >
+            Create Another Account
+          </Button>
+        </View>
+      </View>
+    );
   }
 
   const validateForm = () => {
@@ -40,18 +79,30 @@ export default function Register() {
     return true;
   };
 
-  const handleRegister = async () => {
+  const handleRegister = () => {
     if (!validateForm()) return;
 
+    if (!process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY) {
+      setError('reCAPTCHA is not configured. Please contact support.');
+      return;
+    }
+
+    setError('');
+    recaptchaRef.current?.open();
+  };
+
+  const onCaptchaVerify = async (recaptchaToken: string) => {
     try {
       setError('');
-      await signUp(email, password, {
-        username: username.toLowerCase(),
-        full_name: fullName || null,
-      });
-      router.replace('/home');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during registration');
+      
+      const result = await signUp(email, password, username, recaptchaToken, fullName);
+      
+      if (result.success) {
+        setSuccess(true);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'An error occurred during registration');
     }
   };
 
@@ -146,6 +197,17 @@ export default function Register() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Recaptcha
+        ref={recaptchaRef}
+        siteKey={process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY!}
+        baseUrl="https://spinkor.com"
+        size="normal"
+        theme="light"
+        onVerify={onCaptchaVerify}
+        onExpire={() => setError('Captcha expired. Try again.')}
+        onError={() => setError('Captcha error. Try again.')}
+      />
     </View>
   );
 }
@@ -155,5 +217,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 16,
+  },
+  successContainer: {
+    padding: 20,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    marginBottom: 16,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  emailText: {
+    marginBottom: 16,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  successInstructions: {
+    marginBottom: 32,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  backButton: {
+    marginBottom: 16,
+    minWidth: 200,
+  },
+  resendButton: {
+    marginTop: 8,
   },
 }); 
