@@ -14,6 +14,7 @@ import { useSavePost } from '../lib/hooks/useSavePost';
 import { Platform } from 'react-native';
 import ReportPostModal from '../components/ReportPostModal';
 import { getCloudinaryUrl } from '../lib/cloudinary';
+import ProfileImage from '../components/ui/ProfileImage';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -428,20 +429,12 @@ export default function PostDetails() {
                 Contact Seller
               </Text>
               <View style={styles.sellerInfo}>
-                <View style={[styles.sellerAvatar, { backgroundColor: theme.colors.surfaceVariant }]}>
-                  {post.user?.profile_image_id ? (
-                    <ExpoImage
-                      source={{ uri: getCloudinaryUrl(post.user.profile_image_id, 'avatars') || '' }}
-                      style={styles.avatarImage}
-                      contentFit="cover"
-                      placeholder={blurhash}
-                      onError={() => {
-                        // Fallback to icon if image fails to load
-                      }}
-                    />
-                  ) : (
-                    <MaterialCommunityIcons name="account" size={24} color={theme.colors.onSurfaceVariant} />
-                  )}
+                <View style={{ marginRight: 12 }}>
+                  <ProfileImage 
+                    imageId={post.user?.profile_image_id}
+                    size={48}
+                    folder="avatars"
+                  />
                 </View>
                 <View style={styles.sellerDetails}>
                   <Text variant="titleMedium" style={[styles.sellerName, { color: theme.colors.onSurface }]}>
@@ -686,20 +679,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  sellerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    // backgroundColor will be set dynamically with theme
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
+
   sellerDetails: {
     flex: 1,
   },

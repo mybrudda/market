@@ -5,11 +5,9 @@ import { supabase } from '../../../supabaseClient';
 import { useBlockedUsers } from '../../../lib/hooks/useBlockedUsers';
 import Header from '../../../components/layout/Header';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image as ExpoImage } from 'expo-image';
-import { getCloudinaryUrl } from '../../../lib/cloudinary';
+import ProfileImage from '../../../components/ui/ProfileImage';
 
-const PLACEHOLDER_IMAGE = 'https://res.cloudinary.com/dtac4dhtj/image/upload/v1701835686/placeholder_image.jpg';
-const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
+
 
 interface BlockedUser {
   id: string;
@@ -100,22 +98,11 @@ export default function BlockedUsers() {
   const renderBlockedUser = ({ item }: { item: BlockedUser }) => (
     <View style={[styles.userCard, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.userInfo}>
-        {item.profile_image_id ? (
-          <ExpoImage
-            source={{ uri: getCloudinaryUrl(item.profile_image_id) || PLACEHOLDER_IMAGE }}
-            style={styles.avatar}
-            contentFit="cover"
-            transition={200}
-            placeholder={blurhash}
-            cachePolicy="memory-disk"
-          />
-        ) : (
-          <Avatar.Icon
-            size={40}
-            icon="account"
-            style={{ backgroundColor: theme.colors.primaryContainer }}
-          />
-        )}
+        <ProfileImage
+          imageId={item.profile_image_id}
+          size={40}
+          folder="avatars"
+        />
         <View style={styles.userDetails}>
           <View style={styles.nameRow}>
             <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
@@ -219,12 +206,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
+
   userDetails: {
     flex: 1,
   },

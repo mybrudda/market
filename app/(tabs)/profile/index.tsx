@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Image, Pressable, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Pressable, TouchableOpacity } from "react-native";
 import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -9,7 +9,7 @@ import LoadingScreen from "../../../components/ui/LoadingScreen";
 import { supabase } from "../../../supabaseClient";
 import RequireAuth from "../../../components/auth/RequireAuth";
 import * as ImagePicker from 'expo-image-picker';
-import { getCloudinaryUrl } from "../../../lib/cloudinary";
+import ProfileImage from "../../../components/ui/ProfileImage";
 
 interface UserProfile {
   id: string;
@@ -28,6 +28,7 @@ export default function ProfileScreen() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -37,9 +38,12 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  const getProfileImageUrl = (profileImageId: string | null) => {
-    return getCloudinaryUrl(profileImageId, 'avatars');
-  };
+  // Clear temporary image URL when user changes
+  useEffect(() => {
+    setTempImageUrl(null);
+  }, [user]);
+
+
 
   const fetchUserProfile = async () => {
     try {
@@ -94,6 +98,9 @@ export default function ProfileScreen() {
         // Store the original profile image ID for rollback
         const originalProfileImageId = userProfile?.profile_image_id || null;
         
+        // Set temporary image URL for optimistic display
+        setTempImageUrl(tempImageUrl);
+        
         // Optimistic update - show new image immediately
         setUserProfile(prev => prev ? { ...prev, profile_image_id: 'temp' } : null);
 
@@ -121,9 +128,13 @@ export default function ProfileScreen() {
           
           // Update with the actual profile image ID
           setUserProfile(prev => prev ? { ...prev, profile_image_id } : null);
+          // Clear temporary image URL
+          setTempImageUrl(null);
         } catch (error) {
           // Rollback on error - restore original profile image ID
           setUserProfile(prev => prev ? { ...prev, profile_image_id: originalProfileImageId } : null);
+          // Clear temporary image URL on error
+          setTempImageUrl(null);
           console.error('Error updating profile image:', error);
           alert('Failed to update profile picture. Please try again.');
         } finally {
@@ -140,7 +151,7 @@ export default function ProfileScreen() {
     return <LoadingScreen />;
   }
 
-  const profileImageUrl = getProfileImageUrl(userProfile?.profile_image_id || null);
+
 
   return (
     <RequireAuth message="You need to be logged in to view your profile.">
@@ -150,25 +161,19 @@ export default function ProfileScreen() {
           <View style={styles.headerTop}>
             <View style={styles.logoContainer}>
               <Pressable onPress={handleImagePick} style={styles.avatarContainer}>
-                {profileImageUrl ? (
-                  <View style={styles.avatarWrapper}>
-                    <Image
-                      source={{ uri: profileImageUrl }}
-                      style={styles.avatar}
-                    />
-                    {isUploading && (
-                      <View style={[styles.avatar, styles.uploadingOverlay]}>
-                        <ActivityIndicator color={theme.colors.primary} size="small" />
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <MaterialCommunityIcons
-                    name="account-circle"
+                <View style={styles.avatarWrapper}>
+                  <ProfileImage
+                    imageId={userProfile?.profile_image_id}
                     size={80}
-                    color={theme.colors.primary}
+                    folder="avatars"
+                    tempImageUrl={tempImageUrl}
                   />
-                )}
+                  {isUploading && (
+                    <View style={styles.uploadingOverlay}>
+                      <ActivityIndicator color={theme.colors.primary} size="small" />
+                    </View>
+                  )}
+                </View>
               </Pressable>
               <Text variant="titleLarge" style={{ marginLeft: 8 }}>
                 {userProfile?.username || 'Profile'}
@@ -333,19 +338,16 @@ const styles = StyleSheet.create({
    avatarWrapper: {
      position: 'relative',
    },
-   avatar: {
-     width: 80,
-     height: 80,
-     borderRadius: 40,
-   },
    uploadingOverlay: {
      position: 'absolute',
      top: 0,
      left: 0,
+     width: 80,
+     height: 80,
+     borderRadius: 40,
      justifyContent: 'center',
      alignItems: 'center',
      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-     borderRadius: 40,
    },
   profileInfo: {
     padding: 16,

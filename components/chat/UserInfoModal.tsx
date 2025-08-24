@@ -2,14 +2,13 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image as ExpoImage } from 'expo-image';
 import { Conversation } from '../../types/chat';
+import ProfileImage from '../ui/ProfileImage';
 
 interface UserInfoModalProps {
   visible: boolean;
   onClose: () => void;
   conversation: Conversation | null;
-  getProfileImageUrl: (profileImageId: string | null) => string | null;
   blurhash: string;
 }
 
@@ -17,7 +16,6 @@ export const UserInfoModal = ({
   visible,
   onClose,
   conversation,
-  getProfileImageUrl,
   blurhash
 }: UserInfoModalProps) => {
   const theme = useTheme();
@@ -49,25 +47,11 @@ export const UserInfoModal = ({
           
           <View style={styles.userInfoContent}>
             <View style={styles.avatarContainer}>
-              {conversation?.other_user_profile_image_id && getProfileImageUrl(conversation.other_user_profile_image_id) ? (
-                <ExpoImage
-                  source={{
-                    uri: getProfileImageUrl(conversation.other_user_profile_image_id)!,
-                  }}
-                  style={styles.modalAvatar}
-                  contentFit="cover"
-                  transition={200}
-                  placeholder={blurhash}
-                  cachePolicy="memory-disk"
-
-                />
-              ) : (
-                <MaterialCommunityIcons
-                  name="account-circle"
-                  size={80}
-                  color={theme.colors.primary}
-                />
-              )}
+              <ProfileImage
+                imageId={conversation?.other_user_profile_image_id}
+                size={80}
+                folder="avatars"
+              />
             </View>
             
             <View style={styles.userDetails}>

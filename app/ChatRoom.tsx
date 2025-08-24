@@ -23,11 +23,12 @@ import { GroupedMessage, groupMessages, formatDateSeparator } from "../utils/mes
 import { supabase } from "../supabaseClient";
 import Header from "../components/layout/Header";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Image as ExpoImage } from "expo-image";
 import { useUnreadMessagesStore } from "../store/useUnreadMessagesStore";
 import { useBlockedUsers } from '../lib/hooks/useBlockedUsers';
 import { formatPrice } from '../utils/format';
 import { getCloudinaryUrl } from '../lib/cloudinary';
+import { Image as ExpoImage } from "expo-image";
+import ProfileImage from "../components/ui/ProfileImage";
 
 const blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4";
 const MemoizedChatMessage = memo(ChatMessage);
@@ -528,10 +529,7 @@ export default function ChatRoom() {
     index,
   }), []);
 
-  // Utility function for getting profile image URL from profile_image_id
-  const getProfileImageUrl = (profileImageId: string | null) => {
-    return getCloudinaryUrl(profileImageId, 'avatars');
-  };
+
 
   if (loading) {
     return (
@@ -740,7 +738,6 @@ export default function ChatRoom() {
         visible={showUserInfo}
         onClose={() => setShowUserInfo(false)}
         conversation={conversation}
-        getProfileImageUrl={getProfileImageUrl}
         blurhash={blurhash}
       />
     </View>
