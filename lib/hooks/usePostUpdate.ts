@@ -275,7 +275,7 @@ export function usePostUpdate<T extends BaseFormData>({
           user:user_id (
             id,
             username,
-            full_name,
+            display_name,
             profile_image_id,
             email,
             user_type,

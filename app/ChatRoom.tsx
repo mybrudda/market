@@ -99,7 +99,7 @@ export default function ChatRoom() {
         post_price: parseFloat(postPrice) || 0,
         post_status: 'active',
         other_user_name: sellerName,
-        other_user_full_name: sellerName,
+        other_user_display_name: sellerName,
         other_user_profile_image_id: sellerAvatar,
         other_user_is_verified: false,
         other_user_type: 'person',

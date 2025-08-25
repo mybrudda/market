@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean
   initialized: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, username: string, recaptchaToken: string, fullName?: string) => Promise<{ success: boolean }>
+  signUp: (email: string, password: string, username: string, recaptchaToken: string, displayName?: string) => Promise<{ success: boolean }>
   resetPassword: (email: string, recaptchaToken: string) => Promise<{ success: boolean }>
   signOut: () => Promise<void>
   initialize: () => Promise<void>
@@ -55,7 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  signUp: async (email: string, password: string, username: string, recaptchaToken: string, fullName?: string) => {
+  signUp: async (email: string, password: string, username: string, recaptchaToken: string, displayName?: string) => {
     try {
       set({ loading: true })
       
@@ -70,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: email.trim(),
           password,
           username: username.toLowerCase(),
-          fullName: fullName || null,
+          displayName: displayName || null,
           recaptchaToken,
         }),
       });

@@ -41,7 +41,7 @@ export default function Home() {
           user:user_id (
             id,
             username,
-            full_name,
+            display_name,
             profile_image_id,
             email,
             user_type,
@@ -96,7 +96,7 @@ export default function Home() {
           user:user_id (
             id,
             username,
-            full_name,
+            display_name,
             profile_image_id,
             email,
             user_type,
@@ -201,7 +201,7 @@ export default function Home() {
             user:user_id (
               id,
               username,
-              full_name,
+              display_name,
               profile_image_id,
               email,
               user_type,
@@ -245,20 +245,20 @@ export default function Home() {
         setError(null);
         const start = 0;
 
-        let query = supabase
-          .from('posts')
-          .select(`
-            *,
-            user:user_id (
-              id,
-              username,
-              full_name,
-              profile_image_id,
-              email,
-              user_type,
-              is_verified
-            )
-          `, { count: 'exact' })
+              let query = supabase
+        .from('posts')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            username,
+            display_name,
+            profile_image_id,
+            email,
+            user_type,
+            is_verified
+          )
+        `, { count: 'exact' })
           .eq('status', 'active')
           .eq('category', 'vehicle');
 

@@ -2,7 +2,7 @@
 export interface User {
   id: string;
   username: string;
-  full_name: string;
+  display_name: string;
   email: string;
   user_type: 'person' | 'company';
   is_verified: boolean | null;

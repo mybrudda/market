@@ -12,7 +12,7 @@ import ProfileImage from '../../../components/ui/ProfileImage';
 interface BlockedUser {
   id: string;
   username: string;
-  full_name: string;
+  display_name: string;
   profile_image_id: string | null;
   is_verified: boolean;
 }
@@ -47,7 +47,7 @@ export default function BlockedUsers() {
           blocked_user:blocked_id (
             id,
             username,
-            full_name,
+            display_name,
             profile_image_id,
             is_verified
           )
@@ -106,7 +106,7 @@ export default function BlockedUsers() {
         <View style={styles.userDetails}>
           <View style={styles.nameRow}>
             <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-              {item.full_name || item.username}
+              {item.display_name || item.username}
             </Text>
             {item.is_verified && (
               <MaterialCommunityIcons

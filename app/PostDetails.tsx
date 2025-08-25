@@ -166,7 +166,7 @@ export default function PostDetails() {
         params: {
           postId: post.id,
           sellerId: post.user.id,
-          sellerName: post.user.full_name,
+          sellerName: post.user.display_name,
           sellerAvatar: post.user.profile_image_id || '',
           postTitle: post.title,
           postImage: post.image_ids && post.image_ids.length > 0 ? post.image_ids[0] : '',
@@ -438,7 +438,7 @@ export default function PostDetails() {
                 </View>
                 <View style={styles.sellerDetails}>
                   <Text variant="titleMedium" style={[styles.sellerName, { color: theme.colors.onSurface }]}>
-                    {post.user?.full_name || 'Unknown Seller'}
+                    {post.user?.display_name || 'Unknown Seller'}
                   </Text>
                   <Text variant="bodySmall" style={[styles.sellerLocation, { color: theme.colors.onSurfaceVariant }]}>
                     {post.location.city}

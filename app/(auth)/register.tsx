@@ -7,7 +7,7 @@ import Recaptcha from 'react-native-recaptcha-that-works';
 
 export default function Register() {
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +45,7 @@ export default function Register() {
             onPress={() => {
               setSuccess(false);
               setUsername('');
-              setFullName('');
+              setDisplayName('');
               setEmail('');
               setPassword('');
             }}
@@ -95,7 +95,7 @@ export default function Register() {
     try {
       setError('');
       
-      const result = await signUp(email, password, username, recaptchaToken, fullName);
+      const result = await signUp(email, password, username, recaptchaToken, displayName);
       
       if (result.success) {
         setSuccess(true);
@@ -139,9 +139,9 @@ export default function Register() {
 
             <TextInput
               mode="outlined"
-              label="Full Name (Optional)"
-              value={fullName}
-              onChangeText={setFullName}
+              label="Display Name (Optional)"
+              value={displayName}
+              onChangeText={setDisplayName}
               style={{ marginBottom: 16 }}
               disabled={loading}
             />

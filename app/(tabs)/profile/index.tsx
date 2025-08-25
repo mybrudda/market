@@ -14,7 +14,7 @@ import ProfileImage from "../../../components/ui/ProfileImage";
 interface UserProfile {
   id: string;
   username: string;
-  full_name: string | null;
+  display_name: string | null;
   profile_image_id: string | null;
   email: string;
   user_type: 'person' | 'company';
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
             variant="bodyMedium"
             style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
           >
-            {userProfile?.full_name || userProfile?.username || 'User'}
+            {userProfile?.display_name || userProfile?.username || 'User'}
           </Text>
         </View>
 

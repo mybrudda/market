@@ -57,7 +57,7 @@ export const UserInfoModal = ({
             <View style={styles.userDetails}>
               <View style={styles.nameRow}>
                 <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                  {conversation?.other_user_full_name || 'Not provided'}
+                  {conversation?.other_user_display_name || 'Not provided'}
                 </Text>
                 {conversation?.other_user_is_verified && (
                   <MaterialCommunityIcons

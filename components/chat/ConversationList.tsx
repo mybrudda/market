@@ -113,7 +113,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     <View style={styles.conversationInfo}>
                         <View style={styles.headerRow}>
                             <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: 'bold' }}>
-                                {item.other_user_full_name || item.other_user_name}
+                                {item.other_user_display_name || item.other_user_name}
                                 {item.other_user_is_verified && (
                                     <MaterialCommunityIcons
                                         name="check-decagram"

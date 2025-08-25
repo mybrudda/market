@@ -97,7 +97,6 @@ WITH CHECK (
     AND auth.uid() = sender_id
 );
 
--- Create a view for easier conversation querying with last message
 CREATE VIEW conversation_details AS
 SELECT 
     c.*,
@@ -112,9 +111,9 @@ SELECT
         ELSE creator.username
     END as other_user_name,
     CASE 
-        WHEN auth.uid() = c.creator_id THEN participant.full_name
-        ELSE creator.full_name
-    END as other_user_full_name,
+        WHEN auth.uid() = c.creator_id THEN participant.display_name
+        ELSE creator.display_name
+    END as other_user_display_name,
     CASE 
         WHEN auth.uid() = c.creator_id THEN participant.profile_image_id
         ELSE creator.profile_image_id
