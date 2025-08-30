@@ -14,7 +14,7 @@ import {
 import { useTheme, Text, Menu } from "react-native-paper";
 import { useLocalSearchParams, router } from "expo-router";
 import { ChatMessage } from "../components/chat/ChatMessage";
-import { ScrollToBottomButton } from "../components/chat/ScrollToBottomButton";
+
 import { ChatInput } from "../components/chat/ChatInput";
 import { UserInfoModal } from "../components/chat/UserInfoModal";
 import { chatService } from "../lib/chatService";
@@ -62,7 +62,6 @@ export default function ChatRoom() {
   const [canSendMessages, setCanSendMessages] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showUserInfo, setShowUserInfo] = useState(false);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
@@ -279,10 +278,7 @@ export default function ChatRoom() {
         return [...withoutTemp, sentMessage];
       });
 
-      // Scroll to bottom
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      
 
     } catch (error) {
       clearTimeout(cleanupTimeout);
@@ -375,40 +371,7 @@ export default function ChatRoom() {
     }
   }, [conversation, currentUser, blockingLoading, refreshBlockedUsers]);
 
-  // Scroll handlers
-  const handleScroll = useCallback((event: any) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const showButton = contentOffset.y < -100;
-    setShowScrollToBottom(showButton);
-    
-    // Check if user is near bottom (actively reading messages)
-    const isNearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
-    if (isNearBottom && conversation && !conversation.id.startsWith('temp-')) {
-      // Mark messages as read when user is actively viewing them
-      chatService.markMessagesAsRead(conversation.id).catch(console.error);
-    }
-  }, [conversation]);
 
-  const handleContentSizeChange = useCallback(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-    }
-  }, [messages.length]);
-
-  // Mark messages as read when user scrolls to bottom
-  const handleScrollToBottom = useCallback(() => {
-    if (conversation && !conversation.id.startsWith('temp-')) {
-      chatService.markMessagesAsRead(conversation.id).catch(console.error);
-    }
-  }, [conversation]);
-
-  const scrollToBottom = useCallback(() => {
-    flatListRef.current?.scrollToEnd({ animated: true });
-    // Mark messages as read when user manually scrolls to bottom
-    handleScrollToBottom();
-  }, [handleScrollToBottom]);
 
   // Realtime subscription for messages
   useEffect(() => {
@@ -434,10 +397,7 @@ export default function ChatRoom() {
             // Mark the new message as read immediately if user is viewing the chat
             chatService.markMessagesAsRead(conversation.id).catch(console.error);
             
-            // Scroll to bottom for new messages
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+            
           }
         }
       )
@@ -469,6 +429,8 @@ export default function ChatRoom() {
     };
   }, [conversation?.id, currentUser?.id]);
 
+
+
   // Clear unread count when entering chat and set up periodic read status updates
   useEffect(() => {
     if (conversation && !conversation.id.startsWith('temp-')) {
@@ -482,6 +444,8 @@ export default function ChatRoom() {
       return () => clearInterval(interval);
     }
   }, [conversation?.id, clearUnreadCount]);
+
+
 
   // Memoized data
   const memoizedMessages = useMemo(() => {
@@ -674,9 +638,9 @@ export default function ChatRoom() {
           maxToRenderPerBatch={10}
           windowSize={10}
           removeClippedSubviews={true}
-          onScroll={handleScroll}
-          onContentSizeChange={handleContentSizeChange}
           getItemLayout={getItemLayout}
+          automaticallyAdjustKeyboardInsets={true}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={isLoadingOlderMessages}
@@ -685,13 +649,6 @@ export default function ChatRoom() {
             />
           }
         />
-        
-        {showScrollToBottom && (
-          <ScrollToBottomButton
-            onPress={scrollToBottom}
-            animatedValue={null}
-          />
-        )}
         
         {!isBlocked && canSendMessages && (
           <ChatInput
