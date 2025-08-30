@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Keyboard,
 } from "react-native";
 import { useTheme, Text, Menu } from "react-native-paper";
 import { useLocalSearchParams, router } from "expo-router";
@@ -134,6 +135,11 @@ export default function ChatRoom() {
           // For new conversations, just set loading to false
           setLoading(false);
           setHasMoreMessages(false);
+          
+          // Scroll to bottom for new conversations
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: false });
+          }, 100);
         } else if (conversation) {
           // For existing conversations, load messages and check permissions
           await loadMessages(conversation.id);
@@ -164,6 +170,11 @@ export default function ChatRoom() {
       
       // Mark messages as read when entering the chat
       await chatService.markMessagesAsRead(convId);
+
+      // Scroll to bottom after loading messages
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
@@ -262,6 +273,11 @@ export default function ChatRoom() {
     setSendingMessage(true);
     setMessages(prev => [...prev, tempMessage]);
 
+    // Scroll to bottom to show the new message
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
     // Cleanup timeout for temporary message
     const cleanupTimeout = setTimeout(() => {
       setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
@@ -278,7 +294,10 @@ export default function ChatRoom() {
         return [...withoutTemp, sentMessage];
       });
 
-      
+      // Scroll to bottom to show the sent message
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
 
     } catch (error) {
       clearTimeout(cleanupTimeout);
@@ -308,6 +327,11 @@ export default function ChatRoom() {
       setMessages(prev => prev.map(msg => 
         msg.id === failedMessage.id ? sentMessage : msg
       ));
+
+      // Scroll to bottom to show the retried message
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error) {
       console.error('Error retrying message:', error);
       setFailedMessages(prev => new Set(prev).add(failedMessage.id));
@@ -397,7 +421,10 @@ export default function ChatRoom() {
             // Mark the new message as read immediately if user is viewing the chat
             chatService.markMessagesAsRead(conversation.id).catch(console.error);
             
-            
+            // Auto-scroll to bottom for new incoming messages
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
         }
       )
@@ -447,10 +474,28 @@ export default function ChatRoom() {
 
 
 
+
+
   // Memoized data
   const memoizedMessages = useMemo(() => {
     return groupMessages(messages);
   }, [messages]);
+
+  // Keyboard listener to auto-scroll when keyboard appears
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      // Auto-scroll to bottom when keyboard appears
+      if (flatListRef.current && memoizedMessages.length > 0) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+    };
+  }, [memoizedMessages.length]);
 
   const renderMessage = useCallback(({ item }: { item: GroupedMessage }) => {
     if (item.type === 'date-separator') {
@@ -526,6 +571,7 @@ export default function ChatRoom() {
       <KeyboardAvoidingView
          behavior={Platform.OS === "ios" ? "padding" : "height"}
          style={{ flex: 1 }}
+         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <Header
           title={conversation.other_user_name || "Chat"}
@@ -641,6 +687,23 @@ export default function ChatRoom() {
           getItemLayout={getItemLayout}
           automaticallyAdjustKeyboardInsets={true}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          onContentSizeChange={() => {
+            // Auto-scroll to bottom when new content is added
+            if (flatListRef.current && memoizedMessages.length > 0) {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+          }}
+          onLayout={() => {
+            // Auto-scroll to bottom when layout changes (e.g., keyboard appears)
+            if (flatListRef.current && memoizedMessages.length > 0) {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+          }}
           refreshControl={
             <RefreshControl
               refreshing={isLoadingOlderMessages}
