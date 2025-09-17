@@ -2,7 +2,7 @@ name: Cleanup Posts and Conversations
 
 on:
   schedule:
-    - cron: '0 3 * * 0'  # Run at 3 AM UTC every Sunday (once per week)
+    - cron: '0 3 1 * *'  # Run at 3 AM UTC on the 1st of every month
   workflow_dispatch:      # Allow manual trigger
 
 jobs:
