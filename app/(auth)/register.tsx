@@ -59,8 +59,8 @@ export default function Register() {
   }
 
   const validateForm = () => {
-    if (!username || !email || !password) {
-      setError('Username, email, and password are required');
+    if (!username || !email || !password || !displayName) {
+      setError('Please fill in all fields');
       return false;
     }
     if (password.length < 6) {

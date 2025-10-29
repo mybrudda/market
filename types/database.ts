@@ -5,8 +5,14 @@ export interface User {
   display_name: string;
   email: string;
   user_type: 'person' | 'company';
-  is_verified: boolean | null;
+  is_verified: boolean;
   profile_image_id?: string | null;
+  created_at: string;
+  is_admin: boolean;
+  is_banned: boolean;
+  banned_reason: string | null;
+  banned_at: string | null;
+  banned_by: string | null;
 }
 
 export interface BasePost {

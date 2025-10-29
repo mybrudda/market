@@ -14,7 +14,7 @@ export interface Conversation {
     other_user_name: string;
     other_user_display_name: string | null;
     other_user_profile_image_id: string | null;
-    other_user_is_verified: boolean | null;
+    other_user_is_verified: boolean;
     other_user_type: 'person' | 'company';
     last_message: string | null;
     unread_count: number;

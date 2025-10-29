@@ -18,7 +18,13 @@ interface UserProfile {
   profile_image_id: string | null;
   email: string;
   user_type: 'person' | 'company';
-  is_verified: boolean | null;
+  is_verified: boolean;
+  created_at?: string;
+  is_admin?: boolean;
+  is_banned?: boolean;
+  banned_reason?: string | null;
+  banned_at?: string | null;
+  banned_by?: string | null;
 }
 
 export default function ProfileScreen() {

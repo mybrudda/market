@@ -22,7 +22,7 @@ CREATE INDEX idx_reports_post_owner_id ON public.reports(post_owner_id);
 -- 1. Add admin and ban fields to users table
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS is_admin boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS banned boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_banned boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS banned_reason text,
   ADD COLUMN IF NOT EXISTS banned_at timestamp with time zone,
   ADD COLUMN IF NOT EXISTS banned_by uuid REFERENCES public.users(id) ON DELETE SET NULL;
