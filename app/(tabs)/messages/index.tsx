@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Text, useTheme, Portal } from 'react-native-paper';
 import { ConversationList } from '../../../components/chat/ConversationList';
 import { useRouter } from 'expo-router';
 import { Conversation } from '../../../types/chat';
@@ -9,6 +9,7 @@ import { supabase } from '../../../supabaseClient';
 import { useIsFocused } from '@react-navigation/native';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useUnreadMessagesStore } from '../../../store/useUnreadMessagesStore';
+import LoginRequiredModal from '../../../components/auth/LoginRequiredModal';
 
 export default function MessagesScreen() {
     const router = useRouter();
@@ -19,6 +20,7 @@ export default function MessagesScreen() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showLoginModal, setShowLoginModal] = useState(false);
     const lastRefreshTime = useRef<number>(Date.now());
     const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -52,8 +54,8 @@ export default function MessagesScreen() {
 
     useEffect(() => {
         if (!user) {
-            setError('Please sign in to view messages');
             setLoading(false);
+            setShowLoginModal(true);
             return;
         }
 
@@ -143,6 +145,33 @@ export default function MessagesScreen() {
         });
     };
 
+    if (!user) {
+        return (
+            <>
+                <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+                    <View style={[styles.header, { borderBottomColor: theme.colors.surfaceVariant }]}>
+                        <Text variant="headlineMedium" style={{ color: theme.colors.onBackground }}>Messages</Text>
+                    </View>
+                    <View style={styles.centerContent}>
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                            Please sign in to view messages
+                        </Text>
+                    </View>
+                </View>
+                
+                <Portal>
+                    <LoginRequiredModal
+                        visible={showLoginModal}
+                        onDismiss={() => setShowLoginModal(false)}
+                        action="custom"
+                        customTitle="Login Required"
+                        customMessage="You need to be logged in to view messages"
+                    />
+                </Portal>
+            </>
+        );
+    }
+    
     if (error) {
         return (
             <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -157,17 +186,29 @@ export default function MessagesScreen() {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.header, { borderBottomColor: theme.colors.surfaceVariant }]}>
-                <Text variant="headlineMedium" style={{ color: theme.colors.onBackground }}>Messages</Text>
+        <>
+            <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+                <View style={[styles.header, { borderBottomColor: theme.colors.surfaceVariant }]}>
+                    <Text variant="headlineMedium" style={{ color: theme.colors.onBackground }}>Messages</Text>
+                </View>
+                <ConversationList
+                    conversations={conversations}
+                    loading={loading}
+                    onSelectConversation={handleSelectConversation}
+                    onDeleteConversation={handleDeleteConversation}
+                />
             </View>
-            <ConversationList
-                conversations={conversations}
-                loading={loading}
-                onSelectConversation={handleSelectConversation}
-                onDeleteConversation={handleDeleteConversation}
-            />
-        </View>
+            
+            <Portal>
+                <LoginRequiredModal
+                    visible={showLoginModal}
+                    onDismiss={() => setShowLoginModal(false)}
+                    action="custom"
+                    customTitle="Login Required"
+                    customMessage="You need to be logged in to view messages"
+                />
+            </Portal>
+        </>
     );
 }
 

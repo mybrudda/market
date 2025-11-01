@@ -1,31 +1,44 @@
 import { View, StyleSheet } from 'react-native';
-import React from 'react';
-import { Button, Text, useTheme, Card } from 'react-native-paper';
+import React, { useState } from 'react';
+import { Button, Text, useTheme, Card, Portal } from 'react-native-paper';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Header from '../../../components/layout/Header';
+import { useAuthStore } from '../../../store/useAuthStore';
+import LoginRequiredModal from '../../../components/auth/LoginRequiredModal';
 
 export default function CreateScreen() {
   const theme = useTheme();
+  const { user } = useAuthStore();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const handleVehicleCardPress = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    router.push('/create/vehicle');
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      
-      
-      <View style={styles.content}>
-        <Text variant="titleLarge" style={[
-          styles.title,
-          { color: theme.colors.onSecondaryContainer }
-        ]}>
-          Create a Post
-        </Text>
+    <>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        
+        
+        <View style={styles.content}>
+          <Text variant="titleLarge" style={[
+            styles.title,
+            { color: theme.colors.onSecondaryContainer }
+          ]}>
+            Create a Post
+          </Text>
 
-        <View style={styles.cardsContainer}>
-          <Card 
-            style={styles.card}
-            onPress={() => router.push('/create/vehicle')}
-            mode="elevated"
-          >
+          <View style={styles.cardsContainer}>
+            <Card 
+              style={styles.card}
+              onPress={handleVehicleCardPress}
+              mode="elevated"
+            >
             <Card.Content style={styles.cardContent}>
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
                 <MaterialCommunityIcons 
@@ -49,6 +62,17 @@ export default function CreateScreen() {
         </Text>
       </View>
     </View>
+    
+    <Portal>
+      <LoginRequiredModal
+        visible={showLoginModal}
+        onDismiss={() => setShowLoginModal(false)}
+        action="custom"
+        customTitle="Login Required"
+        customMessage="You need to be logged in to create a post."
+      />
+    </Portal>
+    </>
   );
 }
 

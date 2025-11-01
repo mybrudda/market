@@ -1,6 +1,6 @@
 import { View, StyleSheet, ScrollView, Dimensions, Linking, Image, Alert, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip, Portal, Dialog, IconButton } from 'react-native-paper';
+import { Text, Surface, useTheme, ActivityIndicator, Button, Divider, Chip, Portal, IconButton } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../supabaseClient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { Platform } from 'react-native';
 import ReportPostModal from '../components/ReportPostModal';
 import { getCloudinaryUrl } from '../lib/cloudinary';
 import ProfileImage from '../components/ui/ProfileImage';
+import LoginRequiredModal from '../components/auth/LoginRequiredModal';
 
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
@@ -41,8 +42,8 @@ export default function PostDetails() {
   const params = useLocalSearchParams();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showContactDialog, setShowContactDialog] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginModalAction, setLoginModalAction] = useState<'message' | 'save' | 'report'>('message');
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [featuresExpanded, setFeaturesExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -69,7 +70,10 @@ export default function PostDetails() {
   const { isSaved, saving, handleSavePost } = useSavePost({
     postId: post?.id || '',
     userId: post?.user_id || '',
-    showAuthDialog: () => setShowSaveDialog(true),
+    showAuthDialog: () => {
+      setLoginModalAction('save');
+      setShowLoginModal(true);
+    },
     showSuccessAlerts: false
   });
 
@@ -115,7 +119,8 @@ export default function PostDetails() {
     if (!post?.user?.id) return;
 
     if (!user) {
-      setShowContactDialog(true);
+      setLoginModalAction('message');
+      setShowLoginModal(true);
       return;
     }
 
@@ -180,20 +185,10 @@ export default function PostDetails() {
     }
   };
 
-  const handleLogin = () => {
-    setShowContactDialog(false);
-    router.push('/(auth)/login');
-  };
-
-  const handleContinueAsGuest = () => {
-    setShowContactDialog(false);
-    // You can implement guest messaging logic here
-    Alert.alert("Guest Mode", "Guest messaging is not available. Please log in to message sellers.");
-  };
-
   const handleReportPost = () => {
     if (!user) {
-      Alert.alert("Login Required", "Please log in to report posts");
+      setLoginModalAction('report');
+      setShowLoginModal(true);
       return;
     }
     setShowReportDialog(true);
@@ -470,48 +465,13 @@ export default function PostDetails() {
         </ScrollView>
       </View>
 
-      {/* Contact Dialog */}
+      {/* Login Required Modal */}
       <Portal>
-        <Dialog 
-          visible={showContactDialog} 
-          onDismiss={() => setShowContactDialog(false)}
-          style={{ backgroundColor: theme.colors.surface }}
-        >
-          <Dialog.Title style={{ color: theme.colors.onSurface }}>Contact Seller</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
-              You need to be logged in to message the seller.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowContactDialog(false)}>Cancel</Button>
-            <Button onPress={handleLogin}>Login</Button>
-            <Button onPress={handleContinueAsGuest}>Continue as Guest</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-
-      {/* Save Dialog */}
-      <Portal>
-        <Dialog 
-          visible={showSaveDialog} 
-          onDismiss={() => setShowSaveDialog(false)}
-          style={{ backgroundColor: theme.colors.surface }}
-        >
-          <Dialog.Title style={{ color: theme.colors.onSurface }}>Login Required</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
-              You need to be logged in to save posts.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowSaveDialog(false)}>Cancel</Button>
-            <Button onPress={() => {
-              setShowSaveDialog(false);
-              router.push('/(auth)/login');
-            }}>Login</Button>
-          </Dialog.Actions>
-        </Dialog>
+        <LoginRequiredModal
+          visible={showLoginModal}
+          onDismiss={() => setShowLoginModal(false)}
+          action={loginModalAction}
+        />
       </Portal>
 
       {/* Report Post Modal */}

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, Pressable, TouchableOpacity } from "react-native";
-import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator } from "react-native-paper";
+import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator, Portal } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { useThemeStore } from "../../../store/useThemeStore";
 import LoadingScreen from "../../../components/ui/LoadingScreen";
 import { supabase } from "../../../supabaseClient";
-import RequireAuth from "../../../components/auth/RequireAuth";
+import LoginRequiredModal from "../../../components/auth/LoginRequiredModal";
 import * as ImagePicker from 'expo-image-picker';
 import ProfileImage from "../../../components/ui/ProfileImage";
 
@@ -35,12 +35,14 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchUserProfile();
     } else {
       setIsLoading(false);
+      setShowLoginModal(true);
     }
   }, [user]);
 
@@ -160,8 +162,25 @@ export default function ProfileScreen() {
 
 
   return (
-    <RequireAuth message="You need to be logged in to view your profile.">
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <>
+      {!user ? (
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+          <View style={styles.emptyStateContainer}>
+            <MaterialCommunityIcons 
+              name="account-circle-outline" 
+              size={64} 
+              color={theme.colors.onSurfaceVariant} 
+            />
+            <Text variant="headlineSmall" style={[styles.emptyStateTitle, { color: theme.colors.onSurface }]}>
+              Please Login
+            </Text>
+            <Text variant="bodyMedium" style={[styles.emptyStateText, { color: theme.colors.onSurfaceVariant }]}>
+              You need to be logged in to view your profile.
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.headerTop}>
@@ -315,7 +334,18 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
-    </RequireAuth>
+      )}
+      
+      <Portal>
+        <LoginRequiredModal
+          visible={showLoginModal}
+          onDismiss={() => setShowLoginModal(false)}
+          action="custom"
+          customTitle="Login Required"
+          customMessage="You need to be logged in to view profile"
+        />
+      </Portal>
+    </>
   );
 }
 
@@ -410,5 +440,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: 16,
   },
-  
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyStateTitle: {
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    textAlign: 'center',
+    marginBottom: 24,
+  },
 });
