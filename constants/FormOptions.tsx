@@ -1,40 +1,139 @@
-// Vehicle specific options:
-export const VEHICLE_CATEGORIES: string[] = [
-  "Sedan",
-  "SUV",
-  "Truck",
-  "Van",
-  "Motorcycle",
-  "Bus",
-  "Other"
-];
+// Category + Subcategory definitions (inspired by snippet)
+export type CategoryValue =
+  | 'vehicles'
+  | 'electronics'
+  | 'home_furniture'
+  | 'clothing_fashion'
+  | 'sports_outdoors'
+  | 'pets_animals'
+  | 'baby_kids'
+  | 'real_estate'
+  | 'tools_industrial'
+  | 'hobby_entertainment'
+  | 'health_beauty'
+  | 'office_business'
+  | 'services'
+  | 'other';
 
-// New category and subcategory structure
-export const CATEGORIES = [
-  { label: 'Vehicle', value: 'vehicle' },
-  { label: 'Other', value: 'other' }
-];
+export type SubcategoryValue = string;
 
-export const VEHICLE_SUBCATEGORIES = [
-  { label: 'Car', value: 'car' },
-  { label: 'Motorcycle', value: 'motorcycle' },
-  { label: 'Truck', value: 'truck' },
-  { label: 'Van', value: 'van' },
-  { label: 'Bus', value: 'bus' },
-  { label: 'Parts', value: 'parts' },
-  { label: 'Accessories', value: 'accessories' },
-  { label: 'Other', value: 'other' }
-];
+export const CATEGORIES: Record<CategoryValue, SubcategoryValue[]> = {
+  vehicles: [
+    'cars',
+    'motorcycles',
+    'scooters',
+    'bicycles',
+    'trucks',
+    'vans',
+    'boats',
+    'rvs_campers',
+    'vehicle_parts',
+    'tires_rims',
+  ],
+  electronics: [
+    'mobile_phones',
+    'laptops',
+    'computers_accessories',
+    'tablets',
+    'tvs',
+    'cameras',
+    'gaming_consoles',
+    'audio_headphones',
+    'smartwatches',
+    'home_appliances',
+    'drones',
+  ],
+  home_furniture: [
+    'furniture',
+    'home_decor',
+    'kitchenware',
+    'lighting',
+    'rugs_carpets',
+    'storage',
+    'bedding',
+    'outdoor_furniture',
+  ],
+  clothing_fashion: [
+    'mens_clothing',
+    'womens_clothing',
+    'kids_clothing',
+    'shoes',
+    'bags',
+    'jewelry_accessories',
+    'watches',
+  ],
+  sports_outdoors: [
+    'fitness_equipment',
+    'bicycles_gear',
+    'camping_gear',
+    'sports_apparel',
+    'outdoor_equipment',
+    'fishing_gear',
+  ],
+  pets_animals: ['pet_supplies', 'pet_food', 'pet_accessories', 'livestock', 'animals_for_sale'],
+  baby_kids: ['baby_clothing', 'baby_gear', 'toys', 'kids_furniture', 'school_supplies'],
+  real_estate: [
+    'apartments_rent',
+    'houses_rent',
+    'rooms_rent',
+    'apartments_sale',
+    'houses_sale',
+    'land_sale',
+    'commercial_property',
+  ],
+  tools_industrial: ['power_tools', 'hand_tools', 'construction_equipment', 'machinery', 'industrial_supplies'],
+  hobby_entertainment: ['musical_instruments', 'books', 'board_games', 'collectibles', 'art_crafts'],
+  health_beauty: ['beauty_products', 'personal_care', 'medical_supplies', 'supplements', 'perfumes'],
+  office_business: ['office_furniture', 'stationery', 'business_equipment', 'pos_devices'],
+  services: ['cleaning', 'moving_delivery', 'repair_services', 'home_improvement', 'pet_services'],
+  other: ['other'],
+};
 
-export const OTHER_SUBCATEGORIES = [
-  { label: 'General', value: 'general' },
-  { label: 'Electronics', value: 'electronics' },
-  { label: 'Furniture', value: 'furniture' },
-  { label: 'Clothing', value: 'clothing' },
-  { label: 'Books', value: 'books' },
-  { label: 'Sports', value: 'sports' },
-  { label: 'Other', value: 'other' }
-];
+export const CATEGORY_VALUES = Object.keys(CATEGORIES) as CategoryValue[];
+
+export const formatCategoryLabel = (value: string) =>
+  value
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+export const CATEGORY_OPTIONS = CATEGORY_VALUES.map(value => ({
+  value,
+  label: formatCategoryLabel(value),
+}));
+
+const LEGACY_CATEGORY_MAP: Record<string, CategoryValue> = {
+  vehicle: 'vehicles',
+  electronics: 'electronics',
+  home: 'home_furniture',
+  fashion: 'clothing_fashion',
+  beauty: 'health_beauty',
+  sports: 'sports_outdoors',
+  kids: 'baby_kids',
+  pets: 'pets_animals',
+  'real-estate': 'real_estate',
+  jobs: 'office_business',
+  services: 'services',
+  other: 'other',
+};
+
+export function getSubcategories(category: CategoryValue): SubcategoryValue[] {
+  return CATEGORIES[category] || [];
+}
+
+export function isValidCategory(category: string): category is CategoryValue {
+  return (Object.keys(CATEGORIES) as CategoryValue[]).includes(category as CategoryValue);
+}
+
+export function isValidSubcategory(category: CategoryValue, subcategory: string): subcategory is SubcategoryValue {
+  return (getSubcategories(category) as string[]).includes(subcategory);
+}
+
+export function normalizeCategoryValue(category?: string | null): CategoryValue {
+  if (!category) return 'vehicles';
+  if (isValidCategory(category)) return category;
+  return LEGACY_CATEGORY_MAP[category] ?? 'vehicles';
+}
 
 export const LISTING_TYPES = [
   { label: 'Sale', value: 'sale' },
@@ -212,14 +311,3 @@ export const COUNTRIES: string[] = [
   "China",
   "Other"
 ];
-
-// Dropdown data helpers
-export const vehicleCategoriesData = VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }));
-export const vehicleConditionData = VEHICLE_CONDITION.map(condition => ({ label: condition, value: condition }));
-export const vehicleFuelTypesData = VEHICLE_FUEL_TYPES.map(fuelType => ({ label: fuelType, value: fuelType }));
-export const vehicleTransmissionData = VEHICLE_TRANSMISSION.map(transmission => ({ label: transmission, value: transmission }));
-export const vehicleMileageUnitsData = VEHICLE_MILEAGE_UNITS.map(unit => ({ label: unit, value: unit }));
-export const yearsData = YEARS.map(year => ({ label: year, value: year }));
-export const citiesData = CITIES.map(city => ({ label: city, value: city }));
-export const currenciesData = CURRENCIES.map(currency => ({ label: currency, value: currency }));
-export const countriesData = COUNTRIES.map(country => ({ label: country, value: country }));

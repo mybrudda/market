@@ -1,23 +1,23 @@
 import { View, StyleSheet } from 'react-native';
 import React, { useState } from 'react';
-import { Button, Text, useTheme, Card, Portal } from 'react-native-paper';
+import { Text, useTheme, Card, Portal } from 'react-native-paper';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Header from '../../../components/layout/Header';
 import { useAuthStore } from '../../../store/useAuthStore';
 import LoginRequiredModal from '../../../components/auth/LoginRequiredModal';
+import { CATEGORY_OPTIONS } from '../../../constants/FormOptions';
 
 export default function CreateScreen() {
   const theme = useTheme();
   const { user } = useAuthStore();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const handleVehicleCardPress = () => {
+  const handleCreateCardPress = () => {
     if (!user) {
       setShowLoginModal(true);
       return;
     }
-    router.push('/create/vehicle');
+    router.push('/create/create-post');
   };
 
   return (
@@ -33,32 +33,26 @@ export default function CreateScreen() {
             Create a Post
           </Text>
 
-          <View style={styles.cardsContainer}>
-            <Card 
-              style={styles.card}
-              onPress={handleVehicleCardPress}
-              mode="elevated"
-            >
+          <Card style={styles.card} onPress={handleCreateCardPress} mode="elevated">
             <Card.Content style={styles.cardContent}>
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-                <MaterialCommunityIcons 
-                  name="car" 
-                  size={24} 
-                  color={theme.colors.primary}
-                />
+                <MaterialCommunityIcons name="plus-circle" size={28} color={theme.colors.primary} />
               </View>
               <Text variant="titleMedium" style={styles.cardTitle}>
-                Vehicle
+                Start a New Listing
               </Text>
               <Text variant="bodySmall" style={[styles.cardDescription, { color: theme.colors.onSurfaceVariant }]}>
-                Post cars, motorcycles, and other vehicles for sale or rent
+                Choose a category like{' '}
+                {CATEGORY_OPTIONS.map(option => option.label)
+                  .slice(0, 4)
+                  .join(', ')}{' '}
+                and more right after this step.
               </Text>
             </Card.Content>
           </Card>
-        </View>
 
         <Text variant="bodySmall" style={[styles.hint, { color: theme.colors.onSurfaceVariant }]}>
-          Tap the card to create a new vehicle listing
+          Tap the card to choose what you want to list
         </Text>
       </View>
     </View>

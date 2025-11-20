@@ -1,13 +1,12 @@
 import { View } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
 import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
 import Header from '../../../components/layout/Header';
 import BasePostForm from '../../../components/forms/BasePostForm';
-import FeaturesSection from '../../../components/forms/FeaturesSection';
-import { VehicleFormData, transformVehicleForm, validateVehicleForm, VALIDATION_LIMITS } from '../../../types/forms';
+import { PostFormData, transformPostForm, validatePostForm, VALIDATION_LIMITS, DEFAULT_FORM_VALUES } from '../../../types/forms';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { usePostForm } from '../../../lib/hooks/usePostForm';
 import { usePostUpdate } from '../../../lib/hooks/usePostUpdate';
@@ -15,28 +14,22 @@ import { useVehicleModels } from '../../../lib/hooks/useVehicleModels';
 import { formStyles } from '../../../constants/formStyles';
 import { Post } from '../../../types/database';
 import {
-  VEHICLE_CONDITION,
-  VEHICLE_FUEL_TYPES,
-  VEHICLE_TRANSMISSION,
-  VEHICLE_FEATURES,
-  VEHICLE_SUBCATEGORIES,
+  CATEGORY_OPTIONS,
+  CATEGORY_VALUES,
   MAKES,
   YEARS,
-  CITIES,
-  CURRENCIES,
-  COUNTRIES,
+  normalizeCategoryValue,
+  getSubcategories,
 } from '../../../constants/FormOptions';
 
-import { DEFAULT_FORM_VALUES } from '../../../types/forms';
-
-const initialState: VehicleFormData = {
+const initialState: PostFormData = {
   title: '',
   description: '',
   price: '',
   currency: DEFAULT_FORM_VALUES.CURRENCY,
   images: [],
   listingType: DEFAULT_FORM_VALUES.LISTING_TYPE,
-  category: 'vehicle',
+  category: 'vehicles',
   subcategory: '',
   location: {
     city: '',
@@ -46,23 +39,15 @@ const initialState: VehicleFormData = {
   make: '',
   model: '',
   year: '',
-  mileage: {
-    value: '',
-    unit: 'km'
-  },
-  condition: '',
-  fuelType: '',
-  transmission: '',
-  features: []
 };
 
-export default function CreateVehiclePost() {
+export default function CreatePostScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams();
-  const [formState, setFormState] = useState<VehicleFormData>(initialState);
+  const [formState, setFormState] = useState<PostFormData>(initialState);
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [postToUpdate, setPostToUpdate] = useState<Post | null>(null);
-  const { models, loadingModels } = useVehicleModels(formState.make);
+  const { models, loadingModels } = useVehicleModels(formState.category === 'vehicles' ? formState.make : '');
 
   // Check if we're in update mode
   useEffect(() => {
@@ -77,6 +62,26 @@ export default function CreateVehiclePost() {
     }
   }, [params.mode, params.post]);
 
+  useEffect(() => {
+    if (isUpdateMode) return;
+    if (typeof params.category !== 'string') return;
+
+    const normalizedCategory = normalizeCategoryValue(params.category as string | undefined);
+    setFormState(prev => {
+      if (prev.category === normalizedCategory) {
+        return prev;
+      }
+      return {
+        ...prev,
+        category: normalizedCategory,
+        subcategory: '',
+        make: '',
+        model: '',
+        year: '',
+      };
+    });
+  }, [params.category, isUpdateMode]);
+
   const {
     loading: createLoading,
     errors: createErrors,
@@ -85,11 +90,11 @@ export default function CreateVehiclePost() {
     handleInputChange: createHandleInputChange,
     handleLocationChange: createHandleLocationChange,
     handleSubmit: createHandleSubmit
-  } = usePostForm<VehicleFormData>({
-    postType: 'vehicle',
-    transformForm: transformVehicleForm,
-    validateForm: validateVehicleForm,
-    successMessage: 'Vehicle post created successfully!'
+  } = usePostForm<PostFormData>({
+    postType: 'post',
+    transformForm: transformPostForm,
+    validateForm: validatePostForm,
+    successMessage: 'Post created successfully!'
   });
 
   const {
@@ -101,11 +106,11 @@ export default function CreateVehiclePost() {
     handleInputChange: updateHandleInputChange,
     handleLocationChange: updateHandleLocationChange,
     handleUpdate
-  } = usePostUpdate<VehicleFormData>({
-    postType: 'vehicle',
-    transformForm: transformVehicleForm,
-    validateForm: validateVehicleForm,
-    successMessage: 'Vehicle post updated successfully!'
+  } = usePostUpdate<PostFormData>({
+    postType: 'post',
+    transformForm: transformPostForm,
+    validateForm: validatePostForm,
+    successMessage: 'Post updated successfully!'
   });
 
   // Initialize form with post data if in update mode
@@ -134,16 +139,26 @@ export default function CreateVehiclePost() {
     handleRemoveImage(index, formState.images, (images) => setFormState(prev => ({ ...prev, images })));
   };
 
-  const handleFormInputChange = (field: keyof VehicleFormData, value: string | string[]) => {
+  const handleFormInputChange = (field: keyof PostFormData, value: string | string[]) => {
     handleInputChange(field, value, formState, setFormState);
     
     // Clear model when make changes
     if (field === 'make') {
       setFormState(prev => ({ ...prev, model: '' }));
     }
+
+    if (field === 'category') {
+      setFormState(prev => ({
+        ...prev,
+        subcategory: '',
+        make: '',
+        model: '',
+        year: '',
+      }));
+    }
   };
 
-  const handleFormLocationChange = (field: keyof VehicleFormData['location'], value: string) => {
+  const handleFormLocationChange = (field: keyof PostFormData['location'], value: string) => {
     handleLocationChange(field, value, formState, setFormState);
   };
 
@@ -155,105 +170,109 @@ export default function CreateVehiclePost() {
     }
   };
 
+  const isVehicleCategory = formState.category === 'vehicles';
+  const pageTitle = isUpdateMode ? "Update Post" : "Create Post";
+  const subcategoryOptions = useMemo(
+    () => getSubcategories(formState.category).map(value => ({ label: value.replace(/_/g, ' '), value })),
+    [formState.category]
+  );
+  const yearOptions = useMemo(
+    () => [
+      { label: 'Not Specified', value: '' },
+      ...YEARS.map(year => ({ label: year, value: year }))
+    ],
+    []
+  );
+
   if (loading) {
     return <LoadingScreen message={isUpdateMode ? "Updating your post..." : "Creating your post..."} />;
   }
 
-  const renderVehicleFields = () => (
+  const renderCategoryFields = () => (
     <Card style={formStyles.card}>
       <Card.Content style={formStyles.formContainer}>
-        <Text variant="titleMedium" style={formStyles.sectionTitle}>Vehicle Details</Text>
-        
+        <Text variant="titleMedium" style={formStyles.sectionTitle}>Category & Item Details</Text>
+
         <DropdownComponent
-          data={VEHICLE_SUBCATEGORIES}
+          data={CATEGORY_OPTIONS}
+          value={formState.category}
+          onChange={(value: string | null) =>
+            handleFormInputChange('category', normalizeCategoryValue(value || undefined))
+          }
+          placeholder="Select category"
+          error={errors.category}
+        />
+
+        <DropdownComponent
+          data={subcategoryOptions}
           value={formState.subcategory}
           onChange={(value: string | null) => handleFormInputChange('subcategory', value || '')}
-          placeholder="Vehicle Subcategory"
+          placeholder={isVehicleCategory ? 'Vehicle Subcategory' : 'Item Subcategory'}
           error={errors.subcategory}
         />
 
-        <DropdownComponent
-          data={MAKES.map(make => ({ label: make, value: make }))}
-          value={formState.make}
-          onChange={(value: string | null) => handleFormInputChange('make', value || '')}
-          placeholder="Make"
-          error={errors.make}
-        />
+        {isVehicleCategory ? (
+          <>
+            <DropdownComponent
+              data={MAKES.map(make => ({ label: make, value: make }))}
+              value={formState.make}
+              onChange={(value: string | null) => handleFormInputChange('make', value || '')}
+              placeholder="Make"
+              error={errors.make}
+            />
 
-        {/* Model Dropdown - disabled until make is selected */}
-        <DropdownComponent
-          data={models.map(model => ({ label: model.name, value: model.name }))}
-          value={formState.model}
-          onChange={(value: string | null) => handleFormInputChange('model', value || '')}
-          placeholder={!formState.make ? "Select make first" : loadingModels ? "Loading models..." : "Model"}
-          error={errors.model}
-          disabled={!formState.make || loadingModels}
-        />
+            <DropdownComponent
+              data={models.map(model => ({ label: model.name, value: model.name }))}
+              value={formState.model}
+              onChange={(value: string | null) => handleFormInputChange('model', value || '')}
+              placeholder={
+                !formState.make
+                  ? "Select make first"
+                  : loadingModels
+                    ? "Loading models..."
+                    : "Model"
+              }
+              error={errors.model}
+              disabled={!formState.make || loadingModels}
+            />
+          </>
+        ) : (
+          <>
+            <TextInput
+              label="Make / Brand"
+              value={formState.make}
+              onChangeText={(text) => handleFormInputChange('make', text)}
+              error={!!errors.make}
+              style={formStyles.input}
+            />
+            <TextInput
+              label="Model / Variant"
+              value={formState.model}
+              onChangeText={(text) => handleFormInputChange('model', text)}
+              error={!!errors.model}
+              style={formStyles.input}
+            />
+          </>
+        )}
 
         <DropdownComponent
-          data={YEARS.map(year => ({ label: year, value: year }))}
+          data={yearOptions}
           value={formState.year}
           onChange={(value: string | null) => handleFormInputChange('year', value || '')}
-          placeholder="Year"
+          placeholder="Year (optional)"
           error={errors.year}
         />
 
-        <TextInput
-          label="Mileage (km)"
-          value={formState.mileage.value}
-          onChangeText={text => setFormState(prev => ({ 
-            ...prev, 
-            mileage: { ...prev.mileage, value: text } 
-          }))}
-          keyboardType="numeric"
-          error={!!errors.mileage}
-          style={formStyles.input}
-        />
-
-        <DropdownComponent
-          data={VEHICLE_FUEL_TYPES.map(type => ({ label: type, value: type }))}
-          value={formState.fuelType}
-          onChange={(value: string | null) => handleFormInputChange('fuelType', value || '')}
-          placeholder="Select fuel type"
-          error={errors.fuelType}
-        />
-
-        <DropdownComponent
-          data={VEHICLE_TRANSMISSION.map(trans => ({ label: trans, value: trans }))}
-          value={formState.transmission}
-          onChange={(value: string | null) => handleFormInputChange('transmission', value || '')}
-          placeholder="Select transmission"
-          error={errors.transmission}
-        />
-
-        <DropdownComponent
-          data={VEHICLE_CONDITION.map(cond => ({ label: cond, value: cond }))}
-          value={formState.condition}
-          onChange={(value: string | null) => handleFormInputChange('condition', value || '')}
-          placeholder="Condition"
-          error={errors.condition}
-        />
-
-        <FeaturesSection
-          features={VEHICLE_FEATURES}
-          selectedFeatures={formState.features}
-          onToggleFeature={(feature) => {
-            const newFeatures = formState.features.includes(feature)
-              ? formState.features.filter(f => f !== feature)
-              : [...formState.features, feature];
-            handleFormInputChange('features', newFeatures);
-          }}
-        />
       </Card.Content>
     </Card>
   );
 
   return (
-    <RequireAuth message="You need to be logged in to create a vehicle listing.">
+    <RequireAuth message="You need to be logged in to create a post.">
       <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
-        <Header title={isUpdateMode ? "Update Vehicle Post" : "Create Vehicle Post"} />
-        <BasePostForm<VehicleFormData>
-          title={isUpdateMode ? "Update Vehicle Post" : "Create Vehicle Post"}
+        <Header title={pageTitle} />
+        <BasePostForm<PostFormData>
+          title={pageTitle}
           formState={formState}
           errors={errors}
           onInputChange={handleFormInputChange}
@@ -262,7 +281,7 @@ export default function CreateVehiclePost() {
           onRemoveImage={handleImageRemove}
           maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
         >
-          {renderVehicleFields()}
+          {renderCategoryFields()}
         </BasePostForm>
         <Button
           mode="contained"
@@ -274,4 +293,4 @@ export default function CreateVehiclePost() {
       </View>
     </RequireAuth>
   );
-} 
+}

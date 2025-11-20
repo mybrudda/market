@@ -4,7 +4,7 @@ import { Card, Text, Chip, useTheme, Menu, IconButton, Button } from 'react-nati
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { format } from 'date-fns';
-import { Post, VehicleDetails } from '../../types/database';
+import { Post, PostDetails } from '../../types/database';
 import { formatPrice } from '../../utils/format';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -53,33 +53,26 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
     return format(new Date(dateString), 'MMM d, yyyy');
   };
 
-  const renderVehicleDetails = (details: VehicleDetails) => (
-    <View style={styles.detailsContainer}>
-      <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="car" size={16} color={theme.colors.onSurfaceVariant} />
+  const renderPostDetails = (details?: PostDetails) => {
+    const makeModel = [details?.make, details?.model].filter(Boolean).join(' ').trim();
+    if (!makeModel) return null;
+
+    const yearSuffix = details?.year ? ` (${details.year})` : '';
+
+    return (
+      <View style={styles.detailsContainer}>
         <Text
           variant="bodySmall"
           style={styles.detailValue}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
-          {details.make} {details.model} ({details.year})
+          {makeModel}
+          {yearSuffix}
         </Text>
       </View>
-      <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="gas-station" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodySmall" style={styles.detailValue}>
-          {details.fuel_type}
-        </Text>
-      </View>
-      <View style={styles.detailRow}>
-        <MaterialCommunityIcons name="speedometer" size={16} color={theme.colors.onSurfaceVariant} />
-        <Text variant="bodySmall" style={styles.detailValue}>
-          {details.mileage.value.toLocaleString()} {details.mileage.unit}
-        </Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   // Get the first image URL from the image ID
   const firstImageUrl = post.image_ids && post.image_ids.length > 0 
@@ -174,7 +167,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
                 {post.title}
               </Text>
               
-              {renderVehicleDetails(post.details)}
+              {renderPostDetails(post.details)}
 
               <View style={styles.footerRow}>
                 <View style={{ flex: 1 }}>
@@ -183,7 +176,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
                     <Text 
                       variant="bodySmall" 
                       numberOfLines={1}
-                      style={styles.detailValue}
+                      style={[styles.detailValue, styles.locationText]}
                     >
                       {post.location.city}
                     </Text>
@@ -193,7 +186,7 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
                     numberOfLines={1}
                     style={styles.date}
                   >
-                    Posted {formatDate(post.created_at)}
+                    {formatDate(post.created_at)}
                   </Text>
                 </View>
               </View>
@@ -255,12 +248,7 @@ const styles = StyleSheet.create({
   detailsContainer: {
     marginBottom: 12,
   },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailValue: {
+  locationText: {
     marginLeft: 8,
   },
   footerRow: {

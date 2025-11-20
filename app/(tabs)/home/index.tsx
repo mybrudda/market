@@ -106,7 +106,7 @@ export default function Home() {
         .eq('status', 'active');
 
       // Apply filters
-              query = query.eq('category', 'vehicle')
+              query = query.eq('category', 'vehicles')
         .eq('listing_type', filters.listingType);
       
       if (filters.city) {
@@ -260,7 +260,7 @@ export default function Home() {
           )
         `, { count: 'exact' })
           .eq('status', 'active')
-          .eq('category', 'vehicle');
+          .eq('category', 'vehicles');
 
         // Apply filters
         if (filters.listingType) {

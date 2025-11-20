@@ -123,7 +123,7 @@ export default function MyPostsScreen() {
 
   const handleUpdate = useCallback((post: Post) => {
     router.push({
-      pathname: '/(tabs)/create/vehicle',
+      pathname: '/(tabs)/create/create-post',
       params: { 
         mode: 'update',
         post: JSON.stringify(post)

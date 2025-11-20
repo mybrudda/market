@@ -7,7 +7,7 @@ import Dropdown from '../ui/Dropdown';
 import { useVehicleModels } from '../../lib/hooks/useVehicleModels';
 import {
   CITIES,
-  VEHICLE_CATEGORIES,
+  CATEGORY_OPTIONS,
   MAKES,
   VEHICLE_FUEL_TYPES,
   VEHICLE_TRANSMISSION,
@@ -202,7 +202,7 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
           Category
         </Text>
         <Dropdown
-          data={VEHICLE_CATEGORIES.map(category => ({ label: category, value: category }))}
+          data={CATEGORY_OPTIONS}
           value={filters.category}
           onChange={(value) => handleFilterChange('category', value)}
           placeholder="Select category"

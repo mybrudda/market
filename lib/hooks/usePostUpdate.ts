@@ -6,8 +6,9 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { uploadToCloudinary, getCloudinaryUrl } from '../cloudinary';
-import { Post, VehicleDetails } from '../../types/database';
+import { Post, PostDetails } from '../../types/database';
 import { BaseFormData, VALIDATION_LIMITS, DEFAULT_FORM_VALUES, ERROR_MESSAGES } from '../../types/forms';
+import { normalizeCategoryValue } from '../../constants/FormOptions';
 
 interface UsePostUpdateProps<T extends BaseFormData> {
   postType: string;
@@ -85,27 +86,18 @@ export function usePostUpdate<T extends BaseFormData>({
       price: post.price.toString(),
       currency: post.currency,
       listingType: post.listing_type,
-      category: post.category,
+      category: normalizeCategoryValue(post.category),
       subcategory: post.subcategory,
       location: post.location,
       images: imageUrls, // Use URLs for display
     };
 
-    // Add vehicle-specific fields
-    if (post.category === 'vehicle' && post.details) {
-      const vehicleDetails = post.details as VehicleDetails;
+    if (post.details) {
+      const details = post.details as PostDetails;
       Object.assign(formData, {
-        make: vehicleDetails.make,
-        model: vehicleDetails.model,
-        year: vehicleDetails.year,
-        mileage: {
-          value: vehicleDetails.mileage.value.toString(),
-          unit: vehicleDetails.mileage.unit,
-        },
-        condition: vehicleDetails.condition,
-        fuelType: vehicleDetails.fuel_type,
-        transmission: vehicleDetails.transmission,
-        features: vehicleDetails.features || [],
+        make: details.make || '',
+        model: details.model || '',
+        year: details.year || '',
       });
     }
 
@@ -296,24 +288,6 @@ export function usePostUpdate<T extends BaseFormData>({
       // Transform existing data to form state
       const existingImages = post.image_ids || [];
       const imageUrls = existingImages.map((imageId: string) => getCloudinaryUrl(imageId, 'posts') || imageId);
-
-      // Transform form data based on post type
-      if (post.category === 'vehicle' && post.details) {
-        const vehicleDetails = post.details as VehicleDetails;
-        Object.assign(formState, {
-          make: vehicleDetails.make,
-          model: vehicleDetails.model,
-          year: vehicleDetails.year,
-          mileage: {
-            value: vehicleDetails.mileage.value.toString(),
-            unit: vehicleDetails.mileage.unit,
-          },
-          condition: vehicleDetails.condition,
-          fuelType: vehicleDetails.fuel_type,
-          transmission: vehicleDetails.transmission,
-          features: vehicleDetails.features || [],
-        });
-      }
 
       // First test if we can connect to Supabase
       const testQuery = await supabase.from('posts').select('id').limit(1);

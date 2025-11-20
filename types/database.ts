@@ -21,7 +21,7 @@ export interface BasePost {
   user?: User;
   title: string;
   description: string;
-  category: 'vehicle' | 'other';
+  category: string;
   subcategory: string;
   listing_type: 'sale' | 'rent' | 'other';
   price: number;
@@ -32,34 +32,24 @@ export interface BasePost {
     country: string;
   };
   image_ids: string[]; // Cloudinary image IDs
-  details: VehicleDetails;
+  details: PostDetails;
   status: 'active' | 'pending' | 'removed' | 'expired';
   expires_at: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface VehicleDetails {
+export interface PostDetails {
   make: string;
   model: string;
-  year: string;
-  mileage: {
-    value: number;
-    unit: string;
-  };
-  fuel_type: string;
-  transmission: string;
-  condition: string;
-  features: string[];
+  year?: string;
+  [key: string]: any;
 }
 
-export interface VehiclePost extends BasePost {
-  category: 'vehicle';
-  details: VehicleDetails;
+export interface Post extends BasePost {
+  details: PostDetails;
   user: User;
 }
-
-export type Post = VehiclePost;
 
 export type IconName = 
   | 'car' 

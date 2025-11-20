@@ -9,7 +9,7 @@ import Header from '../components/layout/Header';
 import { useAuthStore } from '../store/useAuthStore';
 import { Image as ExpoImage } from 'expo-image';
 import { formatPrice, formatDate } from '../utils/format';
-import { Post, VehicleDetails, CarouselRenderItemInfo, IconName } from '../types/database';
+import { Post, CarouselRenderItemInfo } from '../types/database';
 import { useSavePost } from '../lib/hooks/useSavePost';
 import { Platform } from 'react-native';
 import ReportPostModal from '../components/ReportPostModal';
@@ -20,19 +20,16 @@ import LoginRequiredModal from '../components/auth/LoginRequiredModal';
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 // Move DetailItem component outside to prevent hook recreation
-const DetailItem = ({ icon, label, value }: { icon: IconName; label: string; value: string }) => {
+const DetailItem = ({ label, value }: { label: string; value: string }) => {
   const theme = useTheme();
   return (
     <View style={styles.detailItem}>
-      <MaterialCommunityIcons name={icon} size={20} color={theme.colors.onSurfaceVariant} />
-      <View style={styles.detailTextContainer}>
-        <Text variant="bodySmall" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
-          {label}
-        </Text>
-        <Text variant="bodyMedium" style={[styles.detailValue, { color: theme.colors.onSurface }]}>
-          {value}
-        </Text>
-      </View>
+      <Text variant="bodySmall" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>
+        {label}
+      </Text>
+      <Text variant="bodyMedium" style={[styles.detailValue, { color: theme.colors.onSurface }]}>
+        {value}
+      </Text>
     </View>
   );
 };
@@ -45,7 +42,6 @@ export default function PostDetails() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginModalAction, setLoginModalAction] = useState<'message' | 'save' | 'report'>('message');
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [featuresExpanded, setFeaturesExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const width = Dimensions.get('window').width;
   const { user } = useAuthStore();
@@ -235,7 +231,28 @@ export default function PostDetails() {
     );
   }
 
+  const baseDetailItems: Array<{ label: string; value: string }> = [
+    { label: 'Category', value: formatDetailLabel(post.category) },
+    { label: 'Subcategory', value: formatDetailLabel(post.subcategory) },
+    { label: 'Make', value: post.details?.make || '' },
+    { label: 'Model', value: post.details?.model || '' },
+    { label: 'Year', value: post.details?.year || '' },
+  ];
 
+  const dynamicDetailItems: Array<{ label: string; value: string }> = Object.entries(post.details || {})
+    .filter(([key]) => !['make', 'model', 'year'].includes(key))
+    .map(([key, value]) => ({
+      icon: 'check' as IconName,
+      label: formatDetailLabel(key),
+      value: formatDetailValue(value),
+    }))
+    .filter(item => item.value);
+
+  const combinedDetailItems = [...baseDetailItems, ...dynamicDetailItems].filter(item => item.value);
+  const detailRows = [];
+  for (let i = 0; i < combinedDetailItems.length; i += 2) {
+    detailRows.push(combinedDetailItems.slice(i, i + 2));
+  }
 
   return (
     <>
@@ -320,94 +337,28 @@ export default function PostDetails() {
             <Text variant="bodySmall" style={[styles.date, { color: theme.colors.onSurfaceVariant, fontSize: 12 }]}>
               Posted on {formatDate(post.created_at)}
             </Text>
-            <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
-            {/* Details Section */}
-            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface, fontSize: 16 }]}>
-              Vehicle Details
-            </Text>
-            <View style={styles.detailsGrid}>
-              <View style={styles.detailsRow}>
-                <View style={styles.detailItemContainer}>
-                  <DetailItem icon="car" label="Make & Model" value={`${post.details.make} ${post.details.model}`} />
+            {combinedDetailItems.length > 0 && (
+              <>
+                <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+                <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface, fontSize: 16 }]}>
+                  Item Details
+                </Text>
+                <View style={styles.detailsGrid}>
+                  {detailRows.map((row, rowIndex) => (
+                    <View key={`detail-row-${rowIndex}`} style={styles.detailsRow}>
+                      {row.map((detail) => (
+                        <View key={`${detail.label}-${detail.value}`} style={styles.detailItemContainer}>
+                          <DetailItem
+                            label={detail.label}
+                            value={detail.value}
+                          />
+                        </View>
+                      ))}
+                      {row.length === 1 && <View style={styles.detailItemContainer} />}
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.detailItemContainer}>
-                  <DetailItem icon="calendar" label="Year" value={post.details.year} />
-                </View>
-              </View>
-              <View style={styles.detailsRow}>
-                <View style={styles.detailItemContainer}>
-                  <DetailItem icon="speedometer" label="Mileage" value={`${post.details.mileage.value.toLocaleString()} ${post.details.mileage.unit}`} />
-                </View>
-                <View style={styles.detailItemContainer}>
-                  <DetailItem icon="car-cog" label="Condition" value={post.details.condition} />
-                </View>
-              </View>
-              <View style={styles.detailsRow}>
-                <View style={styles.detailItemContainer}>
-                  <DetailItem icon="gas-station" label="Fuel Type" value={post.details.fuel_type} />
-                </View>
-                <View style={styles.detailItemContainer}>
-                  <DetailItem icon="car-shift-pattern" label="Transmission" value={post.details.transmission} />
-                </View>
-              </View>
-            </View>
-            {/* Features Chips */}
-            {post.details.features && post.details.features.length > 0 && (
-              <View style={styles.featuresContainer}>
-                {featuresExpanded
-                  ? [
-                      ...post.details.features.map((feature: string, index: number) => (
-                        <Chip
-                          key={index}
-                          mode="outlined"
-                          style={[styles.featureChip, { borderColor: theme.colors.outline }]}
-                          textStyle={{ color: theme.colors.onSurface }}
-                        >
-                          {feature}
-                        </Chip>
-                      )),
-                      post.details.features.length > 3 && (
-                        <Chip
-                          key="collapse"
-                          mode="outlined"
-                          style={[styles.featureChip, { 
-                            backgroundColor: theme.colors.primaryContainer,
-                            borderColor: theme.colors.primary 
-                          }]}
-                          textStyle={{ color: theme.colors.primary }}
-                          onPress={() => setFeaturesExpanded(false)}
-                        >
-                          Show Less
-                        </Chip>
-                      )
-                    ]
-                  : [
-                      ...(post.details.features.slice(0, 3).map((feature: string, index: number) => (
-                        <Chip
-                          key={index}
-                          mode="outlined"
-                          style={[styles.featureChip, { borderColor: theme.colors.outline }]}
-                          textStyle={{ color: theme.colors.onSurface }}
-                        >
-                          {feature}
-                        </Chip>
-                      ))),
-                      post.details.features.length > 3 && (
-                        <Chip
-                          key="expand"
-                          mode="outlined"
-                          style={[styles.featureChip, { 
-                            backgroundColor: theme.colors.primaryContainer,
-                            borderColor: theme.colors.primary 
-                          }]}
-                          textStyle={{ color: theme.colors.primary }}
-                          onPress={() => setFeaturesExpanded(true)}
-                        >
-                          +{post.details.features.length - 3} more
-                        </Chip>
-                      )
-                    ].filter(Boolean)}
-              </View>
+              </>
             )}
             <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
             {/* Description */}
@@ -486,6 +437,40 @@ export default function PostDetails() {
     </>
   );
 }
+
+const formatDetailLabel = (label: string) => {
+  if (!label) return '';
+  return label
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatDetailValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => formatDetailValue(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if ('value' in record || 'unit' in record) {
+      const numericValue = record.value as string | number | undefined;
+      const unit = record.unit as string | undefined;
+      return [numericValue, unit].filter(Boolean).join(' ').trim();
+    }
+
+    return Object.values(record)
+      .map((entry) => (typeof entry === 'string' || typeof entry === 'number' ? String(entry) : ''))
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  return String(value);
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -596,19 +581,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
+    gap: 12,
   },
   detailItemContainer: {
     flex: 1,
-    marginHorizontal: 4,
   },
   detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: 4,
     marginBottom: 12,
-  },
-  detailTextContainer: {
-    marginLeft: 12,
-    flex: 1,
   },
   detailLabel: {
     fontSize: 12,
@@ -617,15 +597,6 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  featuresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  featureChip: {
-    marginBottom: 4,
   },
   description: {
     lineHeight: 20,

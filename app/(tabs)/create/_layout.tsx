@@ -16,6 +16,12 @@ export default function CreateLayout() {
           headerShown: false
         }}
       />
+      <Stack.Screen
+        name="create-post"
+        options={{
+          headerShown: false
+        }}
+      />
     </Stack>
   );
 } 
