@@ -130,15 +130,6 @@ export const validatePostForm = (form: PostFormData): FormErrors => {
     errors.subcategory = 'Subcategory is required';
   }
 
-  // Make & Model validation
-  if (!form.make.trim()) {
-    errors.make = 'Make is required';
-  }
-
-  if (!form.model.trim()) {
-    errors.model = 'Model is required';
-  }
-
   // Year validation (optional)
   if (form.year.trim()) {
     const year = parseInt(form.year.trim(), 10);
@@ -151,10 +142,17 @@ export const validatePostForm = (form: PostFormData): FormErrors => {
 };
 
 export const transformPostForm = (form: PostFormData): PostDetails => {
-  const details: PostDetails = {
-    make: form.make.trim(),
-    model: form.model.trim(),
-  };
+  const details: PostDetails = {};
+
+  const makeValue = form.make.trim();
+  if (makeValue) {
+    details.make = makeValue;
+  }
+
+  const modelValue = form.model.trim();
+  if (modelValue) {
+    details.model = modelValue;
+  }
 
   const yearValue = form.year.trim();
   if (yearValue) {

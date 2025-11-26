@@ -40,8 +40,8 @@ export interface BasePost {
 }
 
 export interface PostDetails {
-  make: string;
-  model: string;
+  make?: string;
+  model?: string;
   year?: string;
   [key: string]: any;
 }
