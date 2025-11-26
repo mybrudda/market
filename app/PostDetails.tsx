@@ -312,7 +312,6 @@ export default function PostDetails() {
                 {formatPrice(post.price, post.currency)}
               </Text>
               <Chip 
-                icon="car"
                 mode="flat"
                 style={[styles.listingTypeChip, { backgroundColor: theme.colors.primaryContainer }]}
                 textStyle={{ color: theme.colors.primary, fontWeight: 'bold' }}

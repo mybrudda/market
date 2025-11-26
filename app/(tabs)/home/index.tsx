@@ -5,7 +5,7 @@ import { supabase } from '../../../supabaseClient';
 import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import PostCard from '../../../components/posts/PostCard';
-import FilterSection, { FilterOptions } from '../../../components/posts/FilterSection';
+import FilterSection, { FilterOptions, DEFAULT_YEAR_RANGE } from '../../../components/posts/FilterSection';
 import { Post } from '../../../types/database';
 import { getCloudinaryUrl } from '../../../lib/cloudinary';
 
@@ -106,17 +106,22 @@ export default function Home() {
         .eq('status', 'active');
 
       // Apply filters
-              query = query.eq('category', 'vehicles')
-        .eq('listing_type', filters.listingType);
-      
+      if (filters.listingType) {
+        query = query.eq('listing_type', filters.listingType);
+      }
+
       if (filters.city) {
         query = query.eq('location->>city', filters.city);
       }
-      
+
       if (filters.category) {
         query = query.eq('category', filters.category);
       }
-      
+
+      if (filters.subcategory) {
+        query = query.eq('subcategory', filters.subcategory);
+      }
+
       if (filters.priceRange.min) {
         query = query.gte('price', parseFloat(filters.priceRange.min));
       }
@@ -124,27 +129,21 @@ export default function Home() {
         query = query.lte('price', parseFloat(filters.priceRange.max));
       }
 
-      // Vehicle-specific filters
-      if (filters.make) {
-        query = query.eq('details->>make', filters.make);
+      if (filters.make.trim()) {
+        query = query.ilike('details->>make', `%${filters.make.trim()}%`);
       }
-      if (filters.model && filters.model.trim()) {
-        query = query.ilike('details->>model', `%${filters.model}%`);
+      if (filters.model.trim()) {
+        query = query.ilike('details->>model', `%${filters.model.trim()}%`);
       }
-      if (filters.fuelType) {
-        query = query.eq('details->>fuel_type', filters.fuelType);
-      }
-      if (filters.transmission === 'Manual' || filters.transmission === 'Automatic') {
-        query = query.eq('details->>transmission', filters.transmission);
-      }
-      if (filters.yearRange.min && filters.yearRange.max) {
+
+      const yearFilterActive =
+        filters.category === 'vehicles' &&
+        (filters.yearRange.min > DEFAULT_YEAR_RANGE.min || filters.yearRange.max < DEFAULT_YEAR_RANGE.max);
+
+      if (yearFilterActive) {
         query = query
           .gte('details->>year', filters.yearRange.min.toString())
           .lte('details->>year', filters.yearRange.max.toString());
-      }
-      if (filters.features.length > 0) {
-        const featuresArray = JSON.stringify(filters.features);
-        query = query.contains('details->features', featuresArray);
       }
 
       const { data, error: supabaseError, count } = await query
@@ -245,7 +244,7 @@ export default function Home() {
         setError(null);
         const start = 0;
 
-              let query = supabase
+        let query = supabase
         .from('posts')
         .select(`
           *,
@@ -259,8 +258,7 @@ export default function Home() {
             is_verified
           )
         `, { count: 'exact' })
-          .eq('status', 'active')
-          .eq('category', 'vehicles');
+          .eq('status', 'active');
 
         // Apply filters
         if (filters.listingType) {
@@ -272,17 +270,14 @@ export default function Home() {
         if (filters.category) {
           query = query.eq('category', filters.category);
         }
-        if (filters.make) {
-          query = query.eq('details->>make', filters.make);
+        if (filters.subcategory) {
+          query = query.eq('subcategory', filters.subcategory);
         }
-        if (filters.model) {
-          query = query.eq('details->>model', filters.model);
+        if (filters.make.trim()) {
+          query = query.ilike('details->>make', `%${filters.make.trim()}%`);
         }
-        if (filters.fuelType) {
-          query = query.eq('details->>fuel_type', filters.fuelType);
-        }
-        if (filters.transmission) {
-          query = query.eq('details->>transmission', filters.transmission);
+        if (filters.model.trim()) {
+          query = query.ilike('details->>model', `%${filters.model.trim()}%`);
         }
         if (filters.priceRange.min) {
           query = query.gte('price', parseFloat(filters.priceRange.min));
@@ -290,14 +285,15 @@ export default function Home() {
         if (filters.priceRange.max) {
           query = query.lte('price', parseFloat(filters.priceRange.max));
         }
-        if (filters.yearRange.min && filters.yearRange.max) {
+
+        const yearFilterActive =
+          filters.category === 'vehicles' &&
+          (filters.yearRange.min > DEFAULT_YEAR_RANGE.min || filters.yearRange.max < DEFAULT_YEAR_RANGE.max);
+
+        if (yearFilterActive) {
           query = query
             .gte('details->>year', filters.yearRange.min.toString())
             .lte('details->>year', filters.yearRange.max.toString());
-        }
-        if (filters.features.length > 0) {
-          const featuresArray = JSON.stringify(filters.features);
-          query = query.contains('details->features', featuresArray);
         }
 
         const { data, error: supabaseError, count } = await query

@@ -52,7 +52,7 @@ const DropdownComponent: React.FC<DropdownComponentProps> = ({
           {item.label}
         </Text>
         {isSelected && (
-          <AntDesign style={styles.icon} color={colors.primary} name="Safety" size={20} />
+          <AntDesign style={styles.icon} color={colors.primary} name="check-circle" size={20} />
         )}
       </View>
     );

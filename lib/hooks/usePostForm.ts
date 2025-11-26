@@ -200,7 +200,10 @@ export function usePostForm<T extends BaseFormData>({
         price: parseFloat(formState.price),
         currency: formState.currency,
         listing_type: formState.listingType,
-        location: formState.location,
+        location: {
+          ...formState.location,
+          country: formState.location.country || DEFAULT_FORM_VALUES.COUNTRY,
+        },
         image_ids: uploadedUrls,
         details: transformForm(formState),
         status: 'active',

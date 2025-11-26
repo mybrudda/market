@@ -15,11 +15,11 @@ import { formStyles } from '../../../constants/formStyles';
 import { Post } from '../../../types/database';
 import {
   CATEGORY_OPTIONS,
-  CATEGORY_VALUES,
   MAKES,
   YEARS,
   normalizeCategoryValue,
   getSubcategories,
+  formatCategoryLabel,
 } from '../../../constants/FormOptions';
 
 const initialState: PostFormData = {
@@ -173,7 +173,7 @@ export default function CreatePostScreen() {
   const isVehicleCategory = formState.category === 'vehicles';
   const pageTitle = isUpdateMode ? "Update Post" : "Create Post";
   const subcategoryOptions = useMemo(
-    () => getSubcategories(formState.category).map(value => ({ label: value.replace(/_/g, ' '), value })),
+    () => getSubcategories(formState.category).map(value => ({ label: formatCategoryLabel(value), value })),
     [formState.category]
   );
   const yearOptions = useMemo(

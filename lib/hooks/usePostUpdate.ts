@@ -80,6 +80,7 @@ export function usePostUpdate<T extends BaseFormData>({
     // Convert image IDs to URLs for display
     const imageUrls = post.image_ids.map((imageId: string) => getCloudinaryUrl(imageId, 'posts') || imageId);
     
+    const postLocation = post.location || {};
     const formData: any = {
       title: post.title,
       description: post.description,
@@ -88,7 +89,11 @@ export function usePostUpdate<T extends BaseFormData>({
       listingType: post.listing_type,
       category: normalizeCategoryValue(post.category),
       subcategory: post.subcategory,
-      location: post.location,
+      location: {
+        city: postLocation.city || '',
+        address: postLocation.address ?? '',
+        country: postLocation.country || DEFAULT_FORM_VALUES.COUNTRY,
+      },
       images: imageUrls, // Use URLs for display
     };
 
@@ -408,7 +413,10 @@ export function usePostUpdate<T extends BaseFormData>({
         price: parseFloat(formState.price),
         currency: formState.currency,
         listing_type: formState.listingType,
-        location: formState.location,
+        location: {
+          ...formState.location,
+          country: formState.location.country || DEFAULT_FORM_VALUES.COUNTRY,
+        },
         image_ids: finalImageIds, // Store image IDs in database
         details: transformForm(formState),
         updated_at: new Date().toISOString(),

@@ -1,7 +1,6 @@
-import { View, StyleSheet, ScrollView, Animated, Dimensions, Pressable } from 'react-native';
-import React, { useState, useRef, useCallback } from 'react';
-import { Text, Button, useTheme, Chip, TextInput, Divider, SegmentedButtons } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, StyleSheet, ScrollView, Animated, LayoutAnimation, Platform, UIManager, Dimensions } from 'react-native';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { Text, Button, useTheme, TextInput, Divider, SegmentedButtons } from 'react-native-paper';
 import Slider from 'rn-range-slider';
 import Dropdown from '../ui/Dropdown';
 import { useVehicleModels } from '../../lib/hooks/useVehicleModels';
@@ -9,20 +8,18 @@ import {
   CITIES,
   CATEGORY_OPTIONS,
   MAKES,
-  VEHICLE_FUEL_TYPES,
-  VEHICLE_TRANSMISSION,
+  getSubcategories,
+  formatCategoryLabel,
+  CategoryValue,
 } from '../../constants/FormOptions';
 
-type ListingType = 'rent' | 'sale';
-
 export interface FilterOptions {
-  listingType: ListingType;
+  listingType: 'sale' | 'rent' | 'other' | null;
   city: string | null;
-  category: string | null;
-  make: string | null;
-  model: string | null;
-  fuelType: string | null;
-  transmission: 'Manual' | 'Automatic' | '';
+  category: CategoryValue | null;
+  subcategory: string | null;
+  make: string;
+  model: string;
   yearRange: {
     min: number;
     max: number;
@@ -31,7 +28,6 @@ export interface FilterOptions {
     min: string;
     max: string;
   };
-  features: string[];
 }
 
 interface FilterSectionProps {
@@ -40,24 +36,27 @@ interface FilterSectionProps {
   onLogoPress?: () => void;
 }
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const currentYear = new Date().getFullYear();
+export const DEFAULT_YEAR_RANGE = {
+  min: 1900,
+  max: currentYear,
+};
 const initialFilters: FilterOptions = {
-  listingType: 'sale',
+  listingType: null,
   city: null,
   category: null,
-  make: null,
-  model: null,
-  fuelType: null,
-  transmission: '',
-  yearRange: {
-    min: currentYear - 20,
-    max: currentYear,
-  },
+  subcategory: null,
+  make: '',
+  model: '',
+  yearRange: { ...DEFAULT_YEAR_RANGE },
   priceRange: {
     min: '',
     max: '',
   },
-  features: [],
 };
 
 export default function FilterSection({ onSearch, onFilter, onLogoPress }: FilterSectionProps) {
@@ -66,12 +65,40 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const expandAnimation = useRef(new Animated.Value(0)).current;
   const searchWidthAnimation = useRef(new Animated.Value(0)).current;
   const { height: windowHeight } = Dimensions.get('window');
-  
-  // Use the vehicle models hook for dynamic model fetching
-  const { models, loadingModels } = useVehicleModels(filters.make || '');
+
+  const isVehicleCategory = filters.category === 'vehicles';
+  const { models, loadingModels } = useVehicleModels(isVehicleCategory ? filters.make : '');
+
+  const categoryOptions = useMemo(
+    () => [{ label: 'All Categories', value: '' }, ...CATEGORY_OPTIONS],
+    []
+  );
+
+  const cityOptions = useMemo(
+    () => [{ label: 'All Cities', value: '' }, ...CITIES.map(city => ({ label: city, value: city }))],
+    []
+  );
+
+  const subcategoryOptions = useMemo(() => {
+    if (!filters.category) return [];
+    const options = getSubcategories(filters.category).map(value => ({
+      label: formatCategoryLabel(value),
+      value,
+    }));
+    return [{ label: 'All Subcategories', value: '' }, ...options];
+  }, [filters.category]);
+
+  const makeOptions = useMemo(
+    () => [{ label: 'All Makes', value: '' }, ...MAKES.map(make => ({ label: make, value: make }))],
+    []
+  );
+
+  const modelOptions = useMemo(
+    () => [{ label: 'All Models', value: '' }, ...models.map(model => ({ label: model.name, value: model.name }))],
+    [models]
+  );
 
   const handleYearChange = useCallback((low: number, high: number) => {
     setFilters(prev => ({
@@ -100,38 +127,65 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
     }));
   }, []);
 
-  const handleFeatureToggle = useCallback((feature: string) => {
+  const handleCategoryChange = useCallback((value: string) => {
     setFilters(prev => ({
       ...prev,
-      features: prev.features.includes(feature)
-        ? prev.features.filter(f => f !== feature)
-        : [...prev.features, feature],
+      category: value ? (value as CategoryValue) : null,
+      subcategory: null,
+      make: '',
+      model: '',
+      yearRange: { ...DEFAULT_YEAR_RANGE },
     }));
   }, []);
 
+  const handleCityChange = useCallback(
+    (value: string) => {
+      handleFilterChange('city', value || null);
+    },
+    [handleFilterChange]
+  );
+
+  const handleSubcategoryChange = useCallback(
+    (value: string) => {
+      handleFilterChange('subcategory', value || null);
+    },
+    [handleFilterChange]
+  );
+
   const clearFilters = useCallback(() => {
-    setFilters(initialFilters);
+    setFilters({
+      ...initialFilters,
+      yearRange: { ...DEFAULT_YEAR_RANGE },
+      priceRange: { ...initialFilters.priceRange },
+    });
   }, []);
 
   const applyFilters = useCallback(() => {
-    onFilter?.(filters);
-    setIsExpanded(false);
-  }, [filters, onFilter]);
+    onFilter?.({
+      ...filters,
+      yearRange: { ...filters.yearRange },
+      priceRange: { ...filters.priceRange },
+    });
+    closeFilters();
+  }, [filters, onFilter, closeFilters]);
 
   const handleSearch = useCallback(() => {
     onSearch?.(searchQuery);
   }, [searchQuery, onSearch]);
 
+  const animateLayout = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, []);
+
   const toggleExpand = () => {
-    const newExpanded = !isExpanded;
-    setIsExpanded(newExpanded);
-    
-    Animated.timing(expandAnimation, {
-      toValue: newExpanded ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    animateLayout();
+    setIsExpanded(prev => !prev);
   };
+
+  const closeFilters = useCallback(() => {
+    animateLayout();
+    setIsExpanded(false);
+  }, [animateLayout]);
 
   const animateSearchWidth = (focused: boolean) => {
     Animated.timing(searchWidthAnimation, {
@@ -151,11 +205,6 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
     animateSearchWidth(false);
   };
 
-  const maxHeight = expandAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, windowHeight * 0.7],
-  });
-
   const searchWidth = searchWidthAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: ['80%', '100%'],
@@ -173,11 +222,15 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
           Listing Type
         </Text>
         <SegmentedButtons
-          value={filters.listingType}
-          onValueChange={(value) => handleFilterChange('listingType', value)}
+          value={filters.listingType ?? 'all'}
+          onValueChange={(value) =>
+            handleFilterChange('listingType', value === 'all' ? null : (value as FilterOptions['listingType']))
+          }
           buttons={[
+            { value: 'all', label: 'All' },
             { value: 'sale', label: 'Sale' },
             { value: 'rent', label: 'Rent' },
+            { value: 'other', label: 'Other' },
           ]}
           style={styles.segmentedButton}
         />
@@ -189,9 +242,9 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
           City
         </Text>
         <Dropdown
-          data={CITIES.map(city => ({ label: city, value: city }))}
+          data={cityOptions}
           value={filters.city}
-          onChange={(value) => handleFilterChange('city', value)}
+          onChange={handleCityChange}
           placeholder="Select city"
         />
       </View>
@@ -202,12 +255,26 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
           Category
         </Text>
         <Dropdown
-          data={CATEGORY_OPTIONS}
+          data={categoryOptions}
           value={filters.category}
-          onChange={(value) => handleFilterChange('category', value)}
+          onChange={handleCategoryChange}
           placeholder="Select category"
         />
       </View>
+
+      {filters.category && (
+        <View style={styles.inputGroup}>
+          <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+            Subcategory
+          </Text>
+          <Dropdown
+            data={subcategoryOptions}
+            value={filters.subcategory}
+            onChange={handleSubcategoryChange}
+            placeholder="Select subcategory"
+          />
+        </View>
+      )}
 
       {/* Price Range */}
       <View style={styles.inputGroup}>
@@ -238,92 +305,105 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
     </View>
   );
 
-  const renderVehicleInputs = () => (
-    <View style={styles.inputSection}>
-      <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-        Vehicle Details
-      </Text>
-      
-      {/* Make */}
-      <View style={styles.inputGroup}>
-        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Make
-        </Text>
-        <Dropdown
-          data={MAKES.map(make => ({ label: make, value: make }))}
-          value={filters.make}
-          onChange={(value) => {
-            handleFilterChange('make', value);
-            handleFilterChange('model', null); // Reset model when make changes
-          }}
-          placeholder="Select make"
-        />
-      </View>
+  const renderCategorySpecificInputs = () => {
+    if (!filters.category) return null;
 
-      {/* Model */}
-      <View style={styles.inputGroup}>
-        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Model
+    return (
+      <View style={styles.inputSection}>
+        <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+          {isVehicleCategory ? 'Vehicle Details' : 'Item Details'}
         </Text>
-        <Dropdown
-          data={models.map(model => ({ label: model.toString(), value: model.toString() }))}
-          value={filters.model}
-          onChange={(value) => handleFilterChange('model', value)}
-          placeholder={loadingModels ? "Loading..." : "Select model"}
-          disabled={!filters.make || loadingModels}
-        />
-      </View>
 
-      {/* Fuel Type */}
-      <View style={styles.inputGroup}>
-        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Fuel Type
-        </Text>
-        <Dropdown
-          data={VEHICLE_FUEL_TYPES.map(fuelType => ({ label: fuelType, value: fuelType }))}
-          value={filters.fuelType}
-          onChange={(value) => handleFilterChange('fuelType', value)}
-          placeholder="Select fuel type"
-        />
-      </View>
+        {isVehicleCategory ? (
+          <>
+            <View style={styles.inputGroup}>
+              <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+                Make
+              </Text>
+              <Dropdown
+                data={makeOptions}
+                value={filters.make || null}
+                onChange={(value) => {
+                  handleFilterChange('make', value);
+                  handleFilterChange('model', '');
+                }}
+                placeholder="Select make"
+              />
+            </View>
 
-      {/* Transmission */}
-      <View style={styles.inputGroup}>
-        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Transmission
-        </Text>
-        <SegmentedButtons
-          value={filters.transmission}
-          onValueChange={(value) => handleFilterChange('transmission', value)}
-          buttons={[
-            { value: 'Manual', label: 'Manual' },
-            { value: 'Automatic', label: 'Automatic' },
-          ]}
-          style={styles.segmentedButton}
-        />
-      </View>
+            <View style={styles.inputGroup}>
+              <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+                Model
+              </Text>
+              <Dropdown
+                data={modelOptions}
+                value={filters.model || null}
+                onChange={(value) => handleFilterChange('model', value)}
+                placeholder={
+                  !filters.make
+                    ? 'Select make first'
+                    : loadingModels
+                      ? 'Loading...'
+                      : 'Select model'
+                }
+                disabled={!filters.make || loadingModels}
+                loading={loadingModels}
+              />
+            </View>
 
-      {/* Year Range */}
-      <View style={styles.inputGroup}>
-        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Year Range: {filters.yearRange.min} - {filters.yearRange.max}
-        </Text>
-        <View style={styles.sliderContainer}>
-          <Slider
-            min={currentYear - 50}
-            max={currentYear}
-            low={filters.yearRange.min}
-            high={filters.yearRange.max}
-            step={1}
-            onValueChanged={handleYearChange}
-            renderThumb={() => <View style={[styles.thumb, { backgroundColor: theme.colors.primary }]} />}
-            renderRail={() => <View style={[styles.rail, { backgroundColor: theme.colors.outlineVariant }]} />}
-            renderRailSelected={() => <View style={[styles.railSelected, { backgroundColor: theme.colors.primary }]} />}
-          />
-        </View>
+            <View style={styles.inputGroup}>
+              <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+                Year Range: {filters.yearRange.min} - {filters.yearRange.max}
+              </Text>
+              <View style={styles.sliderContainer}>
+                <Slider
+                  min={DEFAULT_YEAR_RANGE.min}
+                  max={DEFAULT_YEAR_RANGE.max}
+                  low={filters.yearRange.min}
+                  high={filters.yearRange.max}
+                  step={1}
+                  onValueChanged={handleYearChange}
+                  renderThumb={() => <View style={[styles.thumb, { backgroundColor: theme.colors.primary }]} />}
+                  renderRail={() => <View style={[styles.rail, { backgroundColor: theme.colors.outlineVariant }]} />}
+                  renderRailSelected={() => <View style={[styles.railSelected, { backgroundColor: theme.colors.primary }]} />}
+                />
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.inputGroup}>
+              <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+                Brand / Make
+              </Text>
+              <TextInput
+                mode="outlined"
+                value={filters.make}
+                onChangeText={(value) => handleFilterChange('make', value)}
+                placeholder="e.g. Samsung"
+                style={styles.textField}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
+                Model / Variant
+              </Text>
+              <TextInput
+                mode="outlined"
+                value={filters.model}
+                onChangeText={(value) => handleFilterChange('model', value)}
+                placeholder="e.g. Galaxy S21"
+                style={styles.textField}
+              />
+            </View>
+          </>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
+
+  const categoryInputs = renderCategorySpecificInputs();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
@@ -332,7 +412,7 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
         <Animated.View style={[styles.searchInputContainer, { width: searchWidth }]}>
           <TextInput
             mode="outlined"
-            placeholder="Search vehicles..."
+            placeholder="Search listings..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             onFocus={handleSearchFocus}
@@ -360,35 +440,41 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
       </View>
 
       {/* Expandable Filter Section */}
-      <Animated.View style={[styles.expandableContent, { maxHeight }]}>
-        <ScrollView 
-          style={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-        >
-          {renderCommonInputs()}
-          <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
-          {renderVehicleInputs()}
-          
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <Button
-              mode="outlined"
-              onPress={clearFilters}
-              style={styles.clearButton}
-            >
-              Clear All
-            </Button>
-            <Button
-              mode="contained"
-              onPress={applyFilters}
-              style={styles.applyButton}
-            >
-              Apply Filters
-            </Button>
-          </View>
-        </ScrollView>
-      </Animated.View>
+      {isExpanded && (
+        <View style={[styles.expandableContent, { maxHeight: windowHeight * 0.7 }]}>
+          <ScrollView 
+            style={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+          >
+            {renderCommonInputs()}
+            {categoryInputs && (
+              <>
+                <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+                {categoryInputs}
+              </>
+            )}
+            
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <Button
+                mode="outlined"
+                onPress={clearFilters}
+                style={styles.clearButton}
+              >
+                Clear All
+              </Button>
+              <Button
+                mode="contained"
+                onPress={applyFilters}
+                style={styles.applyButton}
+              >
+                Apply Filters
+              </Button>
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
@@ -482,5 +568,8 @@ const styles = StyleSheet.create({
   railSelected: {
     height: 6,
     borderRadius: 3,
+  },
+  textField: {
+    backgroundColor: 'transparent',
   },
 }); 

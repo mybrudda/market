@@ -32,8 +32,7 @@ export const CATEGORIES: Record<CategoryValue, SubcategoryValue[]> = {
   ],
   electronics: [
     'mobile_phones',
-    'laptops',
-    'computers_accessories',
+    'computers',
     'tablets',
     'tvs',
     'cameras',
@@ -73,12 +72,10 @@ export const CATEGORIES: Record<CategoryValue, SubcategoryValue[]> = {
   pets_animals: ['pet_supplies', 'pet_food', 'pet_accessories', 'livestock', 'animals_for_sale'],
   baby_kids: ['baby_clothing', 'baby_gear', 'toys', 'kids_furniture', 'school_supplies'],
   real_estate: [
-    'apartments_rent',
-    'houses_rent',
-    'rooms_rent',
-    'apartments_sale',
-    'houses_sale',
-    'land_sale',
+    'apartments',
+    'houses',
+    'rooms',
+    'land',
     'commercial_property',
   ],
   tools_industrial: ['power_tools', 'hand_tools', 'construction_equipment', 'machinery', 'industrial_supplies'],
@@ -134,12 +131,6 @@ export function normalizeCategoryValue(category?: string | null): CategoryValue 
   if (isValidCategory(category)) return category;
   return LEGACY_CATEGORY_MAP[category] ?? 'vehicles';
 }
-
-export const LISTING_TYPES = [
-  { label: 'Sale', value: 'sale' },
-  { label: 'Rent', value: 'rent' },
-  { label: 'Other', value: 'other' }
-];
 
 export const MAKES: string[] = [
   "Acura",
@@ -197,57 +188,7 @@ export const MAKES: string[] = [
   "Other"
 ];
 
-export const VEHICLE_CONDITION: string[] = [
-  "New",
-  "Like New",
-  "Excellent",
-  "Good",
-  "Fair",
-  "Poor"
-];
 
-export const VEHICLE_FUEL_TYPES: string[] = [
-  "Gasoline",
-  "Diesel",
-  "Electric",
-  "Hybrid",
-  "Plug-in Hybrid",
-  "Hydrogen",
-  "Other"
-];
-
-export const VEHICLE_TRANSMISSION: string[] = [
-  "Automatic",
-  "Manual",
-  "CVT",
-  "Semi-Automatic"
-];
-
-export const VEHICLE_MILEAGE_UNITS: string[] = [
-  "km",
-  "miles"
-];
-
-export const VEHICLE_FEATURES = [
-  "Air Conditioning",
-  "Power Windows",
-  "Power Locks",
-  "Power Steering",
-  "ABS",
-  "Airbags",
-  "Bluetooth",
-  "Navigation",
-  "Backup Camera",
-  "Cruise Control",
-  "Heated Seats",
-  "Leather Seats",
-  "Sunroof",
-  "Alloy Wheels",
-  "Fog Lights",
-  "Tinted Windows",
-  "Alarm System",
-  "Spare Tire",
-];
 
 // Common options:
 export const YEARS: string[] = Array.from({ length: 50 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -291,23 +232,3 @@ export const CITIES: string[] = [
   "Other"
 ];
 
-export const CURRENCIES: string[] = [
-  "USD",
-  "EUR",
-  "GBP",
-  "AFN",
-  "PKR",
-  "IRR",
-  "Other"
-];
-
-export const COUNTRIES: string[] = [
-  "Afghanistan",
-  "Pakistan",
-  "Iran",
-  "Tajikistan",
-  "Uzbekistan",
-  "Turkmenistan",
-  "China",
-  "Other"
-];

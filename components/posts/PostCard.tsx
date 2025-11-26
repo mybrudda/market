@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Alert } from 'react-native';
-import { Card, Text, Chip, useTheme, Menu, IconButton, Button } from 'react-native-paper';
+import { Card, Text, useTheme, Menu, IconButton, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { format } from 'date-fns';
@@ -99,21 +99,13 @@ export default function PostCard({ post, showMenu = false, onDelete, onUpdate, o
                   <Text style={{ color: theme.colors.onSurfaceVariant }}>Image unavailable</Text>
                 </View>
               )}
-              <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+              <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
                 <Text 
                   numberOfLines={1}
                   style={{ color: "white", fontWeight: 'bold', fontSize: 14 }}
                 >
                   {formatPrice(post.price, post.currency)}
                 </Text>
-                <Chip 
-                  mode="flat" 
-                  style={{ backgroundColor: theme.colors.primaryContainer }}
-                  textStyle={{ color: theme.colors.primary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1 }}
-                  compact
-                >
-                  {post.listing_type === 'rent' ? 'Rent' : 'Sale'}
-                </Chip>
               </View>
               
               {/* Top-right Icon: Save or Menu, same position and style */}
@@ -224,7 +216,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,

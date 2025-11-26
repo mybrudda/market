@@ -44,8 +44,8 @@ export const VALIDATION_LIMITS = {
 } as const;
 
 export const DEFAULT_FORM_VALUES = {
-  CURRENCY: 'USD',
-  COUNTRY: 'US',
+  CURRENCY: 'AFN',
+  COUNTRY: 'Afghanistan',
   LISTING_TYPE: 'sale' as const,
   POST_EXPIRY_DAYS: 30,
   IMAGE_QUALITY: 1,
