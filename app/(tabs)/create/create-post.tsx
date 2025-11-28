@@ -94,7 +94,7 @@ export default function CreatePostScreen() {
     postType: 'post',
     transformForm: transformPostForm,
     validateForm: validatePostForm,
-    successMessage: 'Post created successfully!'
+    successMessage: 'Post submitted! We will review it soon before publishing.'
   });
 
   const {

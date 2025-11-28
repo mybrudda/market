@@ -206,7 +206,7 @@ export function usePostForm<T extends BaseFormData>({
         },
         image_ids: uploadedUrls,
         details: transformForm(formState),
-        status: 'active',
+        status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + DEFAULT_FORM_VALUES.POST_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
