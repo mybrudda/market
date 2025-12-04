@@ -3,6 +3,8 @@ import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Text, Button, useTheme, TextInput, Divider, SegmentedButtons } from 'react-native-paper';
 import Slider from 'rn-range-slider';
 import Dropdown from '../ui/Dropdown';
+import CategorySelector from '../forms/CategorySelector';
+import SubcategorySelector from '../forms/SubcategorySelector';
 import { useVehicleModels } from '../../lib/hooks/useVehicleModels';
 import {
   CITIES,
@@ -251,27 +253,18 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
 
       {/* Category */}
       <View style={styles.inputGroup}>
-        <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-          Category
-        </Text>
-        <Dropdown
-          data={categoryOptions}
-          value={filters.category}
-          onChange={handleCategoryChange}
-          placeholder="Select category"
+        <CategorySelector
+          selectedCategory={(filters.category || '') as CategoryValue | ''}
+          onSelectCategory={(category) => handleCategoryChange(category)}
         />
       </View>
 
       {filters.category && (
         <View style={styles.inputGroup}>
-          <Text variant="bodySmall" style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>
-            Subcategory
-          </Text>
-          <Dropdown
-            data={subcategoryOptions}
-            value={filters.subcategory}
-            onChange={handleSubcategoryChange}
-            placeholder="Select subcategory"
+          <SubcategorySelector
+            category={filters.category}
+            selectedSubcategory={filters.subcategory || ''}
+            onSelectSubcategory={(subcategory) => handleSubcategoryChange(subcategory)}
           />
         </View>
       )}

@@ -62,7 +62,7 @@ const getSubcategoryIcon = (category: CategoryValue, subcategory: string): strin
       bicycles_gear: 'bicycle',
       camping_gear: 'tent',
       sports_apparel: 'tshirt-crew',
-      outdoor_equipment: 'backpack',
+      outdoor_equipment: 'compass',
       fishing_gear: 'fish',
     },
     pets_animals: {
