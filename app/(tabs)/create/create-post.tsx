@@ -186,77 +186,74 @@ export default function CreatePostScreen() {
   }
 
   const renderCategoryFields = () => (
-    <Card style={formStyles.card}>
-      <Card.Content style={formStyles.formContainer}>
-        <CategorySelector
-          selectedCategory={(formState.category || '') as CategoryValue | ''}
-          onSelectCategory={(category) =>
-            handleFormInputChange('category', normalizeCategoryValue(category))
-          }
-          error={errors.category}
-        />
+    <View>
+      <CategorySelector
+        selectedCategory={(formState.category || '') as CategoryValue | ''}
+        onSelectCategory={(category) =>
+          handleFormInputChange('category', normalizeCategoryValue(category))
+        }
+        error={errors.category}
+      />
 
-        <SubcategorySelector
-          category={(formState.category || '') as CategoryValue | ''}
-          selectedSubcategory={formState.subcategory}
-          onSelectSubcategory={(subcategory) => handleFormInputChange('subcategory', subcategory)}
-          error={errors.subcategory}
-        />
+      <SubcategorySelector
+        category={(formState.category || '') as CategoryValue | ''}
+        selectedSubcategory={formState.subcategory}
+        onSelectSubcategory={(subcategory) => handleFormInputChange('subcategory', subcategory)}
+        error={errors.subcategory}
+      />
 
-        {isVehicleCategory ? (
-          <>
-            <DropdownComponent
-              data={MAKES.map(make => ({ label: make, value: make }))}
-              value={formState.make}
-              onChange={(value: string | null) => handleFormInputChange('make', value || '')}
-              placeholder="Make"
-              error={errors.make}
-            />
+      {isVehicleCategory ? (
+        <>
+          <DropdownComponent
+            data={MAKES.map(make => ({ label: make, value: make }))}
+            value={formState.make}
+            onChange={(value: string | null) => handleFormInputChange('make', value || '')}
+            placeholder="Make"
+            error={errors.make}
+          />
 
-            <DropdownComponent
-              data={models.map(model => ({ label: model.name, value: model.name }))}
-              value={formState.model}
-              onChange={(value: string | null) => handleFormInputChange('model', value || '')}
-              placeholder={
-                !formState.make
-                  ? "Select make first"
-                  : loadingModels
-                    ? "Loading models..."
-                    : "Model"
-              }
-              error={errors.model}
-              disabled={!formState.make || loadingModels}
-            />
-          </>
-        ) : (
-          <>
-            <TextInput
-              label="Make / Brand"
-              value={formState.make}
-              onChangeText={(text) => handleFormInputChange('make', text)}
-              error={!!errors.make}
-              style={formStyles.input}
-            />
-            <TextInput
-              label="Model / Variant"
-              value={formState.model}
-              onChangeText={(text) => handleFormInputChange('model', text)}
-              error={!!errors.model}
-              style={formStyles.input}
-            />
-          </>
-        )}
+          <DropdownComponent
+            data={models.map(model => ({ label: model.name, value: model.name }))}
+            value={formState.model}
+            onChange={(value: string | null) => handleFormInputChange('model', value || '')}
+            placeholder={
+              !formState.make
+                ? "Select make first"
+                : loadingModels
+                  ? "Loading models..."
+                  : "Model"
+            }
+            error={errors.model}
+            disabled={!formState.make || loadingModels}
+          />
+        </>
+      ) : (
+        <>
+          <TextInput
+            label="Make / Brand"
+            value={formState.make}
+            onChangeText={(text) => handleFormInputChange('make', text)}
+            error={!!errors.make}
+            style={formStyles.input}
+          />
+          <TextInput
+            label="Model / Variant"
+            value={formState.model}
+            onChangeText={(text) => handleFormInputChange('model', text)}
+            error={!!errors.model}
+            style={formStyles.input}
+          />
+        </>
+      )}
 
-        <DropdownComponent
-          data={yearOptions}
-          value={formState.year}
-          onChange={(value: string | null) => handleFormInputChange('year', value || '')}
-          placeholder="Year (optional)"
-          error={errors.year}
-        />
-
-      </Card.Content>
-    </Card>
+      <DropdownComponent
+        data={yearOptions}
+        value={formState.year}
+        onChange={(value: string | null) => handleFormInputChange('year', value || '')}
+        placeholder="Year (optional)"
+        error={errors.year}
+      />
+    </View>
   );
 
   return (
