@@ -6,6 +6,8 @@ import RequireAuth from '../../../components/auth/RequireAuth';
 import DropdownComponent from '../../../components/ui/Dropdown';
 import Header from '../../../components/layout/Header';
 import BasePostForm from '../../../components/forms/BasePostForm';
+import CategorySelector from '../../../components/forms/CategorySelector';
+import SubcategorySelector from '../../../components/forms/SubcategorySelector';
 import { PostFormData, transformPostForm, validatePostForm, VALIDATION_LIMITS, DEFAULT_FORM_VALUES } from '../../../types/forms';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { usePostForm } from '../../../lib/hooks/usePostForm';
@@ -18,8 +20,7 @@ import {
   MAKES,
   YEARS,
   normalizeCategoryValue,
-  getSubcategories,
-  formatCategoryLabel,
+  CategoryValue,
 } from '../../../constants/FormOptions';
 
 const initialState: PostFormData = {
@@ -172,10 +173,6 @@ export default function CreatePostScreen() {
 
   const isVehicleCategory = formState.category === 'vehicles';
   const pageTitle = isUpdateMode ? "Update Post" : "Create Post";
-  const subcategoryOptions = useMemo(
-    () => getSubcategories(formState.category).map(value => ({ label: formatCategoryLabel(value), value })),
-    [formState.category]
-  );
   const yearOptions = useMemo(
     () => [
       { label: 'Not Specified', value: '' },
@@ -191,23 +188,18 @@ export default function CreatePostScreen() {
   const renderCategoryFields = () => (
     <Card style={formStyles.card}>
       <Card.Content style={formStyles.formContainer}>
-        <Text variant="titleMedium" style={formStyles.sectionTitle}>Category & Item Details</Text>
-
-        <DropdownComponent
-          data={CATEGORY_OPTIONS}
-          value={formState.category}
-          onChange={(value: string | null) =>
-            handleFormInputChange('category', normalizeCategoryValue(value || undefined))
+        <CategorySelector
+          selectedCategory={(formState.category || '') as CategoryValue | ''}
+          onSelectCategory={(category) =>
+            handleFormInputChange('category', normalizeCategoryValue(category))
           }
-          placeholder="Select category"
           error={errors.category}
         />
 
-        <DropdownComponent
-          data={subcategoryOptions}
-          value={formState.subcategory}
-          onChange={(value: string | null) => handleFormInputChange('subcategory', value || '')}
-          placeholder={isVehicleCategory ? 'Vehicle Subcategory' : 'Item Subcategory'}
+        <SubcategorySelector
+          category={(formState.category || '') as CategoryValue | ''}
+          selectedSubcategory={formState.subcategory}
+          onSelectSubcategory={(subcategory) => handleFormInputChange('subcategory', subcategory)}
           error={errors.subcategory}
         />
 
