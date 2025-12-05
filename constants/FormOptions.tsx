@@ -193,6 +193,8 @@ export const MAKES: string[] = [
 // Common options:
 export const YEARS: string[] = Array.from({ length: 50 }, (_, i) => (new Date().getFullYear() - i).toString());
 
+// Legacy export - use getCitiesForCountry from CountryData instead
+// This is kept for backward compatibility but should be migrated
 export const CITIES: string[] = [
   "Kabul",
   "Kandahar",

@@ -8,6 +8,8 @@ import PostCard from '../../../components/posts/PostCard';
 import FilterSection, { FilterOptions, DEFAULT_YEAR_RANGE } from '../../../components/posts/FilterSection';
 import { Post } from '../../../types/database';
 import { getCloudinaryUrl } from '../../../lib/cloudinary';
+import { useCountryStore } from '../../../store/useCountryStore';
+import { COUNTRY_DATA } from '../../../constants/CountryData';
 
 // Constants
 const POSTS_PER_PAGE = 10;
@@ -26,6 +28,9 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null);
 
+  const country = useCountryStore((state) => state.country);
+  const countryName = country ? COUNTRY_DATA[country].name : null;
+
   // Fetch initial posts without filters
   const fetchInitialPosts = useCallback(async (start = 0, shouldAccumulate = false) => {
     try {
@@ -34,7 +39,7 @@ export default function Home() {
         setLoading(true);
       }
 
-      const query = supabase
+      let query = supabase
         .from('posts')
         .select(`
           *,
@@ -48,7 +53,14 @@ export default function Home() {
             is_verified
           )
         `, { count: 'exact' })
-        .eq('status', 'active')
+        .eq('status', 'active');
+
+      // Filter by country if selected
+      if (countryName) {
+        query = query.eq('location->>country', countryName);
+      }
+
+      query = query
         .order('created_at', { ascending: false })
         .range(start, start + POSTS_PER_PAGE - 1);
 
@@ -70,7 +82,8 @@ export default function Home() {
           totalPosts: total,
           fetchedPosts: data?.length,
           start,
-          shouldAccumulate
+          shouldAccumulate,
+          countryFilter: countryName
         });
       }
     } catch (err) {
@@ -79,7 +92,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [countryName]);
 
   // Fetch posts with filters
   const fetchFilteredPosts = useCallback(async (start = 0, filters: FilterOptions, shouldAccumulate = false) => {
@@ -178,7 +191,7 @@ export default function Home() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [countryName]);
 
   // Handle search
   const handleSearch = useCallback((searchText: string) => {
@@ -188,12 +201,14 @@ export default function Home() {
     setPage(0);
     setHasMore(true);
     
+    const currentCountryName = countryName; // Capture current country value
+    
     const searchPosts = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const { data, error: supabaseError, count } = await supabase
+        let searchQuery = supabase
           .from('posts')
           .select(`
             *,
@@ -208,7 +223,14 @@ export default function Home() {
             )
           `, { count: 'exact' })
           .eq('status', 'active')
-          .ilike('title', `%${searchText}%`)
+          .ilike('title', `%${searchText}%`);
+
+        // Filter by country if selected
+        if (currentCountryName) {
+          searchQuery = searchQuery.eq('location->>country', currentCountryName);
+        }
+
+        const { data, error: supabaseError, count } = await searchQuery
           .order('created_at', { ascending: false })
           .range(0, POSTS_PER_PAGE - 1);
 
@@ -227,9 +249,9 @@ export default function Home() {
         setLoading(false);
       }
     };
-
+    
     searchPosts();
-  }, []);
+  }, [countryName]);
 
   // Handle filter changes
   const handleFilter = useCallback(async (filters: FilterOptions) => {
@@ -259,6 +281,11 @@ export default function Home() {
           )
         `, { count: 'exact' })
           .eq('status', 'active');
+
+        // Filter by country if selected
+        if (countryName) {
+          query = query.eq('location->>country', countryName);
+        }
 
         // Apply filters
         if (filters.listingType) {
@@ -326,7 +353,7 @@ export default function Home() {
     };
 
     fetchFilteredPosts();
-  }, []);
+  }, [countryName]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -354,7 +381,19 @@ export default function Home() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [fetchInitialPosts]);
+
+  // Reload posts when country changes
+  useEffect(() => {
+    if (countryName) {
+      // Reset state and reload posts when country changes
+      setPage(0);
+      setHasMore(true);
+      setActiveFilters(null);
+      setSearchQuery('');
+      fetchInitialPosts(0, false);
+    }
+  }, [countryName, fetchInitialPosts]);
 
   // Pull to refresh
   const handleRefresh = useCallback(() => {

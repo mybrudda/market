@@ -7,13 +7,14 @@ import CategorySelector from '../forms/CategorySelector';
 import SubcategorySelector from '../forms/SubcategorySelector';
 import { useVehicleModels } from '../../lib/hooks/useVehicleModels';
 import {
-  CITIES,
   CATEGORY_OPTIONS,
   MAKES,
   getSubcategories,
   formatCategoryLabel,
   CategoryValue,
 } from '../../constants/FormOptions';
+import { getCitiesForCountry } from '../../constants/CountryData';
+import { useCountryStore } from '../../store/useCountryStore';
 
 export interface FilterOptions {
   listingType: 'sale' | 'rent' | 'other' | null;
@@ -69,6 +70,8 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchWidthAnimation = useRef(new Animated.Value(0)).current;
   const { height: windowHeight } = Dimensions.get('window');
+  const country = useCountryStore((state) => state.country);
+  const cities = getCitiesForCountry(country);
 
   const isVehicleCategory = filters.category === 'vehicles';
   const { models, loadingModels } = useVehicleModels(isVehicleCategory ? filters.make : '');
@@ -79,8 +82,8 @@ export default function FilterSection({ onSearch, onFilter, onLogoPress }: Filte
   );
 
   const cityOptions = useMemo(
-    () => [{ label: 'All Cities', value: '' }, ...CITIES.map(city => ({ label: city, value: city }))],
-    []
+    () => [{ label: 'All Cities', value: '' }, ...cities.map(city => ({ label: city, value: city }))],
+    [cities]
   );
 
   const subcategoryOptions = useMemo(() => {

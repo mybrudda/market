@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, Pressable, TouchableOpacity } from "react-native";
-import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator, Portal } from "react-native-paper";
+import { useTheme, Text, IconButton, Button, Divider, ActivityIndicator, Portal, Modal } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { useThemeStore } from "../../../store/useThemeStore";
+import { useCountryStore } from "../../../store/useCountryStore";
+import { COUNTRY_DATA, Country } from "../../../constants/CountryData";
 import LoadingScreen from "../../../components/ui/LoadingScreen";
 import { supabase } from "../../../supabaseClient";
 import LoginRequiredModal from "../../../components/auth/LoginRequiredModal";
@@ -31,11 +33,13 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const { user, session, signOut } = useAuthStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
+  const { country, setCountry } = useCountryStore();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showCountryModal, setShowCountryModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -292,6 +296,27 @@ export default function ProfileScreen() {
                 <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
               </View>
             </TouchableOpacity>
+            <Divider />
+            <TouchableOpacity
+              onPress={() => setShowCountryModal(true)}
+              style={styles.navigationButton}
+              activeOpacity={0.7}
+            >
+              <View style={styles.buttonInner}>
+                <View style={styles.buttonLeftContent}>
+                  <MaterialCommunityIcons name="earth" size={20} color={theme.colors.primary} />
+                  <View style={styles.countryInfoContainer}>
+                    <Text variant="bodyMedium" style={styles.buttonText}>Location / Country</Text>
+                    {country && (
+                      <Text variant="bodySmall" style={[styles.countrySubtext, { color: theme.colors.onSurfaceVariant }]}>
+                        {COUNTRY_DATA[country].name}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -344,6 +369,167 @@ export default function ProfileScreen() {
           customTitle="Login Required"
           customMessage="You need to be logged in to view profile"
         />
+        
+        {/* Country Selection Modal */}
+        <Modal
+          visible={showCountryModal}
+          onDismiss={() => setShowCountryModal(false)}
+          contentContainerStyle={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
+        >
+          <View style={styles.modalHeader}>
+            <Text variant="headlineSmall" style={[styles.modalTitle, { color: theme.colors.onSurface }]}>
+              Select Your Country
+            </Text>
+            <IconButton
+              icon="close"
+              size={24}
+              onPress={() => setShowCountryModal(false)}
+            />
+          </View>
+              
+              <Text variant="bodyMedium" style={[styles.modalDescription, { color: theme.colors.onSurfaceVariant }]}>
+                Changing your country will update the listings you see and the available cities.
+              </Text>
+
+              <View style={styles.countryOptionsContainer}>
+                <TouchableOpacity
+                  onPress={async () => {
+                    await setCountry('afghanistan');
+                    setShowCountryModal(false);
+                    // Optionally refresh posts or show a success message
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.countryOption,
+                      {
+                        backgroundColor: country === 'afghanistan'
+                          ? theme.colors.primaryContainer
+                          : theme.colors.surfaceVariant,
+                        borderColor: country === 'afghanistan'
+                          ? theme.colors.primary
+                          : theme.colors.outline,
+                        borderWidth: country === 'afghanistan' ? 2 : 1,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="flag"
+                      size={32}
+                      color={country === 'afghanistan' ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                    />
+                    <View style={styles.countryOptionText}>
+                      <Text
+                        variant="titleMedium"
+                        style={[
+                          styles.countryOptionName,
+                          {
+                            color: country === 'afghanistan'
+                              ? theme.colors.onPrimaryContainer
+                              : theme.colors.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        Afghanistan
+                      </Text>
+                      <Text
+                        variant="bodySmall"
+                        style={[
+                          styles.countryOptionCurrency,
+                          {
+                            color: country === 'afghanistan'
+                              ? theme.colors.onPrimaryContainer
+                              : theme.colors.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        Currency: {COUNTRY_DATA.afghanistan.currency}
+                      </Text>
+                    </View>
+                    {country === 'afghanistan' && (
+                      <MaterialCommunityIcons
+                        name="check-circle"
+                        size={24}
+                        color={theme.colors.primary}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={async () => {
+                    await setCountry('pakistan');
+                    setShowCountryModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.countryOption,
+                      {
+                        backgroundColor: country === 'pakistan'
+                          ? theme.colors.primaryContainer
+                          : theme.colors.surfaceVariant,
+                        borderColor: country === 'pakistan'
+                          ? theme.colors.primary
+                          : theme.colors.outline,
+                        borderWidth: country === 'pakistan' ? 2 : 1,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="flag"
+                      size={32}
+                      color={country === 'pakistan' ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                    />
+                    <View style={styles.countryOptionText}>
+                      <Text
+                        variant="titleMedium"
+                        style={[
+                          styles.countryOptionName,
+                          {
+                            color: country === 'pakistan'
+                              ? theme.colors.onPrimaryContainer
+                              : theme.colors.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        Pakistan
+                      </Text>
+                      <Text
+                        variant="bodySmall"
+                        style={[
+                          styles.countryOptionCurrency,
+                          {
+                            color: country === 'pakistan'
+                              ? theme.colors.onPrimaryContainer
+                              : theme.colors.onSurfaceVariant,
+                          },
+                        ]}
+                      >
+                        Currency: {COUNTRY_DATA.pakistan.currency}
+                      </Text>
+                    </View>
+                    {country === 'pakistan' && (
+                      <MaterialCommunityIcons
+                        name="check-circle"
+                        size={24}
+                        color={theme.colors.primary}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+          <Button
+            mode="contained"
+            onPress={() => setShowCountryModal(false)}
+            style={styles.modalCloseButton}
+          >
+            Done
+          </Button>
+        </Modal>
       </Portal>
     </>
   );
@@ -454,5 +640,55 @@ const styles = StyleSheet.create({
   emptyStateText: {
     textAlign: 'center',
     marginBottom: 24,
+  },
+  countryInfoContainer: {
+    flex: 1,
+  },
+  countrySubtext: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+  modalContent: {
+    margin: 20,
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontWeight: '600',
+    flex: 1,
+  },
+  modalDescription: {
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  countryOptionsContainer: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  countryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 16,
+  },
+  countryOptionText: {
+    flex: 1,
+  },
+  countryOptionName: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  countryOptionCurrency: {
+    opacity: 0.8,
+  },
+  modalCloseButton: {
+    marginTop: 8,
   },
 });

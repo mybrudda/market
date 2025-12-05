@@ -2,7 +2,8 @@ import { StyleSheet, View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import React from 'react';
 import DropdownComponent from '../ui/Dropdown';
-import { CITIES } from '../../constants/FormOptions';
+import { getCitiesForCountry } from '../../constants/CountryData';
+import { useCountryStore } from '../../store/useCountryStore';
 
 interface LocationSectionProps {
   location: {
@@ -19,12 +20,15 @@ export default function LocationSection({
   errors,
   onLocationChange,
 }: LocationSectionProps) {
+  const country = useCountryStore((state) => state.country);
+  const cities = getCitiesForCountry(country);
+
   return (
     <View style={styles.container}>
       <Text variant="titleMedium" style={styles.sectionTitle}>Location</Text>
       
       <DropdownComponent
-        data={CITIES.map(city => ({ label: city, value: city }))}
+        data={cities.map(city => ({ label: city, value: city }))}
         value={location.city}
         onChange={(value: string | null) => onLocationChange('city', value || '')}
         placeholder="City"

@@ -9,6 +9,8 @@ import BasePostForm from '../../../components/forms/BasePostForm';
 import CategorySelector from '../../../components/forms/CategorySelector';
 import SubcategorySelector from '../../../components/forms/SubcategorySelector';
 import { PostFormData, transformPostForm, validatePostForm, VALIDATION_LIMITS, DEFAULT_FORM_VALUES } from '../../../types/forms';
+import { useCountryStore } from '../../../store/useCountryStore';
+import { getCurrencyForCountry, COUNTRY_DATA } from '../../../constants/CountryData';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import { usePostForm } from '../../../lib/hooks/usePostForm';
 import { usePostUpdate } from '../../../lib/hooks/usePostUpdate';
@@ -45,10 +47,37 @@ const initialState: PostFormData = {
 export default function CreatePostScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams();
-  const [formState, setFormState] = useState<PostFormData>(initialState);
+  const country = useCountryStore((state) => state.country);
+  const currency = getCurrencyForCountry(country);
+  const countryName = country ? COUNTRY_DATA[country].name : DEFAULT_FORM_VALUES.COUNTRY;
+  
+  const [formState, setFormState] = useState<PostFormData>({
+    ...initialState,
+    currency,
+    location: {
+      ...initialState.location,
+      country: countryName,
+    },
+  });
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [postToUpdate, setPostToUpdate] = useState<Post | null>(null);
   const { models, loadingModels } = useVehicleModels(formState.category === 'vehicles' ? formState.make : '');
+
+  // Update currency and country when country changes
+  useEffect(() => {
+    if (country && !isUpdateMode) {
+      const newCurrency = getCurrencyForCountry(country);
+      const newCountryName = COUNTRY_DATA[country].name;
+      setFormState(prev => ({
+        ...prev,
+        currency: newCurrency,
+        location: {
+          ...prev.location,
+          country: newCountryName,
+        },
+      }));
+    }
+  }, [country, isUpdateMode]);
 
   // Check if we're in update mode
   useEffect(() => {

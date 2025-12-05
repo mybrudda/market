@@ -15,6 +15,7 @@ import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultThem
 import { pushNotificationService } from '../lib/pushNotificationService';
 import { useAuthStore } from '../store/useAuthStore';
 import { useUnreadMessagesStore } from '../store/useUnreadMessagesStore';
+import { useCountryStore } from '../store/useCountryStore';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -60,6 +61,12 @@ function RootLayoutNav() {
   const isAuthLoading = useAuthStore((state) => state.loading);
   const isAuthInitialized = useAuthStore((state) => state.initialized);
   const { fetchUnreadCounts } = useUnreadMessagesStore();
+  const { loadCountry } = useCountryStore();
+
+  // Load country on app start
+  useEffect(() => {
+    loadCountry();
+  }, [loadCountry]);
 
   // Sync theme with system preference on first launch
   useEffect(() => {
@@ -145,6 +152,7 @@ function RootLayoutNav() {
                 }}
               >
                 <Stack.Screen name="index" />
+                <Stack.Screen name="(onboarding)" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               </Stack>
