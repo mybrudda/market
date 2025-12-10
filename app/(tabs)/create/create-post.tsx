@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import React, { useState, useEffect, useMemo } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
@@ -162,7 +162,24 @@ export default function CreatePostScreen() {
 
 
   const handleImagePick = () => {
-    handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })));
+    Alert.alert(
+      'Select Image',
+      'Choose an option',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: () => handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })), 'gallery'),
+        },
+        {
+          text: 'Take Picture',
+          onPress: () => handlePickImage(formState.images, (images) => setFormState(prev => ({ ...prev, images })), 'camera'),
+        },
+      ]
+    );
   };
 
   const handleImageRemove = (index: number) => {

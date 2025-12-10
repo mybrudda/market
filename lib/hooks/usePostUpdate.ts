@@ -120,7 +120,8 @@ export function usePostUpdate<T extends BaseFormData>({
 
   const handlePickImage = async (
     images: string[],
-    setImages: (images: string[]) => void
+    setImages: (images: string[]) => void,
+    source: 'gallery' | 'camera' = 'gallery'
   ) => {
     if (images.length >= VALIDATION_LIMITS.IMAGES_PER_POST) {
       Alert.alert('Limit Reached', ERROR_MESSAGES.IMAGE_LIMIT_REACHED(VALIDATION_LIMITS.IMAGES_PER_POST));
@@ -128,13 +129,37 @@ export function usePostUpdate<T extends BaseFormData>({
     }
 
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [...DEFAULT_FORM_VALUES.IMAGE_ASPECT],
-        quality: DEFAULT_FORM_VALUES.IMAGE_QUALITY,
-        base64: true,
-      });
+      // Request permissions for camera if needed
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Camera permission is required to take pictures.');
+          return;
+        }
+      } else {
+        // Request permissions for media library if needed
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Media library permission is required to select images.');
+          return;
+        }
+      }
+
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: "images",
+            allowsEditing: true,
+            aspect: [...DEFAULT_FORM_VALUES.IMAGE_ASPECT],
+            quality: DEFAULT_FORM_VALUES.IMAGE_QUALITY,
+            base64: true,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: "images",
+            allowsEditing: true,
+            aspect: [...DEFAULT_FORM_VALUES.IMAGE_ASPECT],
+            quality: DEFAULT_FORM_VALUES.IMAGE_QUALITY,
+            base64: true,
+          });
 
       if (!result.canceled && result.assets?.[0] && result.assets[0].base64) {
         const resizedBase64 = await resizeImage(result.assets[0].base64 as string);

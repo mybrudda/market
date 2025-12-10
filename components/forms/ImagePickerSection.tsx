@@ -1,5 +1,6 @@
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Text, IconButton, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { Image } from 'expo-image';
 import { VALIDATION_LIMITS } from '../../types/forms';
@@ -41,7 +42,14 @@ export default function ImagePickerSection({
               ]} 
               onPress={onPickImage}
             >
-              <Text>Add Image</Text>
+              <MaterialCommunityIcons 
+                name="camera-plus" 
+                size={32} 
+                color={theme.colors.primary}
+              />
+              <Text style={[styles.addButtonText, { color: theme.colors.onSurfaceVariant }]}>
+                Add Image
+              </Text>
             </TouchableOpacity>
           )}
           
@@ -131,5 +139,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 4,
+  },
+  addButtonText: {
+    fontSize: 12,
+    marginTop: 4,
   },
 }); 
