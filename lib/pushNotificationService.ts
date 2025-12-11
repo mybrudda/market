@@ -227,7 +227,8 @@ export class PushNotificationService {
       const { data: shouldSend, error: checkError } = await supabase.rpc('should_send_notification', {
         p_recipient_id: recipientUserId,
         p_sender_id: data.senderId || 'system',
-        p_notification_type: data.type || 'message'
+        p_notification_type: data.type || 'message',
+        p_conversation_id: data.conversationId || null
       });
 
       if (checkError || !shouldSend) {
