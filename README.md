@@ -1,4 +1,4 @@
-# Market App
+# Spinkor App
 
 A modern marketplace application built with React Native that connects buyers and sellers through an intuitive interface with real-time chat capabilities.
 
@@ -77,7 +77,7 @@ This project began as part of a thesis project developed by **Abdul Doranai**. I
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Set up environment variables
-4. Run the app: `npm start`
+4. Run the app: `npx expo start`
 
 ## Environment Variables
 
@@ -98,7 +98,6 @@ For the project to work fully, the following setup is required:
 
 1. **Supabase Database**: 
    - Database schema, triggers, and functions need to be defined as intended
-   - Run the SQL migrations from the `supabase/migrations/` folder
 
 2. **GitHub Repository Secrets**: 
    - All environment variables must be configured in GitHub repository secrets

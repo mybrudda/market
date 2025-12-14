@@ -1,4 +1,4 @@
-import { View, Alert } from 'react-native';
+import { View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import React, { useState, useEffect, useMemo } from 'react';
 import { TextInput, Button, Card, Text, useTheme } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
@@ -18,7 +18,6 @@ import { useVehicleModels } from '../../../lib/hooks/useVehicleModels';
 import { formStyles } from '../../../constants/formStyles';
 import { Post } from '../../../types/database';
 import {
-  CATEGORY_OPTIONS,
   MAKES,
   YEARS,
   normalizeCategoryValue,
@@ -304,28 +303,34 @@ export default function CreatePostScreen() {
 
   return (
     <RequireAuth message="You need to be logged in to create a post.">
-      <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
-        <Header title={pageTitle} />
-        <BasePostForm<PostFormData>
-          title={pageTitle}
-          formState={formState}
-          errors={errors}
-          onInputChange={handleFormInputChange}
-          onLocationChange={handleFormLocationChange}
-          onPickImage={handleImagePick}
-          onRemoveImage={handleImageRemove}
-          maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
-        >
-          {renderCategoryFields()}
-        </BasePostForm>
-        <Button
-          mode="contained"
-          onPress={handleFormSubmit}
-          style={formStyles.submitButton}
-        >
-          {isUpdateMode ? "Update Post" : "Create Post"}
-        </Button>
-      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={[formStyles.container, { backgroundColor: theme.colors.background }]}>
+          <Header title={pageTitle} />
+          <BasePostForm<PostFormData>
+            title={pageTitle}
+            formState={formState}
+            errors={errors}
+            onInputChange={handleFormInputChange}
+            onLocationChange={handleFormLocationChange}
+            onPickImage={handleImagePick}
+            onRemoveImage={handleImageRemove}
+            maxImages={VALIDATION_LIMITS.IMAGES_PER_POST}
+          >
+            {renderCategoryFields()}
+          </BasePostForm>
+          <Button
+            mode="contained"
+            onPress={handleFormSubmit}
+            style={formStyles.submitButton}
+          >
+            {isUpdateMode ? "Update Post" : "Create"}
+          </Button>
+        </View>
+      </KeyboardAvoidingView>
     </RequireAuth>
   );
 }

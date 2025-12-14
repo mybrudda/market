@@ -17,7 +17,9 @@ export const formStyles = StyleSheet.create({
     marginBottom: 4,
   },
   submitButton: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 18,
+    marginTop: 3,
     height: 50,
     justifyContent: 'center',
   },
