@@ -19,6 +19,31 @@ This project began as part of a thesis project developed by **Abdul Doranai**. I
 - **Bot Protection**: reCAPTCHA v2 integration for security
 - **Modern UI with light and dark theme support**
 
+## Screenshots
+
+<div align="center">
+  <img src="assets/images/app-images/a1.jpg" width="16%" />
+  <img src="assets/images/app-images/a2.jpg" width="16%" />
+  <img src="assets/images/app-images/a3.jpg" width="16%" />
+  <img src="assets/images/app-images/a4.jpg" width="16%" />
+  <img src="assets/images/app-images/a5.jpg" width="16%" />
+  <img src="assets/images/app-images/a6.jpg" width="16%" />
+
+  <img src="assets/images/app-images/a7.jpg" width="16%" />
+  <img src="assets/images/app-images/a8.jpg" width="16%" />
+  <img src="assets/images/app-images/a9.jpg" width="16%" />
+  <img src="assets/images/app-images/a10.jpg" width="16%" />
+  <img src="assets/images/app-images/a11.jpg" width="16%" />
+  <img src="assets/images/app-images/a12.jpg" width="16%" />
+
+  <img src="assets/images/app-images/a13.jpg" width="16%" />
+  <img src="assets/images/app-images/a14.jpg" width="16%" />
+  <img src="assets/images/app-images/a15.jpg" width="16%" />
+  <img src="assets/images/app-images/a16.jpg" width="16%" />
+  <img src="assets/images/app-images/a17.jpg" width="16%" />
+  <img src="assets/images/app-images/a18.jpg" width="16%" />
+</div>
+
 ## Tech Stack
 
 ### Frontend
